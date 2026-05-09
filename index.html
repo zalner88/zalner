@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v142</title>
+<title>Zalner ERP v151</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{--nav-bg:#0f1117;--nav-width:220px;--accent:#4f7fff;--accent-light:#e8eeff;--bg:#f7f8fc;--surface:#ffffff;--border:#e5e7f0;--text:#1a1d2e;--text-muted:#6b7280;--text-light:#9ca3af;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,0.08);--shadow-md:0 4px 16px rgba(0,0,0,0.10)}
@@ -192,7 +192,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v142</div>
+    <div class="nav-logo-sub">v151</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -321,7 +321,7 @@ select.form-control{cursor:pointer}
         <span class="pill" onclick="setUgyfelFilter('Potencialis',this)">Potenciális</span>
       </div>
       <div class="table-wrap">
-        <table><thead><tr><th>Cégnév</th><th>Adószám</th><th>Székhely</th><th>Telephely</th><th>Státusz</th><th></th></tr></thead>
+        <table><thead><tr><th>Cégnév</th><th>Adószám</th><th>Székhely</th><th>Telephely</th><th>Fiz. határidő</th><th>Státusz</th><th></th></tr></thead>
         <tbody id="ugyfelTable"><tr><td colspan="6"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
         <div class="pagination" id="ugyfelPagination" style="display:none"><span id="ugyfelPagInfo"></span><div class="page-btns" id="ugyfelPagBtns"></div></div>
       </div>
@@ -450,6 +450,10 @@ select.form-control{cursor:pointer}
                 <option>Készpénz</option>
                 <option>Bankkártya</option>
               </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fizetési határidő (nap)</label>
+              <input class="form-control" type="number" id="fFizetesiHataridoNap" min="0" max="365" value="30">
             </div>
             <div class="form-group">
               <label class="form-label">Ajánlat nyelve</label>
@@ -679,31 +683,11 @@ select.form-control{cursor:pointer}
       <div class="form-section">
         <div class="form-section-header">Dokumentumok</div>
         <div class="form-section-body">
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Árajánlat link</label>
-              <input class="form-control" id="fAjanlatLink" placeholder="https://...">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Szállítólevél link</label>
-              <input class="form-control" id="fSzallitolevelLink" placeholder="https://...">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Rendelés visszaigazolás link</label>
-              <input class="form-control" id="fRendelesLink" placeholder="https://...">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Számla link</label>
-              <input class="form-control" id="fSzamlaLink" placeholder="https://...">
-            </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <span style="font-weight:600;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">További dokumentumok</span>
+            <button type="button" class="btn btn-primary btn-sm" onclick="addDokLink()">+ Új link</button>
           </div>
-          <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <span style="font-weight:600;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">További dokumentumok</span>
-              <button type="button" class="btn btn-primary btn-sm" onclick="addDokLink()">+ Új link</button>
-            </div>
-            <div id="dokLinksBody"></div>
-          </div>
+          <div id="dokLinksBody"></div>
         </div>
       </div>
 
@@ -717,11 +701,7 @@ select.form-control{cursor:pointer}
             </div>
             <div class="form-group">
               <label class="form-label">Szerző</label>
-              <select class="form-control" id="fProjektSzerzo">
-                <option value="Jarfas Kitti">Járfás Kitti</option>
-                <option value="Wagner Szabolcs">Wágner Szabolcs</option>
-                <option value="Zombori Krisztina">Zombori Krisztina</option>
-              </select>
+              <div class="form-control" id="fProjektSzerzo" style="background:#f9fafd;color:var(--text-muted);cursor:default;">—</div>
             </div>
           </div>
         </div>
@@ -1366,6 +1346,8 @@ select.form-control{cursor:pointer}
         </div>
         <div class="form-group full"><label class="form-label">Székhely cím</label><input class="form-control" id="fSzekhely"></div>
         <div class="form-group full"><label class="form-label">Telephely cím</label><input class="form-control" id="fTelephely"></div>
+        <div class="form-group"><label class="form-label">Fizetési határidő (nap)</label><input class="form-control" type="number" id="fUgyfelFizetesiHataridoNap" min="0" max="365" placeholder="30"></div>
+        <div class="form-group"></div>
         <div class="form-group full"><label class="form-label">Megjegyzés</label><textarea class="form-control" id="fMegjegyzes" rows="3"></textarea></div>
       </div>
     </div>
@@ -1564,6 +1546,10 @@ select.form-control{cursor:pointer}
           <input class="form-control" id="fSzlFuvarozo" placeholder="pl. GLS, saját fuvar">
         </div>
         <div class="form-group">
+          <label class="form-label">Fizetési határidő (nap)</label>
+          <input class="form-control" type="number" id="fSzlFizetesiNap" min="0" max="365" value="30">
+        </div>
+        <div class="form-group">
           <label class="form-label">PDF / Dokumentum link</label>
           <input class="form-control" id="fSzlPdf" placeholder="https://...">
         </div>
@@ -1626,6 +1612,7 @@ select.form-control{cursor:pointer}
         <div class="form-group">
           <label class="form-label">Kapcsolódó projekt</label>
           <select class="form-control" id="fVrvProjekt" onchange="onVrvProjektChange()">
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Kiállítás dátuma *</label>
@@ -1634,6 +1621,10 @@ select.form-control{cursor:pointer}
         <div class="form-group">
           <label class="form-label">Érvényesség / Szállítási dátum</label>
           <input class="form-control" type="date" id="fVrvHatarido">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fizetési határidő (nap)</label>
+          <input class="form-control" type="number" id="fVrvFizetesiNap" min="0" max="365" value="30">
         </div>
         <div class="form-group full">
           <label class="form-label">Tételek</label>
@@ -2198,17 +2189,18 @@ function toast(msg, type = '') {
 // ===== MENÜPONT JOGOSULTSÁGOK =====
 
 const NAV_MENU_ITEMS = [
-  { id: 'dashboard',      label: 'Dashboard',        icon: '⊞', alwaysVisible: true },
-  { id: 'ugyfelek',       label: 'Ügyfelek',          icon: '◎' },
-  { id: 'kontaktok',      label: 'Kontaktok',         icon: '☷' },
-  { id: 'ajanlatok',      label: 'Ajánlatok',         icon: '◫' },
-  { id: 'projektek',      label: 'Projektek',         icon: '◈' },
-  { id: 'jutalek',        label: 'Ért. jutalék',      icon: '💰' },
-  { id: 'vrv',            label: 'Visszaigazolások',  icon: '✉' },
-  { id: 'szallitolevelek',label: 'Szállítólevelek',   icon: '◧' },
-  { id: 'bejovo-szamlak', label: 'Bejövő számlák',    icon: '↓' },
-  { id: 'vamkezeles',     label: 'Vámkezelés',        icon: '🛃' },
-  { id: 'beszallitok',    label: 'Beszállítók',        icon: '🏭' },
+  { id: 'dashboard',          label: 'Dashboard',                    icon: '⊞', alwaysVisible: true },
+  { id: 'ugyfelek',           label: 'Ügyfelek',                     icon: '◎' },
+  { id: 'kontaktok',          label: 'Kontaktok',                    icon: '☷' },
+  { id: 'ajanlatok',          label: 'Ajánlatok',                    icon: '◫' },
+  { id: 'projektek',          label: 'Projektek',                    icon: '◈' },
+  { id: 'jutalek',            label: 'Ért. jutalék',                 icon: '💰' },
+  { id: 'vrv',                label: 'Visszaigazolások',             icon: '✉' },
+  { id: 'szallitolevelek',    label: 'Szállítólevelek',              icon: '◧' },
+  { id: 'bejovo-szamlak',     label: 'Bejövő számlák',              icon: '↓' },
+  { id: 'vamkezeles',         label: 'Vámkezelés',                   icon: '🛃' },
+  { id: 'beszallitok',        label: 'Beszállítók',                  icon: '🏭' },
+  { id: 'penzugy_dashboard',  label: 'Pénzügyi kártyák (dashboard)', icon: '💳' },
 ];
 
 // Alapértelmezett: minden menüpont látható
@@ -3025,8 +3017,8 @@ function renderDashActions() {
 
   const cards = [];
 
-  // Lejárt bejövő (mindenkinek)
-  if (lejartBsz.length) {
+  // Lejárt bejövő (csak penzugy_dashboard joggal)
+  if (lejartBsz.length && hasPerm('penzugy_dashboard')) {
     const sub = Object.entries(lejartByDev).map(([d,v]) => `${d==='HUF' ? HUF_FMT(v) : EUR_FMT(v)} ${d}`).join(' · ');
     cards.push({
       cls: 'danger', icon: '🔴', label: 'Lejárt bejövő számla',
@@ -3035,8 +3027,8 @@ function renderDashActions() {
     });
   }
 
-  // Hamarosan lejár
-  if (hamarosanBsz.length) {
+  // Hamarosan lejár (csak penzugy_dashboard joggal)
+  if (hamarosanBsz.length && hasPerm('penzugy_dashboard')) {
     const sub = Object.entries(hamarosanByDev).map(([d,v]) => `${d==='HUF' ? HUF_FMT(v) : EUR_FMT(v)} ${d}`).join(' · ');
     cards.push({
       cls: 'warn', icon: '🟡', label: 'Fizetés 7 napon belül',
@@ -3182,6 +3174,10 @@ function renderDashKpis() {
     ? fvParts.map(s => `<div style="font-size:18px">${s}</div>`).join('')
     : '<span style="color:var(--text-light)">—</span>';
   document.getElementById('kpiKintlevosegSub').textContent = `${fizVar.length} fizetésre váró számla`;
+
+  // Kintlévőség kártya elrejtése ha nincs penzugy_dashboard jog
+  const kintCard = document.getElementById('kpiKintlevoseg').closest('.stat-card');
+  if (kintCard) kintCard.style.display = hasPerm('penzugy_dashboard') ? '' : 'none';
 }
 
 // ===== CHART: HAVI ÁRBEVÉTEL =====
@@ -3425,7 +3421,7 @@ function renderUgyfelek() {
   }
   tbody.innerHTML = items.map(u => {
     const f = u.fields;
-    return `<tr onclick="showUgyfelReszlet('${u.id}')"><td class="td-name">${f.Cegnev || '—'}</td><td class="td-muted" style="font-family:'DM Mono',monospace;font-size:12.5px">${f.Ceg_adoszama || '—'}</td><td class="td-muted">${f.Szekhely_cim || '—'}</td><td class="td-muted">${f.Telephely_cim || '—'}</td><td>${badgeUgyfel(f.Statusz)}</td><td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editUgyfel('${u.id}')">✎</button></td></tr>`;
+    return `<tr onclick="showUgyfelReszlet('${u.id}')"><td class="td-name">${f.Cegnev || '—'}</td><td class="td-muted" style="font-family:'DM Mono',monospace;font-size:12.5px">${f.Ceg_adoszama || '—'}</td><td class="td-muted">${f.Szekhely_cim || '—'}</td><td class="td-muted">${f.Telephely_cim || '—'}</td><td class="td-muted" style="text-align:center;font-family:'DM Mono',monospace">${f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap + ' nap' : '30 nap'}</td><td>${badgeUgyfel(f.Statusz)}</td><td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editUgyfel('${u.id}')">✎</button></td></tr>`;
   }).join('');
   renderPagination('ugyfel', total, ugyfelCurrentPage);
 }
@@ -3443,6 +3439,8 @@ function showUgyfelReszlet(id) {
         <div class="detail-item"><div class="detail-label">Adószám</div><div class="detail-value" style="font-family:'DM Mono',monospace">${f.Ceg_adoszama || '—'}</div></div>
         <div class="detail-item"><div class="detail-label">Székhely cím</div><div class="detail-value">${f.Szekhely_cim || '—'}</div></div>
         <div class="detail-item"><div class="detail-label">Telephely cím</div><div class="detail-value">${f.Telephely_cim || '—'}</div></div>
+        <div class="detail-item"><div class="detail-label">Fizetési határidő</div><div class="detail-value" style="font-family:'DM Mono',monospace">${f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap + ' nap' : '30 nap'}</div></div>
+        <div class="detail-item"><div class="detail-label">Adószám</div><div class="detail-value" style="font-family:'DM Mono',monospace">${f.Ceg_adoszama || '—'}</div></div>
         <div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Megjegyzés</div><div class="detail-value">${f.Megjegyzes || '—'}</div></div>
       </div>
     </div>
@@ -3499,16 +3497,28 @@ async function openUgyfelModal(id = null) {
   editingUgyfelId = id;
   document.getElementById('ugyfelModalTitle').textContent = id ? 'Ügyfél szerkesztése' : 'Új ügyfél';
   if (id) {
-    const f = ugyfelek.find(x => x.id === id).fields;
+    // Mindig friss adatot olvasunk az Airtable-ből
+    let f;
+    try {
+      const fresh = await atGet('Ugyfelek', `filterByFormula=RECORD_ID()%3D%22${id}%22`);
+      f = fresh?.[0]?.fields || ugyfelek.find(x => x.id === id)?.fields || {};
+      // Frissítjük a lokális cache-t is
+      const idx = ugyfelek.findIndex(x => x.id === id);
+      if (idx !== -1 && fresh?.[0]) ugyfelek[idx] = fresh[0];
+    } catch(e) {
+      f = ugyfelek.find(x => x.id === id)?.fields || {};
+    }
     document.getElementById('fCegnev').value = f.Cegnev || '';
     document.getElementById('fAdoszam').value = f.Ceg_adoszama || '';
     document.getElementById('fStatusz').value = f.Statusz || 'Aktiv';
     document.getElementById('fSzekhely').value = f.Szekhely_cim || '';
     document.getElementById('fTelephely').value = f.Telephely_cim || '';
+    document.getElementById('fUgyfelFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
     document.getElementById('fMegjegyzes').value = f.Megjegyzes || '';
   } else {
     ['fCegnev', 'fAdoszam', 'fSzekhely', 'fTelephely', 'fMegjegyzes'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('fStatusz').value = 'Aktiv';
+    document.getElementById('fUgyfelFizetesiHataridoNap').value = 30;
   }
   document.getElementById('ugyfelModal').classList.add('open');
 }
@@ -3527,13 +3537,21 @@ async function saveUgyfel() {
     Statusz: document.getElementById('fStatusz').value,
     Szekhely_cim: document.getElementById('fSzekhely').value.trim(),
     Telephely_cim: document.getElementById('fTelephely').value.trim(),
+    Fizetesi_hatarido_nap: (() => { const v = parseInt(document.getElementById('fUgyfelFizetesiHataridoNap').value); return isNaN(v) ? 30 : v; })(),
     Megjegyzes: document.getElementById('fMegjegyzes').value.trim()
   };
   try {
     if (editingUgyfelId) { await atPatch('Ugyfelek', editingUgyfelId, fields); toast('Ügyfél frissítve!', 'success'); }
     else { await atPost('Ugyfelek', fields); toast('Ügyfél mentve!', 'success'); }
     cacheInvalidate('ugyfelek');
-    lockRelease(); closeUgyfelModal(); await loadUgyfelek();
+    lockRelease(); closeUgyfelModal(); await getUgyfelek(true); filterUgyfelek();
+    document.getElementById('ugyfelCount').textContent = `${ugyfelek.length} ügyfél összesen`;
+    if (editingUgyfelId) {
+      currentUgyfel = ugyfelek.find(u => u.id === editingUgyfelId) || currentUgyfel;
+      if (document.getElementById('page-ugyfel-reszlet').classList.contains('active')) {
+        showUgyfelReszlet(editingUgyfelId);
+      }
+    }
   } catch (e) { toast('Hiba: ' + e.message, 'error'); }
   finally { btn.textContent = 'Mentés'; btn.disabled = false; }
 }
@@ -3786,11 +3804,7 @@ async function ujAjanlatNaplo(ajanlatId) {
       <div class="modal-body">
         <div class="form-group" style="margin-bottom:14px">
           <label class="form-label">Szerző</label>
-          <select class="form-control" id="ajanlatNaploSzerzo">
-            <option value="Jarfas Kitti">Járfás Kitti</option>
-            <option value="Wagner Szabolcs">Wágner Szabolcs</option>
-            <option value="Zombori Krisztina">Zombori Krisztina</option>
-          </select>
+          <div class="form-control" id="ajanlatNaploSzerzo" style="background:#f9fafd;color:var(--text-muted);cursor:default;">${currentUser?.name || '—'}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Megjegyzés *</label>
@@ -3815,7 +3829,7 @@ async function ujAjanlatNaplo(ajanlatId) {
 
 async function saveAjanlatNaplo(ajanlatId, btn) {
   const szoveg = document.getElementById('ajanlatNaploSzoveg').value.trim();
-  const szerzo = document.getElementById('ajanlatNaploSzerzo').value;
+  const szerzo = currentUser?.name || document.getElementById('ajanlatNaploSzerzo').textContent.trim();
   if (!szoveg) { toast('A megjegyzés nem lehet üres!', 'error'); return; }
   const notifySzabi = document.getElementById('notifySzabi')?.checked;
   const notifyKitti = document.getElementById('notifyKitti')?.checked;
@@ -4154,6 +4168,13 @@ function ujAjanlatForm() {
   if (!ugyfelek.length) { toast('Előbb töltsd be az ügyfeleket!', 'error'); return; }
   const sel = document.getElementById('fAjanlatUgyfel');
   sel.innerHTML = '<option value="">— Válassz ügyfelet —</option>' + ugyfelek.map(u => `<option value="${u.id}">${u.fields.Cegnev}</option>`).join('');
+  sel.onchange = function() {
+    const uid = this.value;
+    const uf = ugyfelek.find(u => u.id === uid)?.fields;
+    if (uf) {
+      document.getElementById('fFizetesiHataridoNap').value = uf.Fizetesi_hatarido_nap != null ? uf.Fizetesi_hatarido_nap : 30;
+    }
+  };
   const today = new Date().toISOString().split('T')[0];
   const plus30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   document.getElementById('fKiallitas').value = today;
@@ -4163,6 +4184,7 @@ function ujAjanlatForm() {
   document.getElementById('fAfa').value = '27%';
   document.getElementById('fAjanlatStatusz').value = 'Tervezet';
   document.getElementById('fFizetesiMod').value = 'Átutalás';
+  document.getElementById('fFizetesiHataridoNap').value = 30;
   document.getElementById('fNyelv').value = 'Magyar';
   visszaProjektId = null;
   const vissszaBtn = document.getElementById('vissszaProjektBtn');
@@ -4196,6 +4218,13 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   if (!ugyfelek.length) await getUgyfelek();
   const sel = document.getElementById('fAjanlatUgyfel');
   sel.innerHTML = '<option value="">— Válassz ügyfelet —</option>' + ugyfelek.map(u => `<option value="${u.id}">${u.fields.Cegnev}</option>`).join('');
+  sel.onchange = function() {
+    const uid = this.value;
+    const uf = ugyfelek.find(u => u.id === uid)?.fields;
+    if (uf) {
+      document.getElementById('fFizetesiHataridoNap').value = uf.Fizetesi_hatarido_nap != null ? uf.Fizetesi_hatarido_nap : 30;
+    }
+  };
   sel.value = f.Ugyfel ? f.Ugyfel[0] : '';
   document.getElementById('fKiallitas').value = f.Kiallitas_datum || '';
   document.getElementById('fErvenyesseg').value = f.Ervenyesseg_datum || '';
@@ -4204,6 +4233,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   document.getElementById('fAfa').value = f.Afa || '27%';
   document.getElementById('fAjanlatStatusz').value = f.Statusz || 'Tervezet';
   document.getElementById('fFizetesiMod').value = f.Fizetes_mod || 'Átutalás';
+  document.getElementById('fFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
   document.getElementById('fNyelv').value = f.Nyelv || 'Magyar';
   document.getElementById('fBankszamla').value = f.Bankszamla || 'Wise EUR';
   document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || 'Jarfas Kitti';
@@ -4370,6 +4400,7 @@ async function saveAjanlat() {
     Deviza: document.getElementById('fDeviza').value,
     Statusz: document.getElementById('fAjanlatStatusz').value,
     Fizetes_mod: document.getElementById('fFizetesiMod').value,
+    Fizetesi_hatarido_nap: (() => { const v = parseInt(document.getElementById('fFizetesiHataridoNap').value); return isNaN(v) ? 30 : v; })(),
     Nyelv: document.getElementById('fNyelv').value,
     Bankszamla: document.getElementById('fBankszamla').value,
     Kapcsolattarto: document.getElementById('fKapcsolattarto').value,
@@ -4617,7 +4648,7 @@ async function rendeltProjekt(ajanlatId) {
   // Felelős = ajánlat kapcsolattartójából (ha van), különben a bejelentkezett user
   const ajanlatFelelos = aj.fields.Kapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
   document.getElementById('fProjektFelelos').value = ajanlatFelelos;
-  document.getElementById('fProjektSzerzo').value = ajanlatFelelos;
+  document.getElementById('fProjektSzerzo').textContent = currentUser?.name || '—';
   toast('Töltsd ki a projekt adatait és mentsd el!', '');
 }
 
@@ -5084,6 +5115,7 @@ function openVrvModal(id = null, preselectedProjektId = null, slot = 1) {
     selP.value = f.Projekt?.[0] || '';
     document.getElementById('fVrvKiallitas').value = f.Kiallitas_datum || '';
     document.getElementById('fVrvHatarido').value = f.Hatarido || '';
+    document.getElementById('fVrvFizetesiNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
     document.getElementById('fVrvMegjegyzes').value = f.Megjegyzes || '';
     loadVrvTetelek(f.Tetelek ? JSON.parse(f.Tetelek) : []);
   } else {
@@ -5092,12 +5124,17 @@ function openVrvModal(id = null, preselectedProjektId = null, slot = 1) {
     document.getElementById('fVrvStatusz').value = 'Kiallitva';
     document.getElementById('fVrvKiallitas').value = new Date().toISOString().split('T')[0];
     document.getElementById('fVrvHatarido').value = '';
+    document.getElementById('fVrvFizetesiNap').value = 30;
     document.getElementById('fVrvMegjegyzes').value = '';
     selU.value = '';
     selP.value = preselectedProjektId || '';
     if (preselectedProjektId) {
       const p = projektek.find(x => x.id === preselectedProjektId);
-      if (p?.fields?.Ugyfel) selU.value = p.fields.Ugyfel[0];
+      if (p?.fields?.Ugyfel) {
+        selU.value = p.fields.Ugyfel[0];
+        const ugyfelAdat = ugyfelek.find(u => u.id === p.fields.Ugyfel[0])?.fields;
+        if (ugyfelAdat?.Fizetesi_hatarido_nap != null) document.getElementById('fVrvFizetesiNap').value = ugyfelAdat.Fizetesi_hatarido_nap;
+      }
       if (p?.fields?.Szallitasi_hatarido) document.getElementById('fVrvHatarido').value = p.fields.Szallitasi_hatarido;
       loadVrvTetelek([]);
       if (p?.fields?.Ajanlat?.length) {
@@ -5156,7 +5193,13 @@ function genVrvSzam() {
   return `VRV-${ev}-${String(num).padStart(3,'0')}`;
 }
 
-function onVrvUgyfelChange() {}
+function onVrvUgyfelChange() {
+  const uid = document.getElementById('fVrvUgyfel').value;
+  if (!uid) return;
+  const ugyfelAdat = ugyfelek.find(u => u.id === uid)?.fields;
+  const fizEl = document.getElementById('fVrvFizetesiNap');
+  if (fizEl && ugyfelAdat?.Fizetesi_hatarido_nap != null) fizEl.value = ugyfelAdat.Fizetesi_hatarido_nap;
+}
 
 async function onVrvProjektChange() {
   const pid = document.getElementById('fVrvProjekt').value;
@@ -5200,6 +5243,7 @@ async function saveVrv() {
     Ugyfel: [ugyfelId],
     Kiallitas_datum: kiallitas,
     Hatarido: document.getElementById('fVrvHatarido').value || null,
+    Fizetesi_hatarido_nap: (() => { const v = parseInt(document.getElementById('fVrvFizetesiNap').value); return isNaN(v) ? 30 : v; })(),
     Megjegyzes: document.getElementById('fVrvMegjegyzes').value.trim() || null,
     Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,
   };
@@ -5525,11 +5569,7 @@ async function ujNaploBejegyzes(projektId) {
       <div class="modal-body">
         <div class="form-group" style="margin-bottom:14px">
           <label class="form-label">Szerző</label>
-          <select class="form-control" id="naploSzerzo">
-            <option value="Jarfas Kitti">Járfás Kitti</option>
-            <option value="Wagner Szabolcs">Wágner Szabolcs</option>
-            <option value="Zombori Krisztina">Zombori Krisztina</option>
-          </select>
+          <div class="form-control" id="naploSzerzo" style="background:#f9fafd;color:var(--text-muted);cursor:default;">${currentUser?.name || '—'}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Megjegyzés *</label>
@@ -5554,7 +5594,7 @@ async function ujNaploBejegyzes(projektId) {
 
 async function saveNaplo(projektId, btn) {
   const szoveg = document.getElementById('naploSzoveg').value.trim();
-  const szerzo = document.getElementById('naploSzerzo').value;
+  const szerzo = currentUser?.name || document.getElementById('naploSzerzo').textContent.trim();
   if (!szoveg) { toast('A megjegyzés nem lehet üres!', 'error'); return; }
   const notifySzabi = document.getElementById('notifySzabi')?.checked;
   const notifyKitti = document.getElementById('notifyKitti')?.checked;
@@ -5689,13 +5729,13 @@ async function ujProjekt() {
   document.getElementById('fProjektPO').value = '';
   document.getElementById('fProjektJutalek').value = '';
   document.getElementById('fProjektDeviza').value = 'EUR';
-  document.getElementById('fAjanlatLink').value = '';
-  document.getElementById('fSzallitolevelLink').value = '';
-  document.getElementById('fRendelesLink').value = '';
-  document.getElementById('fSzamlaLink').value = '';
+  document.getElementById('fAjanlatLink') && (document.getElementById('fAjanlatLink').value = '');
+  document.getElementById('fSzallitolevelLink') && (document.getElementById('fSzallitolevelLink').value = '');
+  document.getElementById('fRendelesLink') && (document.getElementById('fRendelesLink').value = '');
+  document.getElementById('fSzamlaLink') && (document.getElementById('fSzamlaLink').value = '');
   loadDokLinks(null);
   document.getElementById('fProjektMegjegyzes').value = '';
-  document.getElementById('fProjektSzerzo').value = defaultFelelos;
+  document.getElementById('fProjektSzerzo').textContent = currentUser?.name || '—';
   // Projekt szám generálás
   const ev = new Date().getFullYear();
   const num = projektek.length + 1;
@@ -5740,13 +5780,13 @@ async function editProjektById(id) {
   document.getElementById('fProjektPO').value = f.PO_szam || '';
   document.getElementById('fProjektJutalek').value = f.Jutalek_osszeg || '';
   document.getElementById('fProjektDeviza').value = f.Deviza || 'EUR';
-  document.getElementById('fAjanlatLink').value = f.Ajanlat_link || '';
-  document.getElementById('fSzallitolevelLink').value = f.Szallitolevel_link || '';
-  document.getElementById('fRendelesLink').value = f.Rendeles_visszaigazolas_link || '';
-  document.getElementById('fSzamlaLink').value = f.Szamla_link || '';
+  document.getElementById('fAjanlatLink') && (document.getElementById('fAjanlatLink').value = f.Ajanlat_link || '');
+  document.getElementById('fSzallitolevelLink') && (document.getElementById('fSzallitolevelLink').value = f.Szallitolevel_link || '');
+  document.getElementById('fRendelesLink') && (document.getElementById('fRendelesLink').value = f.Rendeles_visszaigazolas_link || '');
+  document.getElementById('fSzamlaLink') && (document.getElementById('fSzamlaLink').value = f.Szamla_link || '');
   loadDokLinks(f.Dokumentumok_extra || null);
   document.getElementById('fProjektMegjegyzes').value = '';
-  document.getElementById('fProjektSzerzo').value = 'Jarfas Kitti';
+  document.getElementById('fProjektSzerzo').textContent = currentUser?.name || '—';
   showPage('projekt-form');
 }
 
@@ -5803,10 +5843,7 @@ async function saveProjekt() {
     PO_szam: document.getElementById('fProjektPO').value.trim() || null,
     Jutalek_osszeg: parseFloat(document.getElementById('fProjektJutalek').value) || null,
     Deviza: document.getElementById('fProjektDeviza').value,
-    Ajanlat_link: document.getElementById('fAjanlatLink').value.trim() || null,
-    Szallitolevel_link: document.getElementById('fSzallitolevelLink').value.trim() || null,
-    Rendeles_visszaigazolas_link: document.getElementById('fRendelesLink').value.trim() || null,
-    Szamla_link: document.getElementById('fSzamlaLink').value.trim() || null,
+
     Dokumentumok_extra: buildDokumentumokExtra(),
   };
   // Remove undefined
@@ -5829,7 +5866,7 @@ async function saveProjekt() {
       await atPost('Projekt_Naplo', {
         Megjegyzes: megjegyzes,
         Projekt: [projektId],
-        Szerzo: document.getElementById('fProjektSzerzo').value,
+        Szerzo: currentUser?.name || document.getElementById('fProjektSzerzo').textContent.trim(),
         Datum: new Date().toISOString()
       });
     }
@@ -6082,6 +6119,12 @@ const ROLES = {
 function canEdit()   { return currentUser && ['Admin','Szerkeszto'].includes(currentUser.role); }
 function canDelete() { return currentUser && ['Admin','Szerkeszto'].includes(currentUser.role); }
 function isAdmin()   { return currentUser && currentUser.role === 'Admin'; }
+function hasPerm(perm) {
+  if (isAdmin()) return true;
+  const ud = JSON.parse(localStorage.getItem('zalnerUserData') || '{}');
+  const perms = Array.isArray(ud.menupontok) ? ud.menupontok : DEFAULT_MENU;
+  return perms.includes(perm);
+}
 
 // Token tárolás
 function saveSession(token, user) {
@@ -6263,7 +6306,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v142 · Belső rendszer
+          Zalner ERP v151 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -7623,6 +7666,7 @@ function openSzlModal(id = null, preselectedProjektId = null, slot = 1) {
     document.getElementById('fSzlSzallitasDatum').value = f.Szallitas_datum || '';
     document.getElementById('fSzlCim').value = f.Szallitasi_cim || '';
     document.getElementById('fSzlFuvarozo').value = f.Fuvarozo || '';
+    document.getElementById('fSzlFizetesiNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
     document.getElementById('fSzlPdf').value = f.Pdf_link || '';
     document.getElementById('fSzlMegjegyzes').value = f.Megjegyzes || '';
     let tetelek = [];
@@ -7634,6 +7678,7 @@ function openSzlModal(id = null, preselectedProjektId = null, slot = 1) {
     document.getElementById('fSzlKiallitas').value = new Date().toISOString().split('T')[0];
     document.getElementById('fSzlCim').value = '';
     document.getElementById('fSzlFuvarozo').value = '';
+    document.getElementById('fSzlFizetesiNap').value = 30;
     document.getElementById('fSzlPdf').value = '';
     document.getElementById('fSzlMegjegyzes').value = '';
     selU.value = '';
@@ -7644,6 +7689,7 @@ function openSzlModal(id = null, preselectedProjektId = null, slot = 1) {
         selU.value = p.fields.Ugyfel[0];
         const ugyfelAdat = ugyfelek.find(u => u.id === p.fields.Ugyfel[0])?.fields;
         if (ugyfelAdat?.Szekhely_cim) document.getElementById('fSzlCim').value = ugyfelAdat.Szekhely_cim;
+        if (ugyfelAdat?.Fizetesi_hatarido_nap != null) document.getElementById('fSzlFizetesiNap').value = ugyfelAdat.Fizetesi_hatarido_nap;
       }
       if (p?.fields?.Szallitasi_hatarido) document.getElementById('fSzlSzallitasDatum').value = p.fields.Szallitasi_hatarido;
       loadSzlTetelek([]);
@@ -7695,6 +7741,8 @@ function onSzlUgyfelChange() {
   if (ugyfelAdat?.Szekhely_cim && !document.getElementById('fSzlCim').value) {
     document.getElementById('fSzlCim').value = ugyfelAdat.Szekhely_cim;
   }
+  const fizEl = document.getElementById('fSzlFizetesiNap');
+  if (fizEl) fizEl.value = ugyfelAdat?.Fizetesi_hatarido_nap != null ? ugyfelAdat.Fizetesi_hatarido_nap : 30;
 }
 
 async function onSzlProjektChange() {
@@ -7785,6 +7833,7 @@ async function saveSzl() {
     Szallitas_datum: document.getElementById('fSzlSzallitasDatum').value || null,
     Szallitasi_cim: document.getElementById('fSzlCim').value.trim() || null,
     Fuvarozo: document.getElementById('fSzlFuvarozo').value.trim() || null,
+    Fizetesi_hatarido_nap: (() => { const v = parseInt(document.getElementById('fSzlFizetesiNap').value); return isNaN(v) ? 30 : v; })(),
     Pdf_link: document.getElementById('fSzlPdf').value.trim() || null,
     Megjegyzes: document.getElementById('fSzlMegjegyzes').value.trim() || null,
     Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,

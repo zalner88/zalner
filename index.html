@@ -344,7 +344,10 @@ select.form-control{cursor:pointer}
   <div class="page" id="page-kontaktok">
     <div class="page-header">
       <div><div class="page-title">Kontaktok</div><div class="page-subtitle" id="kontaktCount">Betöltés...</div></div>
-      <button class="btn btn-primary" onclick="openKontaktModal()">＋ Új kontakt</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="openImportModal()">⬆ Import</button>
+        <button class="btn btn-primary" onclick="openKontaktModal()">＋ Új kontakt</button>
+      </div>
     </div>
     <div class="page-content">
       <div class="search-bar">
@@ -1352,6 +1355,69 @@ select.form-control{cursor:pointer}
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeUgyfelModal()">Mégse</button><button class="btn btn-primary" onclick="saveUgyfel()" id="saveUgyfelBtn">Mentés</button></div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <div class="modal-title">Excel Import — Ügyfelek & Kontaktok</div>
+      <button class="modal-close" onclick="closeImportModal()">×</button>
+    </div>
+    <div class="modal-body" style="max-height:72vh;overflow-y:auto;">
+
+      <!-- Lépés jelző -->
+      <div id="importSteps" style="display:flex;gap:0;margin-bottom:20px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+        <div id="importStep1" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;background:var(--accent);color:#fff;">1. Fájl feltöltés</div>
+        <div id="importStep2" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;background:var(--bg-secondary);color:var(--text-muted);">2. Előnézet</div>
+        <div id="importStep3" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;background:var(--bg-secondary);color:var(--text-muted);">3. Importálás</div>
+      </div>
+
+      <!-- Lépés 1: Fájl feltöltés -->
+      <div id="importPane1">
+        <div style="border:2px dashed var(--border);border-radius:10px;padding:32px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" id="importDropZone" onclick="document.getElementById('importFileInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleImportDrop(event)">
+          <div style="font-size:32px;margin-bottom:8px">📂</div>
+          <div style="font-weight:600;margin-bottom:4px;color:var(--text)">Húzd ide az Excel fájlt, vagy kattints a tallózáshoz</div>
+          <div style="font-size:12px;color:var(--text-muted)">.xlsx formátum — Zalner Import sablon (Ugyfelek_import + Kapcsolattartok_import lapok)</div>
+        </div>
+        <input type="file" id="importFileInput" accept=".xlsx" style="display:none" onchange="handleImportFile(this.files[0])">
+        <div id="importFileInfo" style="display:none;background:var(--bg-secondary);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text);margin-bottom:8px"></div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;background:#fef3c7;border-radius:8px;padding:12px 14px;border:1px solid #fde68a;">
+          <strong style="color:#92400e;">Sablon letöltése:</strong> Töltsd le a sablon Excel-t az importáláshoz, töltsd ki, majd töltsd vissza ide. A <em>Cegnev_kapcsolat</em> oszlopnak pontosan egyeznie kell a cégnévvel.
+        </div>
+      </div>
+
+      <!-- Lépés 2: Előnézet -->
+      <div id="importPane2" style="display:none">
+        <div id="importPreviewStats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
+        <div style="margin-bottom:10px;font-weight:600;font-size:13px;color:var(--text)">Ügyfelek előnézet (első 5 sor)</div>
+        <div style="overflow-x:auto;margin-bottom:16px"><table id="importUgyfelPreview" style="font-size:12px;width:100%;border-collapse:collapse"></table></div>
+        <div style="margin-bottom:10px;font-weight:600;font-size:13px;color:var(--text)">Kontaktok előnézet (első 5 sor)</div>
+        <div style="overflow-x:auto"><table id="importKontaktPreview" style="font-size:12px;width:100%;border-collapse:collapse"></table></div>
+        <div id="importWarnings" style="margin-top:14px"></div>
+      </div>
+
+      <!-- Lépés 3: Eredmény -->
+      <div id="importPane3" style="display:none">
+        <div id="importProgressWrap" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+            <span id="importProgressLabel">Előkészítés...</span>
+            <span id="importProgressPct">0%</span>
+          </div>
+          <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+            <div id="importProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:4px"></div>
+          </div>
+        </div>
+        <div id="importLog" style="background:var(--bg-secondary);border-radius:8px;padding:12px;font-size:12px;font-family:'DM Mono',monospace;max-height:260px;overflow-y:auto;line-height:1.8"></div>
+        <div id="importResult" style="display:none;margin-top:14px;padding:14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer" id="importFooter">
+      <button class="btn btn-secondary" onclick="closeImportModal()">Mégse</button>
+      <button class="btn btn-primary" id="importNextBtn" onclick="importNext()" disabled>Tovább →</button>
+    </div>
   </div>
 </div>
 
@@ -7305,6 +7371,326 @@ function onBszBeszallitoChange() {
   if (f.Cegnev) document.getElementById('fBszSzallito').value = f.Cegnev;
   if (f.Adoszam) document.getElementById('fBszAdoszam').value = f.Adoszam;
   if (f.Deviza) document.getElementById('fBszDeviza').value = f.Deviza;
+}
+
+// ===== IMPORT =====
+let importStep = 1;
+let importData = { ugyfelek: [], kontaktok: [] };
+
+function openImportModal() {
+  importStep = 1;
+  importData = { ugyfelek: [], kontaktok: [] };
+  document.getElementById('importPane1').style.display = '';
+  document.getElementById('importPane2').style.display = 'none';
+  document.getElementById('importPane3').style.display = 'none';
+  document.getElementById('importFileInfo').style.display = 'none';
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importNextBtn').disabled = true;
+  document.getElementById('importNextBtn').textContent = 'Tovább →';
+  setImportStep(1);
+  document.getElementById('importModal').classList.add('open');
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+}
+
+function setImportStep(n) {
+  importStep = n;
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('importStep' + i);
+    el.style.background = i === n ? 'var(--accent)' : (i < n ? '#27ae60' : 'var(--bg-secondary)');
+    el.style.color = i <= n ? '#fff' : 'var(--text-muted)';
+  });
+}
+
+function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('importDropZone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleImportFile(file);
+}
+
+async function handleImportFile(file) {
+  if (!file || !file.name.endsWith('.xlsx')) {
+    toast('Csak .xlsx fájlt lehet importálni!', 'error'); return;
+  }
+  document.getElementById('importFileInfo').style.display = '';
+  document.getElementById('importFileInfo').textContent = '📄 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB) — Feldolgozás...';
+
+  try {
+    const buf = await file.arrayBuffer();
+    const data = new Uint8Array(buf);
+    // SheetJS
+    const XLSX = await importGetXLSX();
+    const wb = XLSX.read(data, { type: 'array' });
+
+    // Find sheets
+    const uSheet = wb.SheetNames.find(n => n.toLowerCase().includes('ugyfel'));
+    const kSheet = wb.SheetNames.find(n => n.toLowerCase().includes('kapcsolat') || n.toLowerCase().includes('kontakt'));
+
+    if (!uSheet && !kSheet) {
+      toast('Nem található "Ugyfelek_import" vagy "Kapcsolattartok_import" lap!', 'error');
+      document.getElementById('importFileInfo').textContent = '❌ Hibás formátum — lásd az Útmutató lapot';
+      return;
+    }
+
+    // Parse rows — skip first 2 header rows, row 1 = hungarian labels, row 2 = field names
+    importData.ugyfelek = uSheet ? parseImportSheet(wb.Sheets[uSheet], XLSX, [
+      'Cegnev','Ceg_adoszama','EU_adoszam','Cegjegyzekszam','Statusz',
+      'Szekhely_cim','Telephely_cim','Weboldal','Iparag',
+      'Alkalmazottak_szama','Alapitas_eve','Tevekenysegi_kor',
+      'Megjegyzes','Fizetesi_hatarido_nap','Felelos'
+    ]) : [];
+
+    importData.kontaktok = kSheet ? parseImportSheet(wb.Sheets[kSheet], XLSX, [
+      'Vezeteknev','Keresztnev','Cegnev_kapcsolat',
+      'Email','Telefon','Beosztas','Megjegyzes','Fo_kapcsolattarto'
+    ]) : [];
+
+    const uCount = importData.ugyfelek.length;
+    const kCount = importData.kontaktok.length;
+    document.getElementById('importFileInfo').innerHTML =
+      `✅ <strong>${file.name}</strong> — ${uCount} ügyfél, ${kCount} kontakt beolvasva`;
+    document.getElementById('importNextBtn').disabled = (uCount + kCount) === 0;
+
+  } catch(e) {
+    console.error(e);
+    document.getElementById('importFileInfo').textContent = '❌ Hiba a fájl olvasásakor: ' + e.message;
+  }
+}
+
+function parseImportSheet(sheet, XLSX, fields) {
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  // Row 0 = Hungarian labels, Row 1 = field names, Row 2+ = data
+  const dataRows = rows.slice(2).filter(r => r.some(c => c !== '' && c !== null && c !== undefined));
+  return dataRows.map(row => {
+    const obj = {};
+    fields.forEach((f, i) => { obj[f] = (row[i] !== undefined && row[i] !== null) ? String(row[i]).trim() : ''; });
+    return obj;
+  }).filter(r => r.Cegnev || r.Vezeteknev); // skip empty rows
+}
+
+async function importGetXLSX() {
+  if (window.XLSX) return window.XLSX;
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => res(window.XLSX);
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+function importNext() {
+  if (importStep === 1) showImportPreview();
+  else if (importStep === 2) startImport();
+}
+
+function showImportPreview() {
+  setImportStep(2);
+  document.getElementById('importPane1').style.display = 'none';
+  document.getElementById('importPane2').style.display = '';
+
+  const u = importData.ugyfelek;
+  const k = importData.kontaktok;
+
+  // Stats
+  const stats = [
+    { label: 'Ügyfél', count: u.length, color: '#2980b9' },
+    { label: 'Kontakt', count: k.length, color: '#27ae60' },
+    { label: 'Hibás ügyfél', count: u.filter(r => !r.Cegnev).length, color: '#e74c3c' },
+    { label: 'Párosítatlan kontakt', count: k.filter(r => !u.find(uu => uu.Cegnev === r.Cegnev_kapcsolat)).length, color: '#e67e22' },
+  ];
+  document.getElementById('importPreviewStats').innerHTML = stats.map(s =>
+    `<div style="flex:1;min-width:100px;background:var(--bg-secondary);border-radius:8px;padding:10px 14px;text-align:center;border-left:3px solid ${s.color}">
+      <div style="font-size:20px;font-weight:700;color:${s.color}">${s.count}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${s.label}</div>
+    </div>`
+  ).join('');
+
+  // Ügyfél preview table
+  renderImportPreviewTable('importUgyfelPreview', u.slice(0,5),
+    ['Cegnev','Ceg_adoszama','Statusz','Szekhely_cim','Fizetesi_hatarido_nap'],
+    ['Cégnév','Adószám','Státusz','Székhely','Fiz. nap']);
+
+  // Kontakt preview table
+  renderImportPreviewTable('importKontaktPreview', k.slice(0,5),
+    ['Vezeteknev','Keresztnev','Cegnev_kapcsolat','Email','Telefon','Beosztas'],
+    ['Vezetéknév','Keresztnév','Cég','Email','Telefon','Beosztás']);
+
+  // Warnings
+  const warns = [];
+  const noName = u.filter(r => !r.Cegnev);
+  if (noName.length) warns.push(`⚠️ ${noName.length} ügyfél sor üres cégnévvel — ezek kihagyásra kerülnek.`);
+  const noMatch = k.filter(r => r.Cegnev_kapcsolat && !u.find(uu => uu.Cegnev === r.Cegnev_kapcsolat));
+  if (noMatch.length) warns.push(`⚠️ ${noMatch.length} kontaktnál a cég neve nem egyezik az ügyfelek lappal — az importálás során az Airtable-ben lévő cégnév alapján párosítjuk.`);
+  document.getElementById('importWarnings').innerHTML = warns.map(w =>
+    `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:6px">${w}</div>`
+  ).join('');
+
+  document.getElementById('importNextBtn').textContent = '⬆ Importálás indítása';
+  document.getElementById('importNextBtn').disabled = false;
+}
+
+function renderImportPreviewTable(id, rows, fields, labels) {
+  const t = document.getElementById(id);
+  if (!rows.length) { t.innerHTML = '<tr><td style="color:var(--text-muted);padding:8px">Nincs adat</td></tr>'; return; }
+  const thStyle = 'background:var(--bg-secondary);padding:6px 8px;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap';
+  const tdStyle = 'padding:5px 8px;border-bottom:1px solid var(--border);font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)';
+  t.innerHTML = `<thead><tr>${labels.map(l => `<th style="${thStyle}">${l}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${fields.map(f => `<td style="${tdStyle}" title="${(r[f]||'').replace(/"/g,'')}">${r[f]||'—'}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+async function startImport() {
+  setImportStep(3);
+  document.getElementById('importPane2').style.display = 'none';
+  document.getElementById('importPane3').style.display = '';
+  document.getElementById('importNextBtn').style.display = 'none';
+
+  const log = document.getElementById('importLog');
+  const bar = document.getElementById('importProgressBar');
+  const pct = document.getElementById('importProgressPct');
+  const lbl = document.getElementById('importProgressLabel');
+  log.innerHTML = '';
+
+  function addLog(msg, color) {
+    log.innerHTML += `<div style="color:${color||'var(--text)'}">${msg}</div>`;
+    log.scrollTop = log.scrollHeight;
+  }
+  function setProgress(p, label) {
+    bar.style.width = p + '%';
+    pct.textContent = Math.round(p) + '%';
+    if (label) lbl.textContent = label;
+  }
+
+  let uOk=0, uSkip=0, uErr=0, kOk=0, kSkip=0, kErr=0;
+  const ugyfelek_import = importData.ugyfelek.filter(r => r.Cegnev);
+  const kontaktok_import = importData.kontaktok.filter(r => r.Vezeteknev);
+  const total = ugyfelek_import.length + kontaktok_import.length;
+  let done = 0;
+
+  addLog('🚀 Import indítása...', 'var(--text-muted)');
+
+  // 1. Load existing ugyfelek for duplicate check
+  setProgress(2, 'Meglévő ügyfelek lekérése...');
+  await getUgyfelek(true);
+  const existingCegnevek = new Set(ugyfelek.map(u => (u.fields.Cegnev||'').toLowerCase()));
+  addLog(`📋 ${ugyfelek.length} meglévő ügyfél betöltve`, 'var(--text-muted)');
+
+  // Map: cegnev → airtable id (for kontakt linking)
+  const cegnevToId = {};
+  ugyfelek.forEach(u => { cegnevToId[(u.fields.Cegnev||'').toLowerCase()] = u.id; });
+
+  // 2. Import ügyfelek
+  setProgress(5, 'Ügyfelek importálása...');
+  for (const row of ugyfelek_import) {
+    const key = row.Cegnev.toLowerCase();
+    if (existingCegnevek.has(key)) {
+      addLog(`⏭ Kihagyva (már létezik): ${row.Cegnev}`, '#e67e22');
+      uSkip++; done++;
+      setProgress(5 + (done/total)*55, `Ügyfelek: ${uOk} létrehozva, ${uSkip} kihagyva`);
+      continue;
+    }
+    try {
+      const fields = {
+        Cegnev: row.Cegnev,
+        Ceg_adoszama: row.Ceg_adoszama || null,
+        Statusz: ['Aktiv','Potencialis','Inaktiv'].includes(row.Statusz) ? row.Statusz : 'Potencialis',
+        Szekhely_cim: row.Szekhely_cim || null,
+        Telephely_cim: row.Telephely_cim || null,
+        Megjegyzes: row.Megjegyzes || null,
+        Fizetesi_hatarido_nap: parseInt(row.Fizetesi_hatarido_nap) || 30,
+      };
+      const rec = await atPost('Ugyfelek', fields);
+      cegnevToId[key] = rec.id;
+      existingCegnevek.add(key);
+      addLog(`✅ Ügyfél: ${row.Cegnev}`, '#27ae60');
+      uOk++;
+    } catch(e) {
+      addLog(`❌ Hiba (${row.Cegnev}): ${e.message}`, '#e74c3c');
+      uErr++;
+    }
+    done++;
+    setProgress(5 + (done/total)*55, `Ügyfelek: ${uOk} létrehozva, ${uSkip} kihagyva`);
+    await new Promise(r => setTimeout(r, 120)); // rate limit
+  }
+
+  // Reload ugyfelek so kontaktok can link
+  await getUgyfelek(true);
+  ugyfelek.forEach(u => { cegnevToId[(u.fields.Cegnev||'').toLowerCase()] = u.id; });
+
+  addLog('', '');
+  addLog('👤 Kontaktok importálása...', 'var(--text-muted)');
+
+  // 3. Import kontaktok
+  for (const row of kontaktok_import) {
+    const ugyfelId = cegnevToId[(row.Cegnev_kapcsolat||'').toLowerCase()];
+    if (!ugyfelId) {
+      addLog(`⏭ Kontakt kihagyva (cég nem található): ${row.Vezeteknev} ${row.Keresztnev} — ${row.Cegnev_kapcsolat}`, '#e67e22');
+      kSkip++; done++;
+      setProgress(60 + (done/total)*38, `Kontaktok: ${kOk} létrehozva, ${kSkip} kihagyva`);
+      continue;
+    }
+    try {
+      const VALID_BEOSZTAS = ['Ugyvezeto','Dontehozo','Mernok','Beszerzo','Penzugy','Egyeb'];
+      const beosztas_map = {
+        'ügyvezető': 'Ugyvezeto', 'ugyvezető': 'Ugyvezeto',
+        'tulajdonos / cégvezető': 'Ugyvezeto', 'tulajdonos/cégvezető': 'Ugyvezeto',
+        'döntéshozó vezető': 'Dontehozo', 'döntéshozó': 'Dontehozo',
+        'mérnök': 'Mernok', 'technikus': 'Mernok',
+        'beszerző': 'Beszerzo', 'logisztika': 'Beszerzo',
+        'pénzügy': 'Penzugy', 'adminisztráció': 'Penzugy',
+        'értékesítés': 'Egyeb', 'projektes': 'Egyeb', 'egyéb': 'Egyeb',
+      };
+      const rawBeosztas = (row.Beosztas || '').trim().toLowerCase();
+      const mappedBeosztas = beosztas_map[rawBeosztas] ||
+        (VALID_BEOSZTAS.includes(row.Beosztas) ? row.Beosztas : null);
+
+      const fields = {
+        Vezeteknev: row.Vezeteknev,
+        Keresztnev: row.Keresztnev || null,
+        Ugyfel: [ugyfelId],
+        Email: row.Email || null,
+        Telefon: row.Telefon || null,
+        Beosztas: mappedBeosztas,
+        Megjegyzes: row.Megjegyzes || null,
+        Fo_kapcsolattarto: row.Fo_kapcsolattarto === 'TRUE' || row.Fo_kapcsolattarto === true,
+      };
+      await atPost('Kapcsolattartok', fields);
+      addLog(`✅ Kontakt: ${row.Vezeteknev} ${row.Keresztnev} → ${row.Cegnev_kapcsolat}`, '#27ae60');
+      kOk++;
+    } catch(e) {
+      addLog(`❌ Hiba (${row.Vezeteknev}): ${e.message}`, '#e74c3c');
+      kErr++;
+    }
+    done++;
+    setProgress(60 + (done/total)*38, `Kontaktok: ${kOk} létrehozva, ${kSkip} kihagyva`);
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  setProgress(100, 'Kész!');
+  cacheInvalidate('ugyfelek');
+  await getUgyfelek(true);
+
+  const result = document.getElementById('importResult');
+  result.style.display = '';
+  const hasErr = uErr + kErr > 0;
+  result.style.background = hasErr ? '#fef3c7' : '#d4edda';
+  result.style.color = hasErr ? '#92400e' : '#155724';
+  result.style.border = `1px solid ${hasErr ? '#fde68a' : '#c3e6cb'}`;
+  result.innerHTML = `
+    Import befejezve!<br>
+    <span style="font-size:13px;font-weight:400">
+      ✅ ${uOk} új ügyfél · ⏭ ${uSkip} kihagyva · ❌ ${uErr} hiba<br>
+      ✅ ${kOk} új kontakt · ⏭ ${kSkip} kihagyva · ❌ ${kErr} hiba
+    </span>`;
+
+  document.getElementById('importNextBtn').style.display = '';
+  document.getElementById('importNextBtn').textContent = '✓ Bezárás';
+  document.getElementById('importNextBtn').onclick = () => { closeImportModal(); loadKontaktok(); };
+  addLog('', '');
+  addLog(`🏁 Összesen: ${uOk+kOk} létrehozva, ${uSkip+kSkip} kihagyva, ${uErr+kErr} hiba`, 'var(--text)');
 }
 
 // ===== KONTAKTOK =====

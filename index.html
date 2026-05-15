@@ -79,7 +79,7 @@ tbody tr:hover{background:#f9fafd}
 .form-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;box-shadow:var(--shadow)}
 .form-section-header{padding:14px 20px;background:#fafbfd;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em}
 .form-section-body{padding:20px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-width:0}.form-grid>*{min-width:0}
 .form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
 .form-grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
 .form-grid .full{grid-column:1/-1}
@@ -520,6 +520,10 @@ select.form-control{cursor:pointer}
               <label class="form-label">Tárgy / Ajánlat tárgya</label>
               <input class="form-control" id="fTargy" placeholder="pl. Gépészeti tervezés">
             </div>
+            <div class="form-group">
+              <label class="form-label">Értékesítői jutalék összeg <span style="font-size:11px;color:var(--text-muted)">(opcionális)</span></label>
+              <input class="form-control" type="number" id="fAjanlatJutalek" placeholder="0" min="0" step="any">
+            </div>
           </div>
           <div class="form-group" style="margin-top:16px">
             <label class="form-label">Napló bejegyzés</label>
@@ -661,9 +665,9 @@ select.form-control{cursor:pointer}
                 <option value="Zombori Krisztina">Zombori Krisztina</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" style="min-width:0">
               <label class="form-label">Vállalt szállítási határidő</label>
-              <input class="form-control" type="date" id="fProjektSzallitas">
+              <input class="form-control" type="date" id="fProjektSzallitas" style="width:100%;min-width:0;box-sizing:border-box">
             </div>
             <div class="form-group">
               <label class="form-label">PO szám</label>
@@ -678,8 +682,8 @@ select.form-control{cursor:pointer}
         <div class="form-section-body">
           <div class="form-grid">
             <div class="form-group">
-              <label class="form-label">Értékesítői jutalék összeg</label>
-              <input class="form-control" type="number" id="fProjektJutalek" placeholder="0">
+              <label class="form-label">Értékesítői jutalék összeg <span id="jutalekKotelezo" style="color:#e74c3c;font-size:12px"></span></label>
+              <input class="form-control" type="number" id="fProjektJutalek" placeholder="0" min="0" step="any">
             </div>
             <div class="form-group">
               <label class="form-label">Deviza</label>
@@ -1728,8 +1732,8 @@ select.form-control{cursor:pointer}
           <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="addVrvTetel()">＋ Tétel hozzáadása</button>
         </div>
         <div class="form-group full">
-          <label class="form-label">Megjegyzés</label>
-          <textarea class="form-control" id="fVrvMegjegyzes" rows="2" placeholder="Belső megjegyzés..."></textarea>
+          <label class="form-label">Megjegyzés a visszaigazolásra</label>
+          <textarea class="form-control" id="fVrvMegjegyzes" rows="2" placeholder="írj ide..."></textarea>
         </div>
       </div>
     </div>
@@ -4338,6 +4342,7 @@ function ujAjanlatForm() {
   loadVevoiKontaktok('');
   document.getElementById('fTargy').value = '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
+  document.getElementById('fAjanlatJutalek').value = '';
   document.getElementById('tetelekBody').innerHTML = '';
   tetelCounter = 0;
   addTetel();
@@ -4386,6 +4391,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || 'Jarfas Kitti';
   document.getElementById('fTargy').value = f.Targy || '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
+  document.getElementById('fAjanlatJutalek').value = f.Jutalek_osszeg || '';
   // Vevői kapcsolattartó betöltése a mentett értékkel
   if (f.Ugyfel && f.Ugyfel[0]) {
     loadVevoiKontaktok(f.Ugyfel[0], f.Vevoi_kapcsolattarto || null);
@@ -4576,7 +4582,8 @@ async function saveAjanlat() {
     Bankszamla: document.getElementById('fBankszamla').value,
     Kapcsolattarto: USER_NAME_MAP[document.getElementById('fKapcsolattarto').value] || document.getElementById('fKapcsolattarto').value,
     Vevoi_kapcsolattarto: document.getElementById('fVevoiKapcsolattarto').value || null,
-    Targy: document.getElementById('fTargy').value.trim()
+    Targy: document.getElementById('fTargy').value.trim(),
+    Jutalek_osszeg: parseFloat(document.getElementById('fAjanlatJutalek').value) || null
   };
 
   try {
@@ -4834,6 +4841,10 @@ async function rendeltProjekt(ajanlatId) {
   const ajanlatFelelos = aj.fields.Kapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
   document.getElementById('fProjektFelelos').value = ajanlatFelelos;
   document.getElementById('fProjektSzerzo').textContent = currentUser?.name || '—';
+  // Jutalék átvétele az ajánlatból ha van
+  if (aj.fields.Jutalek_osszeg) {
+    document.getElementById('fProjektJutalek').value = aj.fields.Jutalek_osszeg;
+  }
   toast('Töltsd ki a projekt adatait és mentsd el!', '');
 }
 
@@ -5278,6 +5289,17 @@ async function viewVrv(id) {
   const afaSzorzo = ajanlatAfa === '27%' ? 0.27 : ajanlatAfa === '5%' ? 0.05 : 0;
   const fmtV = n => Number(n).toLocaleString('hu-HU', {minimumFractionDigits:0, maximumFractionDigits:2});
   const st = VRV_STATUSZ[f.Statusz] || { label: f.Statusz || '—', cls: 'badge-inaktiv' };
+  // Kapcsolattartók
+  const detKapcsolattarto = ajanlatRec?.fields?.Kapcsolattarto
+    ? (DISPLAY_NAME_MAP[ajanlatRec.fields.Kapcsolattarto] || ajanlatRec.fields.Kapcsolattarto) : '—';
+  let detVevoiKontakt = '—';
+  if (ajanlatRec?.fields?.Vevoi_kapcsolattarto) {
+    try {
+      const allKD = await atGet('Kapcsolattartok');
+      const kRD = allKD.find(k => k.id === ajanlatRec.fields.Vevoi_kapcsolattarto);
+      if (kRD) detVevoiKontakt = ((kRD.fields.Vezeteknev||'') + ' ' + (kRD.fields.Keresztnev||'')).trim();
+    } catch(e) {}
+  }
   let tetelek = []; try { tetelek = f.Tetelek ? JSON.parse(f.Tetelek) : []; } catch(e) {}
   const hasAr = tetelek.some(t => t.ar && parseFloat(t.ar) > 0);
   let nettoTotal = 0;
@@ -5305,6 +5327,8 @@ async function viewVrv(id) {
           <div class="detail-item"><div class="detail-label">Érvényesség / Szállítási hét</div><div class="detail-value">${getWorkWeek(f.Hatarido)}</div></div>
           <div class="detail-item"><div class="detail-label">PO szám</div><div class="detail-value" style="font-family:'DM Mono',monospace">${poSzam}</div></div>
           <div class="detail-item"><div class="detail-label">Árajánlat</div><div class="detail-value" style="font-family:'DM Mono',monospace">${ajanlatSzam}</div></div>
+          <div class="detail-item"><div class="detail-label">Kapcsolattartó</div><div class="detail-value">${detKapcsolattarto}</div></div>
+          <div class="detail-item"><div class="detail-label">Vevői kapcsolattartó</div><div class="detail-value">${detVevoiKontakt}</div></div>
         </div>
         ${tetelek.length ? `
         <div style="margin-top:16px">
@@ -5340,7 +5364,7 @@ async function viewVrv(id) {
       <div class="modal-footer" style="flex-shrink:0">
         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Bezárás</button>
         <button class="btn btn-secondary" onclick="generateVrvPDF('${v.id}')">📄 PDF</button>
-        ${f.Projekt?.[0] ? `<button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();showPage('projekt-reszlet');showProjektReszlet('${f.Projekt[0]}')">→ Projekt</button>` : ''}
+        ${f.Projekt?.[0] ? `<button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();showPage('projekt-reszlet');showProjektReszlet('${f.Projekt[0]}')">→ Ugrás a projektre</button>` : `<span style="font-size:13px;color:var(--text-muted);padding:0 8px;align-self:center">Nincs projekt</span>`}
         <button class="btn btn-secondary" style="color:#e74c3c" onclick="this.closest('.modal-overlay').remove();deleteVrv('${v.id}','${(f.VRV_szam||'').replace(/'/g,'')}')">✕ Törlés</button>
         <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();editVrv('${v.id}')">✎ Szerkesztés</button>
       </div>
@@ -5680,10 +5704,24 @@ async function generateVrvPDF(id) {
     '</table></div>'
   ) : '';
 
+  // Kapcsolattartók feloldása
+  const vrvKapcsolattarto = ajanlatRec?.fields?.Kapcsolattarto
+    ? (DISPLAY_NAME_MAP[ajanlatRec.fields.Kapcsolattarto] || ajanlatRec.fields.Kapcsolattarto) : null;
+  let vrvVevoiKapcsolattarto = null;
+  if (ajanlatRec?.fields?.Vevoi_kapcsolattarto) {
+    try {
+      const allKontakt = await atGet('Kapcsolattartok');
+      const kR = allKontakt.find(k => k.id === ajanlatRec.fields.Vevoi_kapcsolattarto);
+      if (kR) vrvVevoiKapcsolattarto = ((kR.fields.Vezeteknev||'') + ' ' + (kR.fields.Keresztnev||'')).trim();
+    } catch(e) {}
+  }
+
   const metaExtra =
     (projektSzam ? '<div class="meta-item"><div class="lbl">Projekt azonosító</div><div class="val" style="font-family:monospace">' + projektSzam + '</div></div>' : '') +
     (poSzam ? '<div class="meta-item"><div class="lbl">Megrendelési (PO) szám</div><div class="val" style="font-family:monospace">' + poSzam + '</div></div>' : '') +
-    (ajanlatSzam ? '<div class="meta-item"><div class="lbl">Árajánlat azonosító</div><div class="val" style="font-family:monospace">' + ajanlatSzam + '</div></div>' : '');
+    (ajanlatSzam ? '<div class="meta-item"><div class="lbl">Árajánlat azonosító</div><div class="val" style="font-family:monospace">' + ajanlatSzam + '</div></div>' : '') +
+    (vrvKapcsolattarto ? '<div class="meta-item"><div class="lbl">Kapcsolattartó</div><div class="val">' + vrvKapcsolattarto + '</div></div>' : '') +
+    (vrvVevoiKapcsolattarto ? '<div class="meta-item"><div class="lbl">Vevői kapcsolattartó</div><div class="val">' + vrvVevoiKapcsolattarto + '</div></div>' : '');
 
   const html = '<!DOCTYPE html><html lang="hu"><head><meta charset="UTF-8">' +
   '<title>VRV_' + (f.VRV_szam||'') + '</title>' +
@@ -6099,6 +6137,7 @@ async function ujProjekt() {
   document.getElementById('fProjektSzallitas').value = '';
   document.getElementById('fProjektPO').value = '';
   document.getElementById('fProjektJutalek').value = '';
+  const jKot = document.getElementById('jutalekKotelezo'); if (jKot) jKot.textContent = isAdmin() ? '' : '*';
   document.getElementById('fProjektDeviza').value = 'EUR';
   document.getElementById('fAjanlatLink') && (document.getElementById('fAjanlatLink').value = '');
   document.getElementById('fSzallitolevelLink') && (document.getElementById('fSzallitolevelLink').value = '');
@@ -6170,6 +6209,8 @@ async function saveProjekt() {
   const uid = document.getElementById('fProjektUgyfel').value;
   if (!nev) { toast('A projekt neve kötelező!', 'error'); return; }
   if (!uid) { toast('Az ügyfél megadása kötelező!', 'error'); return; }
+  const jutalekVal = parseFloat(document.getElementById('fProjektJutalek').value);
+  if (!isAdmin() && (!jutalekVal || jutalekVal <= 0)) { toast('Az értékesítői jutalék összeg kötelező!', 'error'); document.getElementById('fProjektJutalek').focus(); return; }
   const btn = document.getElementById('saveProjektBtn');
   btn.textContent = 'Mentés...'; btn.disabled = true;
 
@@ -8338,7 +8379,7 @@ async function viewSzl(id) {
       <div class="modal-footer" style="flex-shrink:0">
         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Bezárás</button>
         <button class="btn btn-secondary" onclick="generateSzlPDF('${s.id}')">📄 PDF</button>
-        ${f.Projekt?.[0] ? `<button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();showPage('projekt-reszlet');showProjektReszlet('${f.Projekt[0]}')">→ Projekt</button>` : ''}
+        ${f.Projekt?.[0] ? `<button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();showPage('projekt-reszlet');showProjektReszlet('${f.Projekt[0]}')">→ Ugrás a projektre</button>` : `<span style="font-size:13px;color:var(--text-muted);padding:0 8px;align-self:center">Nincs projekt</span>`}
         <button class="btn btn-secondary" style="color:#e74c3c" onclick="this.closest('.modal-overlay').remove();deleteSzl('${s.id}','${(f.Szallitolevel_szam||'').replace(/'/g,'')}')">✕ Törlés</button>
         <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();editSzl('${s.id}')">✎ Szerkesztés</button>
       </div>

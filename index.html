@@ -47,7 +47,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);dis
 table{width:100%;border-collapse:collapse}
 thead{background:#fafbfd}
 th{text-align:left;padding:11px 16px;font-size:12px;font-weight:500;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap;letter-spacing:0.02em}
-td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}#bszTable td,#bszTable th{padding:7px 6px;font-size:11px}#bszTable .td-muted{font-size:11px}
 tr:last-child td{border-bottom:none}
 tbody tr{cursor:pointer;transition:background 0.1s}
 tbody tr:hover{background:#f9fafd}
@@ -286,7 +286,8 @@ select.form-control{cursor:pointer}
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">Legutóbbi ajánlatok</div>
           <div class="table-wrap">
-            <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th style="text-align:right">Nettó</th><th>Státusz</th></tr></thead>
+            <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th style="text-align:right">Nettó</th><th>Státusz</th>
+  </tr></thead>
             <tbody id="dashAjanlatok"><tr><td colspan="4"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
           </div>
         </div>
@@ -744,6 +745,7 @@ select.form-control{cursor:pointer}
           <button class="pill active" onclick="setBszFilter('fizetesre_var',this)">Fizetésre vár</button>
           <button class="pill" onclick="setBszFilter('szamla_hiany',this)">Számla hiányzik</button>
           <button class="pill" onclick="setBszFilter('fizetett',this)">Fizetett</button>
+          <button class="pill" onclick="setBszFilter('kat_hianyzik',this)">⚠️ Kategória hiányzik</button>
           <button class="pill" onclick="setBszFilter('mind',this)">Összes</button>
         </div>
         <div style="flex:1"></div>
@@ -761,46 +763,47 @@ select.form-control{cursor:pointer}
           <input class="form-control" type="date" id="bszDateTo" style="width:160px">
         </div>
       </div>
-      <div class="table-wrap">
-        <table class="data-table">
+      <div class="table-wrap" style="overflow-x:hidden">
+        <table class="data-table" style="table-layout:fixed;width:100%;font-size:12px" id="bszTable">
           <thead>
             <tr>
-              <th>Számlaszám</th>
-              <th>
+              <th style="width:130px">Számlaszám</th>
+              <th style="width:140px">
                 <button class="bsz-sort-btn" data-field="supplierName" onclick="setBszSort('supplierName')"
                   style="background:none;border:none;cursor:pointer;font-size:inherit;font-family:inherit;color:var(--text-muted);padding:0;white-space:nowrap;">
                   Szállító<span class="sort-arrow"> ⇅</span>
                 </button>
               </th>
-              <th style="text-align:right">
+              <th style="text-align:right;width:80px">
                 <button class="bsz-sort-btn" data-field="invoiceNetAmount" onclick="setBszSort('invoiceNetAmount')"
                   style="background:none;border:none;cursor:pointer;font-size:inherit;font-family:inherit;color:var(--accent);font-weight:600;padding:0;white-space:nowrap;width:100%;text-align:right;">
                   Nettó<span class="sort-arrow"> ▼</span>
                 </button>
               </th>
-              <th style="text-align:right">
+              <th style="text-align:right;width:70px">
                 <button class="bsz-sort-btn" data-field="invoiceVatAmount" onclick="setBszSort('invoiceVatAmount')"
                   style="background:none;border:none;cursor:pointer;font-size:inherit;font-family:inherit;color:var(--text-muted);padding:0;white-space:nowrap;width:100%;text-align:right;">
                   ÁFA<span class="sort-arrow"> ⇅</span>
                 </button>
               </th>
-              <th>Bruttó</th>
-              <th>Deviza</th>
-              <th>
+              <th style="width:80px">Bruttó</th>
+              <th style="width:45px">Dev.</th>
+              <th style="width:80px">
                 <button class="bsz-sort-btn" data-field="invoiceDeliveryDate" onclick="setBszSort('invoiceDeliveryDate')"
                   style="background:none;border:none;cursor:pointer;font-size:inherit;font-family:inherit;color:var(--text-muted);padding:0;white-space:nowrap;">
                   Teljesítés<span class="sort-arrow"> ⇅</span>
                 </button>
               </th>
-              <th>
+              <th style="width:80px">
                 <button class="bsz-sort-btn" data-field="paymentDate" onclick="setBszSort('paymentDate')"
                   style="background:none;border:none;cursor:pointer;font-size:inherit;font-family:inherit;color:var(--text-muted);padding:0;white-space:nowrap;">
                   Fiz. határidő<span class="sort-arrow"> ⇅</span>
                 </button>
               </th>
-              <th>Státusz</th>
-              <th>Típus</th>
-              <th>PDF</th>
+              <th style="width:120px">Státusz</th>
+              <th style="width:50px">Típus</th>
+              <th style="width:85px">PDF</th>
+              <th style="width:155px">Kategória</th>
             </tr>
           </thead>
           <tbody id="bszTableBody">
@@ -1336,6 +1339,13 @@ select.form-control{cursor:pointer}
             <option value="Fizetesre_var">Fizetésre vár</option>
             <option value="Fizetett">Fizetett</option>
           </select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Kategória (költségnem)</label>
+          <select class="form-control" id="fBszKategoria" onmouseover="showKatTipFromSelect(this)" onmouseout="hideKatTip()">
+            <!-- feltöltve JS-ből: buildKategoriaOpts() -->
+          </select>
+          <script>document.getElementById('fBszKategoria').innerHTML = buildKategoriaOpts('');</script>
         </div>
       </div>
     </div>
@@ -7062,6 +7072,7 @@ async function initBevoSzamlak() {
       paymentMethod: r.fields.Fizetes_mod || '',
       invoiceOperation: r.fields.Tipus || 'CREATE',
       _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
+      _airtableKategoria: r.fields.Kategoria || '',
       _airtableId: r.id,
       _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
     }));
@@ -7070,7 +7081,7 @@ async function initBevoSzamlak() {
   } catch(e) {
     console.warn('Bejövő számlák betöltés hiba:', e);
     document.getElementById('bszSubtitle').textContent = 'Kattints a NAV szinkron gombra a számlák lekérdezéséhez';
-    document.getElementById('bszTableBody').innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px">Kattints a <b>🔄 NAV szinkron</b> gombra</td></tr>';
+    document.getElementById('bszTableBody').innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:40px">Kattints a <b>🔄 NAV szinkron</b> gombra</td></tr>';
   }
 }
 
@@ -7246,6 +7257,7 @@ function filterBevoSzamlak() {
   bszCurrentPage = 1;
   bszFiltered = bszInvoices.filter(inv => {
     if (bszFilter === 'fizetesre_var' && (inv._airtableStatus === 'Fizetett')) return false;
+  if (bszFilter === 'kat_hianyzik' && inv._airtableKategoria) return false;
     if (bszFilter === 'szamla_hiany' && inv._pdfUrl) return false;
     if (bszFilter === 'fizetett' && inv._airtableStatus !== 'Fizetett') return false;
     if (search) {
@@ -7321,7 +7333,7 @@ function renderBevoSzamlak() {
   const pagination = document.getElementById('bszPagination');
 
   if (!bszFiltered.length) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px">Nincs megjeleníthető számla</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:40px">Nincs megjeleníthető számla</td></tr>';
     count.textContent = '0 számla';
     pagination.innerHTML = '';
     return;
@@ -7364,7 +7376,7 @@ function renderBevoSzamlak() {
     const today = new Date().toISOString().split('T')[0];
     const overdue = inv.paymentDate && inv.paymentDate < today && current !== 'Fizetett';
     const overdueClass = overdue ? 'color:#e74c3c;font-weight:600' : '';
-    return `<select class="form-control" style="padding:4px 8px;font-size:12px;height:auto;min-width:120px;${overdueClass}" onclick="event.stopPropagation()" onchange="updateBszStatus('${airtableId}','${inv.invoiceNumber}',this.value)">
+    return `<select class="form-control" style="padding:3px 4px;font-size:11px;height:auto;min-width:100px;${overdueClass}" onclick="event.stopPropagation()" onchange="updateBszStatus('${airtableId}','${inv.invoiceNumber}',this.value)">
       <option value="Fizetesre_var" ${current==='Fizetesre_var'?'selected':''}>Fizetésre vár${overdue?' ⚠️':''}</option>
       <option value="Fizetett" ${current==='Fizetett'?'selected':''}>Fizetett ✓</option>
     </select>`;
@@ -7375,8 +7387,8 @@ function renderBevoSzamlak() {
     const vat = parseFloat(inv.invoiceVatAmount) || 0;
     const brutto = netto + vat;
     return `<tr>
-      <td class="td-name" style="font-family:'DM Mono',monospace;font-size:12px">${inv.invoiceNumber || '—'}</td>
-      <td>${inv.supplierName || '—'}</td>
+      <td class="td-name" style="font-family:'DM Mono',monospace;font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${inv.invoiceNumber || '—'}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${inv.supplierName||''}">${inv.supplierName || '—'}</td>
       <td style="text-align:right">${netto.toLocaleString('hu-HU')}</td>
       <td style="text-align:right">${vat.toLocaleString('hu-HU')}</td>
       <td style="text-align:right;font-weight:600">${brutto.toLocaleString('hu-HU')}</td>
@@ -7384,6 +7396,7 @@ function renderBevoSzamlak() {
       <td class="td-muted">${inv.invoiceIssueDate || '—'}</td>
       <td class="td-muted">${inv.paymentDate || '—'}</td>
       <td>${statusSelect(inv)}</td>
+      <td>${kategoriasSelect(inv)}</td>
       <td>${tipusBadge(inv.invoiceOperation)}</td>
       <td style="white-space:nowrap">${inv._pdfUrl
         ? `<a href="${inv._pdfUrl}" target="_blank" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 10px">📄 Megnyitás</a> <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 6px;color:#e74c3c" onclick="event.stopPropagation();deleteBszPdf('${inv._airtableId||''}','${(inv.invoiceNumber||'').replace(/'/g,'')}')" title="PDF törlése">✕</button>`
@@ -7515,6 +7528,7 @@ function showBszManualForm() {
   document.getElementById('fBszAfa').value = '';
   document.getElementById('fBszDeviza').value = 'HUF';
   document.getElementById('fBszStatusz').value = 'Fizetesre_var';
+  document.getElementById('fBszKategoria').value = '';
   populateBszBeszallitoSelect();
   document.getElementById('fBszBeszallito').value = '';
   document.getElementById('bszManualModal').classList.add('open');
@@ -7548,6 +7562,7 @@ async function saveBszManual() {
     Brutto_osszeg: netto + afa,
     Deviza: document.getElementById('fBszDeviza').value,
     Statusz: document.getElementById('fBszStatusz').value,
+    Kategoria: document.getElementById('fBszKategoria').value || null,
     Tipus: 'CREATE',
   };
 
@@ -7558,6 +7573,160 @@ async function saveBszManual() {
     await reloadBszFromAirtable();
   } catch(e) {
     toast('Mentési hiba: ' + e.message, 'error');
+  }
+}
+
+
+// ===== KÖLTSÉGNEM KATEGÓRIÁK =====
+const BSZ_KATEGORIAK = [
+  { value: '', label: '— Válassz kategóriát —', tip: '', group: '' },
+  // 1-es számlaosztály: Eszközök / Beruházás
+  { value: '11', label: '11 – Immateriális javak', tip: 'Immateriális javak vásárlása – tartós szellemi eszközök, aktiválni kell.&#10;📌 Példák:&#10;• Könyvelőszoftver (pl. Számlázz.hu, SAP) éves licence&#10;• Weboldal fejlesztési díja (ha tartós eszköz)&#10;• Know-how vásárlása, franchise díj&#10;• Szabadalom, védjegy bejegyzési díja&#10;• ERP rendszer implementációs díja', group: '📦 ESZKÖZÖK (1-es osztály) – Beruházás' },
+  { value: '12', label: '12 – Ingatlanok', tip: 'Ingatlanok vásárlása vagy tartós értéknövelő felújítása – aktiválni kell.&#10;📌 Példák:&#10;• Irodaépület vásárlása&#10;• Raktárcsarnok megvásárlása&#10;• Telek vásárlása&#10;• Épület tetőcseréje (értéknövelő felújítás)&#10;• Irodahelyiség megvásárlása', group: '📦 ESZKÖZÖK (1-es osztály) – Beruházás' },
+  { value: '13', label: '13 – Gépek, berendezések', tip: 'Gépek, berendezések, járművek vásárlása – tartós eszköz, értékcsökkenéssel amortizálódik.&#10;📌 Példák:&#10;• CNC marógép vásárlása&#10;• Targonca, tehergépjármű&#10;• Gyártósor, összeszerelő berendezés&#10;• Hegesztőgép, sajtológép&#10;• Céges személygépkocsi', group: '📦 ESZKÖZÖK (1-es osztály) – Beruházás' },
+  { value: '14', label: '14 – Egyéb eszközök', tip: 'IT eszközök, irodabútor, műszerek vásárlása – tartós eszköz, aktiválni kell.&#10;📌 Példák:&#10;• Laptop, asztali számítógép vásárlása&#10;• Szerver, hálózati eszközök&#10;• Irodai szék, asztal, tárgyalóasztal&#10;• Nyomtató, projektor&#10;• Mérőműszerek, laboratóriumi eszközök', group: '📦 ESZKÖZÖK (1-es osztály) – Beruházás' },
+  { value: '16', label: '16 – Beruházások, felújítások', tip: 'Folyamatban lévő beruházások – az üzembe helyezésig itt gyűlik, majd átkerül a végleges eszköz számlára.&#10;📌 Példák:&#10;• Épülőben lévő raktár építési számlái&#10;• Gép telepítés alatt (részszámlák)&#10;• Irodafelújítás közben érkező számlák&#10;• Új gyártósor beszerelési fázisai&#10;• Szoftver fejlesztés (folyamatban, még nem üzemkész)', group: '📦 ESZKÖZÖK (1-es osztály) – Beruházás' },
+  // 2-es számlaosztály: Készletek
+  { value: '21', label: '21-22 – Anyagok (készlet)', tip: 'Készletbe kerülő anyagok – nem azonnal kerülnek felhasználásra, felhasználáskor megy át 51-es anyagköltségbe.&#10;📌 Példák:&#10;• Acéllemez, alumínium profil raktárra vétel&#10;• Festék, ragasztó készletbe helyezése&#10;• Irodaszer-csomag raktárba&#10;• Üzemanyag tartályba töltés&#10;• Csomagolóanyag készletbe', group: '🗄️ KÉSZLETEK (2-es osztály)' },
+  { value: '26', label: '26-28 – Áruk (készlet)', tip: 'Viszonteladásra szánt áruk – az eladáskor kerül ki a készletből.&#10;📌 Példák:&#10;• Elektronikai termékek nagykerből&#10;• Ruházati cikkek forgalmazáshoz&#10;• Élelmiszeráru kereskedelemhez&#10;• Alkatrészek viszonteladásra&#10;• Irodaszerek továbbértékesítésre', group: '🗄️ KÉSZLETEK (2-es osztály)' },
+  // 5-ös számlaosztály: Költségnemek
+  { value: '51', label: '51 – Anyagköltség', tip: 'Közvetlen anyagfelhasználás – ami azonnal felhasználásra kerül a termelés vagy üzletmenet során.&#10;📌 Példák:&#10;• Acéllap felhasználása gyártáshoz&#10;• Kisebb értékű kézi szerszámok (fogó, csavarhúzó, mérőszalag)&#10;• Tisztítószer, takarítóanyag&#10;• Kenőanyag, gépolaj&#10;• Üzemanyag tankba töltése autóba&#10;• Csomagolóanyag felhasználása&#10;• Alkatrész beépítése javításhoz', group: '💰 KÖLTSÉGNEMEK (5-ös osztály)' },
+  { value: '52', label: '52 – Igénybe vett szolgáltatás', tip: 'Külső cégektől igénybe vett szolgáltatások – alvállalkozók, bérlők, szakértők.&#10;📌 Példák:&#10;• Autó lízing havi díja&#10;• Méréstechnikai beszállító számlája&#10;• Kalibrációs költségek (eszköz hitelesítés)&#10;• Mérőeszköz bérlés&#10;• Alvállalkozói szerelési díj&#10;• Irodabérleti díj&#10;• Könyvelői, ügyvédi díj&#10;• Szoftver karbantartási díj&#10;• Teherszállítási díj', group: '💰 KÖLTSÉGNEMEK (5-ös osztály)' },
+  { value: '53', label: '53 – Egyéb szolgáltatás', tip: 'Rezsi és általános szolgáltatások – nem közvetlen termelési tevékenység.&#10;📌 Példák:&#10;• Telefon- és internetszámla&#10;• Villamos energia, gáz, víz&#10;• Casco és felelősségbiztosítás&#10;• Banki tranzakciós díjak&#10;• Google Ads, Meta hirdetési díj', group: '💰 KÖLTSÉGNEMEK (5-ös osztály)' },
+  { value: '54', label: '54 – Bérköltség', tip: 'Munkavállalók közvetlen bérkifizetése – bruttó bér és kiegészítők.&#10;📌 Példák:&#10;• Havi bruttó alapbér&#10;• Túlóra díjazás&#10;• Prémium, teljesítmény bónusz&#10;• Távolléti díj (szabadság)&#10;• 13. havi bér, jutalom', group: '💰 KÖLTSÉGNEMEK (5-ös osztály)' },
+  { value: '55', label: '55 – Személyi jellegű egyéb', tip: 'Munkáltatói terhek és juttatások – a béren felüli személyi költségek.&#10;📌 Példák:&#10;• Szociális hozzájárulási adó (szocho)&#10;• SZÉP kártya juttatás&#10;• Munkaruha, védőeszköz biztosítása&#10;• Dolgozói képzés, tanfolyam díja&#10;• Étkezési hozzájárulás, bölcsőde', group: '💰 KÖLTSÉGNEMEK (5-ös osztály)' },
+  { value: '56', label: '56 – Értékcsökkenés', tip: 'Aktivált eszközök éves értékcsökkenési leírása – nem készpénzmozgás.&#10;📌 Példák:&#10;• Laptop 3 éves leírása (évi 33%)&#10;• Gépkocsi éves amortizációja&#10;• Szoftver licence éves leírása&#10;• Épület 50 éves leírása&#10;• Gyártógép éves értékcsökkenése', group: '💰 KÖLTSÉGNEMEK (5-ös osztály)' },
+  { value: '57', label: '57 – Egyéb ráfordítás', tip: 'Egyéb, fenti kategóriákba nem sorolható ráfordítások.&#10;📌 Példák:&#10;• Behajthatatlan vevői követelés leírása&#10;• Késedelmi kamat fizetése&#10;• NAV bírság, hatósági büntetés&#10;• Készletek selejtezése&#10;• Adomány, támogatás fizetése', group: '💰 KÖLTSÉGNEMEK (5-ös osztály)' },
+];
+
+function kategoriaTipStyle() { return ''; } // legacy
+
+function showKatTip() {}
+function hideKatTip() { document.querySelectorAll('.kat-dropdown-list').forEach(el => el.remove()); }
+function showKatTipFromSelect() {}
+
+function buildKategoriaOpts(current) {
+  let html = '';
+  let lastGroup = null;
+  for (const k of BSZ_KATEGORIAK) {
+    if (!k.value) { html += `<option value="" ${current===''?'selected':''}>${k.label}</option>`; continue; }
+    if (k.group !== lastGroup) {
+      if (lastGroup !== null) html += '</optgroup>';
+      html += `<optgroup label="${k.group}">`;
+      lastGroup = k.group;
+    }
+    html += `<option value="${k.value}" data-tip="${k.tip.replace(/"/g,'&quot;')}" ${current===k.value?'selected':''}>${k.label}</option>`;
+  }
+  if (lastGroup !== null) html += '</optgroup>';
+  return html;
+}
+
+function kategoriasSelect(inv) {
+  const current = inv._airtableKategoria || '';
+  const airtableId = inv._airtableId || '';
+  const currentLabel = current ? (BSZ_KATEGORIAK.find(k => k.value === current)?.label || current) : '— Válassz —';
+  return `<div class="kat-dropdown-wrap" style="position:relative;display:block;width:100%" data-aid="${airtableId}" data-val="${current}">
+    <button type="button" onclick="event.stopPropagation();toggleKatDropdown(this.parentElement)" style="width:100%;padding:3px 20px 3px 6px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;text-align:left;position:relative;font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+      <span class="kat-label">${currentLabel}</span>
+      <span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--text-muted)">▼</span>
+    </button>
+  </div>`;
+}
+
+function toggleKatDropdown(wrap) {
+  const existing = wrap.querySelector('.kat-dropdown-list');
+  document.querySelectorAll('.kat-dropdown-list').forEach(el => el.remove());
+  document.querySelectorAll('.kat-dropdown-wrap').forEach(w => { w._open = false; });
+  if (existing) return;
+  wrap._open = true;
+
+  const airtableId = wrap.dataset.aid;
+  const current = wrap.dataset.val || '';
+
+  const list = document.createElement('div');
+  list.className = 'kat-dropdown-list';
+  list.style.cssText = 'position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;max-height:400px;overflow:hidden';
+
+  const leftPane = document.createElement('div');
+  leftPane.style.cssText = 'min-width:200px;overflow-y:auto;border-right:1px solid var(--border)';
+
+  const rightPane = document.createElement('div');
+  rightPane.style.cssText = 'width:260px;padding:14px 16px;font-size:12px;line-height:1.6;color:var(--text);background:var(--bg-secondary);border-radius:0 8px 8px 0;white-space:pre-line;overflow-y:auto;display:flex;align-items:flex-start';
+  rightPane.innerHTML = '<span style="color:var(--text-muted);font-style:italic">Vidd az egeret egy kategóriára a magyarázathoz ➡️</span>';
+
+  let lastGroup = null;
+  BSZ_KATEGORIAK.forEach(k => {
+    if (!k.value) {
+      const emptyOpt = document.createElement('div');
+      emptyOpt.textContent = k.label;
+      emptyOpt.style.cssText = 'padding:8px 12px;font-size:12px;color:var(--text-muted);cursor:pointer;border-bottom:1px solid var(--border)';
+      emptyOpt.onmouseenter = () => { rightPane.textContent = ''; rightPane.innerHTML = '<span style="color:var(--text-muted);font-style:italic">Nincs kategória megadva</span>'; };
+      emptyOpt.onclick = () => selectKat(wrap, airtableId, '', '— Válassz —');
+      leftPane.appendChild(emptyOpt);
+      return;
+    }
+    if (k.group !== lastGroup) {
+      const grp = document.createElement('div');
+      grp.textContent = k.group;
+      grp.style.cssText = 'padding:5px 12px 3px;font-size:10px;font-weight:700;color:var(--text-muted);background:var(--bg-secondary);border-bottom:1px solid var(--border);letter-spacing:0.4px';
+      leftPane.appendChild(grp);
+      lastGroup = k.group;
+    }
+    const opt = document.createElement('div');
+    const isCurrent = k.value === current;
+    opt.style.cssText = 'padding:8px 14px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.08s;' + (isCurrent ? 'background:var(--accent);color:#fff;font-weight:600' : 'color:var(--text)');
+    opt.textContent = k.label;
+    opt.onmouseenter = () => {
+      if (!isCurrent) opt.style.background = 'color-mix(in srgb, var(--accent) 12%, transparent)';
+      rightPane.textContent = k.tip.replace(/&#10;/g, '\n');
+    };
+    opt.onmouseleave = () => { if (!isCurrent) opt.style.background = ''; };
+    opt.onclick = (e) => { e.stopPropagation(); selectKat(wrap, airtableId, k.value, k.label); };
+    leftPane.appendChild(opt);
+  });
+
+  list.appendChild(leftPane);
+  list.appendChild(rightPane);
+  document.body.appendChild(list);
+
+  const r = wrap.getBoundingClientRect();
+  const totalW = 200 + 260 + 2;
+  const left = (r.left + totalW > window.innerWidth - 8) ? Math.max(4, window.innerWidth - totalW - 8) : r.left;
+  const top = (r.bottom + 400 > window.innerHeight) ? Math.max(4, r.top - 400) : r.bottom + 2;
+  list.style.left = left + 'px';
+  list.style.top = top + 'px';
+
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!wrap.contains(e.target) && !list.contains(e.target)) {
+        list.remove(); wrap._open = false;
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 0);
+}
+
+function selectKat(wrap, airtableId, value, label) {
+  wrap.querySelector('.kat-label').textContent = label || '— Válassz —';
+  wrap.dataset.val = value;
+  wrap._open = false;
+  wrap.querySelector('.kat-dropdown-list')?.remove();
+  document.querySelectorAll('.kat-dropdown-list').forEach(el => el.remove());
+  updateBszKategoria(airtableId, value);
+}
+
+
+async function updateBszKategoria(airtableId, newKat) {
+  hideKatTip();
+  if (!airtableId) { toast('Ez a számla még nincs mentve az Airtable-be!', 'error'); return; }
+  try {
+    await atPatch('Bejovo_Szamlak', airtableId, { Kategoria: newKat || null });
+    const inv = bszInvoices.find(i => i._airtableId === airtableId);
+    if (inv) inv._airtableKategoria = newKat;
+    const k = BSZ_KATEGORIAK.find(k => k.value === newKat);
+    toast('Kategória: ' + (k?.label || '—'), 'success');
+  } catch(e) {
+    toast('Kategória mentési hiba: ' + e.message, 'error');
   }
 }
 

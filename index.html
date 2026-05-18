@@ -906,6 +906,7 @@ select.form-control{cursor:pointer}
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" id="afaPdfLetoltesBtn" onclick="afaCsatolmanyLetoltes()" style="display:none">⬇ Havi csatolmányok</button>
         <button class="btn btn-secondary" onclick="afaOsszesCsatolmanyLetoltes()">⬇ Összes csatolmány</button>
+        <button class="btn btn-secondary" id="afaExcelExportBtn" onclick="exportAfaExcel()" style="display:none">📥 Excel export</button>
       </div>
     </div>
     <div class="page-content">
@@ -8986,6 +8987,8 @@ async function renderAfaBevallas() {
   if (!honap) {
     tartalom.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Válassz hónapot a kimutatáshoz</div></div>';
     if (letoltesBtn) letoltesBtn.style.display = 'none';
+    const excelBtnHide = document.getElementById('afaExcelExportBtn');
+    if (excelBtnHide) excelBtnHide.style.display = 'none';
     return;
   }
 
@@ -9009,12 +9012,21 @@ async function renderAfaBevallas() {
   if (!vanAdat) {
     tartalom.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Nincs adat ${ev}. ${parseInt(honap)}. hónapban</div></div>`;
     if (letoltesBtn) letoltesBtn.style.display = 'none';
+    const excelBtnHide2 = document.getElementById('afaExcelExportBtn');
+    if (excelBtnHide2) excelBtnHide2.style.display = 'none';
     return;
   }
 
   const vanPdf = szamlak.some(i => i._pdfUrl);
   if (letoltesBtn) letoltesBtn.style.display = vanPdf ? 'inline-flex' : 'none';
   letoltesBtn && (letoltesBtn.onclick = () => afaCsatolmanyLetoltes(szamlak));
+
+  const excelBtn = document.getElementById('afaExcelExportBtn');
+  if (excelBtn) excelBtn.style.display = 'inline-flex';
+  // Tároljuk el a havi adatokat az export funkcióhoz
+  window._afaExportSzamlak = szamlak;
+  window._afaExportEv = ev;
+  window._afaExportHonap = honap;
 
   const honapNevek = ['','Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
   const fmt = (n) => Number.isInteger(n) ? n.toLocaleString('hu-HU') : n.toLocaleString('hu-HU', {minimumFractionDigits:0, maximumFractionDigits:2});
@@ -9169,6 +9181,184 @@ async function renderAfaBevallas() {
   window._afaHufAfa = hufAfa;
   window._afaEurAfa = eurAfa;
   window._afaVamAfa = vamImportAfa;
+}
+
+async function exportAfaExcel() {
+  const szamlak = window._afaExportSzamlak || [];
+  const ev = window._afaExportEv || '';
+  const honap = window._afaExportHonap || '';
+
+  if (!honap) { toast('Nincs kiválasztott hónap!', 'error'); return; }
+
+  const honapNevek = ['','Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+  const honapNev = honapNevek[parseInt(honap)] || honap;
+  const prefix = `${ev}-${honap}`;
+
+  toast('Excel generálása...', '');
+
+  try {
+    const XLSX = await importGetXLSX();
+    const wb = XLSX.utils.book_new();
+
+    // ----- 1. LAP: Bejövő számlák -----
+    const szamlakFejlec = [
+      'Számlaszám', 'Szállító neve', 'Szállító adószáma',
+      'Kiállítás dátuma', 'Teljesítés dátuma', 'Fizetési határidő',
+      'Nettó összeg', 'ÁFA összeg', 'Bruttó összeg', 'Deviza',
+      'Fizetési mód', 'Típus', 'Státusz', 'Kategória', 'PDF'
+    ];
+
+    const szamlakSorok = szamlak.map(inv => {
+      const netto = parseFloat(inv.invoiceNetAmount) || 0;
+      const afa   = parseFloat(inv.invoiceVatAmount) || 0;
+      const tipusMap = { 'STORNO': 'Sztornó', 'MODIFY': 'Módosító', 'CREATE': 'Számla' };
+      const statuszMap = { 'Fizetett': 'Fizetett', 'Fizetesre_var': 'Fizetésre vár' };
+      return [
+        inv.invoiceNumber || '',
+        inv.supplierName || '',
+        inv.supplierTaxNumber || '',
+        inv.invoiceIssueDate || '',
+        inv.invoiceDeliveryDate || '',
+        inv.paymentDate || '',
+        netto,
+        afa,
+        netto + afa,
+        inv.currency || 'HUF',
+        inv.paymentMethod || '',
+        tipusMap[inv.invoiceOperation] || inv.invoiceOperation || 'Számla',
+        statuszMap[inv._airtableStatus] || inv._airtableStatus || '',
+        inv._airtableKategoria ? (BSZ_KATEGORIAK.find(k => k.value === inv._airtableKategoria)?.label || inv._airtableKategoria) : '',
+        inv._pdfUrl ? 'Van' : 'Nincs'
+      ];
+    });
+
+    // Összesítő sor per deviza
+    const devizak = [...new Set(szamlak.map(i => i.currency || 'HUF'))].sort((a, b) => a === 'HUF' ? -1 : b === 'HUF' ? 1 : a.localeCompare(b));
+    const osszesSorok = devizak.map(dev => {
+      const cs = szamlak.filter(i => (i.currency || 'HUF') === dev);
+      const csN = cs.reduce((s, i) => s + (parseFloat(i.invoiceNetAmount) || 0), 0);
+      const csA = cs.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
+      return [`${dev} összesen (${cs.length} db)`, '', '', '', '', '', csN, csA, csN + csA, dev, '', '', '', '', ''];
+    });
+
+    const ws1Data = [szamlakFejlec, ...szamlakSorok, [], ...osszesSorok];
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+
+    // Oszlopszélességek
+    ws1['!cols'] = [
+      {wch:22},{wch:28},{wch:16},{wch:14},{wch:14},{wch:14},
+      {wch:14},{wch:14},{wch:14},{wch:8},
+      {wch:14},{wch:10},{wch:14},{wch:18},{wch:6}
+    ];
+
+    // Fejléc formázás
+    const headerStyle = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1E3A5F' } }, alignment: { horizontal: 'center' } };
+    szamlakFejlec.forEach((_, ci) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
+      if (ws1[cellRef]) ws1[cellRef].s = headerStyle;
+    });
+
+    // Összesítő sorok formázása
+    const osszesSorStart = szamlakSorok.length + 2;
+    osszesSorok.forEach((_, ri) => {
+      const rowIdx = osszesSorStart + ri;
+      szamlakFejlec.forEach((__, ci) => {
+        const cellRef = XLSX.utils.encode_cell({ r: rowIdx, c: ci });
+        if (ws1[cellRef]) ws1[cellRef].s = { font: { bold: true }, fill: { fgColor: { rgb: 'E8F0FE' } } };
+      });
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'Bejövő számlák');
+
+    // ----- 2. LAP: Vámkezelés -----
+    let vamSzamlak = [];
+    try {
+      if (!window.vamRecords || !window.vamRecords.length) {
+        window.vamRecords = await atGet('Vamkezeles', 'sort%5B0%5D%5Bfield%5D=Vamhatarozat_datum&sort%5B0%5D%5Bdirection%5D=desc');
+      }
+      vamSzamlak = (window.vamRecords || []).filter(v => {
+        const datum = v.fields?.Vamhatarozat_datum || v.fields?.Datum || '';
+        return datum.startsWith(prefix);
+      });
+    } catch(e) {}
+
+    const vamFejlec = ['MRN szám', 'Vámhatározat dátuma', 'Szállítólevél szám', 'Megjegyzés', 'Import ÁFA (HUF)', 'Számla érték', 'Deviza', 'PDF'];
+    const vamSorok = vamSzamlak.map(v => {
+      const f = v.fields;
+      return [
+        f.MRN_szam || '',
+        f.Vamhatarozat_datum || f.Datum || '',
+        f.Szallitolevel_szam || '',
+        f.Megjegyzes || '',
+        parseFloat(f.Import_afa) || 0,
+        parseFloat(f.Szamla_ertek) || 0,
+        f.Deviza || 'HUF',
+        f.PDF_url ? 'Van' : 'Nincs'
+      ];
+    });
+
+    const vamOssz = vamSzamlak.reduce((s, v) => s + (parseFloat(v.fields?.Import_afa) || 0), 0);
+    const ws2Data = [
+      vamFejlec,
+      ...vamSorok,
+      [],
+      ['Import ÁFA összesen (HUF)', '', '', '', vamOssz, '', '', '']
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [{wch:22},{wch:22},{wch:20},{wch:28},{wch:18},{wch:14},{wch:8},{wch:6}];
+    vamFejlec.forEach((_, ci) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
+      if (ws2[cellRef]) ws2[cellRef].s = headerStyle;
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws2, 'Vámkezelés');
+
+    // ----- 3. LAP: ÁFA összesítő -----
+    const arfolyam = parseFloat(document.getElementById('eurHufArfolyam')?.value) || 400;
+    const hufSzamlak = szamlak.filter(i => (i.currency || 'HUF') === 'HUF');
+    const eurSzamlak = szamlak.filter(i => (i.currency || 'HUF') === 'EUR');
+    const hufNetto = hufSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceNetAmount) || 0), 0);
+    const hufAfa   = hufSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
+    const eurAfa   = eurSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
+    const eurAfaHuf = Math.round(eurAfa * arfolyam);
+    const totalAfa  = Math.round(hufAfa + eurAfaHuf + vamOssz);
+
+    const ws3Data = [
+      [`ÁFA Bevallás összesítő — ${ev}. ${honapNev}`],
+      [],
+      ['Tétel', 'Érték', 'Deviza', 'Megjegyzés'],
+      ['HUF Nettó összesen', Math.round(hufNetto), 'HUF', `${hufSzamlak.length} számla`],
+      ['HUF Levonható ÁFA', Math.round(hufAfa), 'HUF', 'Bejövő számlák (HUF)'],
+      ['EUR Levonható ÁFA', eurAfa, 'EUR', `${eurSzamlak.length} számla`],
+      ['EUR/HUF árfolyam', arfolyam, '', 'Kézzel megadott'],
+      ['EUR ÁFA (HUF-ban)', eurAfaHuf, 'HUF', `${eurAfa.toFixed(2)} EUR × ${arfolyam}`],
+      ['Import ÁFA (vámkezelés)', Math.round(vamOssz), 'HUF', `${vamSzamlak.length} vámhatározat`],
+      [],
+      ['TELJES LEVONHATÓ ÁFA', totalAfa, 'HUF', 'HUF ÁFA + EUR ÁFA (HUF-ban) + Import ÁFA'],
+    ];
+    const ws3 = XLSX.utils.aoa_to_sheet(ws3Data);
+    ws3['!cols'] = [{wch:30},{wch:18},{wch:8},{wch:40}];
+    // Cím formázás
+    if (ws3['A1']) ws3['A1'].s = { font: { bold: true, sz: 14 } };
+    // Fejléc sor (3. sor, index 2)
+    ['A3','B3','C3','D3'].forEach(ref => { if (ws3[ref]) ws3[ref].s = headerStyle; });
+    // Összesítő sor (utolsó)
+    const lastRow = ws3Data.length;
+    [`A${lastRow}`,`B${lastRow}`,`C${lastRow}`,`D${lastRow}`].forEach(ref => {
+      if (ws3[ref]) ws3[ref].s = { font: { bold: true, sz: 12 }, fill: { fgColor: { rgb: 'D0E4FF' } } };
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws3, 'ÁFA összesítő');
+
+    // Letöltés
+    const fileName = `afa_bevallas_${ev}_${honap}_${honapNev}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast(`✓ Excel letöltve: ${fileName}`, 'success');
+
+  } catch(e) {
+    console.error('Excel export hiba:', e);
+    toast('Hiba az Excel generálása közben: ' + e.message, 'error');
+  }
 }
 
 function updateTotalAfa() {

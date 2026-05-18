@@ -481,6 +481,7 @@ select.form-control{cursor:pointer}
               <select class="form-control" id="fKapcsolattarto">
                 <option value="Jarfas Kitti">Járfás Kitti</option>
                 <option value="Wagner Szabolcs">Wágner Szabolcs</option>
+                <option value="Zombori Krisztina">Zombori Krisztina</option>
               </select>
             </div>
             <div class="form-group">
@@ -4348,7 +4349,7 @@ function ujAjanlatForm() {
   const vissszaBtn = document.getElementById('vissszaProjektBtn');
   if (vissszaBtn) vissszaBtn.style.display = 'none';
   document.getElementById('fBankszamla').value = 'Wise EUR';
-  document.getElementById('fKapcsolattarto').value = 'Jarfas Kitti';
+  document.getElementById('fKapcsolattarto').value = getCurrentUserAirtableName() || 'Jarfas Kitti';
   loadVevoiKontaktok('');
   document.getElementById('fTargy').value = '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
@@ -4398,7 +4399,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   document.getElementById('fFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
   document.getElementById('fNyelv').value = f.Nyelv || 'Magyar';
   document.getElementById('fBankszamla').value = f.Bankszamla || 'Wise EUR';
-  document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || 'Jarfas Kitti';
+  document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
   document.getElementById('fTargy').value = f.Targy || '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
   document.getElementById('fAjanlatJutalek').value = f.Jutalek_osszeg || '';
@@ -6195,7 +6196,7 @@ async function editProjektById(id) {
   document.getElementById('fProjektStatusz').value = f.Statusz || 'Beerkezett_Folyamatban';
   document.getElementById('fProjektUgyfel').value = f.Ugyfel ? f.Ugyfel[0] : '';
   document.getElementById('fProjektAjanlat').value = f.Ajanlat ? f.Ajanlat[0] : '';
-  document.getElementById('fProjektFelelos').value = f.Felelos || 'Jarfas Kitti';
+  document.getElementById('fProjektFelelos').value = f.Felelos || getCurrentUserAirtableName() || 'Jarfas Kitti';
   document.getElementById('fProjektSzallitas').value = f.Szallitasi_hatarido || '';
   document.getElementById('fProjektPO').value = f.PO_szam || '';
   document.getElementById('fProjektJutalek').value = f.Jutalek_osszeg || '';
@@ -6245,11 +6246,26 @@ async function saveProjekt() {
     const regiSzamlazasDatum = editingProjektId
       ? projektek.find(p => p.id === editingProjektId)?.fields?.Szamlazas_datum
       : null;
-    // Csak akkor írjuk be, ha most váltott Szamlazott-ra (vagy új projekt)
     if (!regiSzamlazasDatum) {
       szamlazasDatum = new Date().toISOString().split('T')[0];
     } else {
       szamlazasDatum = regiSzamlazasDatum;
+    }
+  }
+
+  // Ha Szamlazható státuszra vált, rögzítjük a dátumot
+  let szamlazhatoDatum = null;
+  if (ujStatusz === 'Szamlazhato') {
+    const regiStatusz = editingProjektId
+      ? projektek.find(p => p.id === editingProjektId)?.fields?.Statusz
+      : null;
+    const regiDatum = editingProjektId
+      ? projektek.find(p => p.id === editingProjektId)?.fields?.Szamlazható_datum
+      : null;
+    if (!regiDatum) {
+      szamlazhatoDatum = new Date().toISOString().split('T')[0];
+    } else {
+      szamlazhatoDatum = regiDatum;
     }
   }
 
@@ -6262,6 +6278,7 @@ async function saveProjekt() {
     Felelos: USER_NAME_MAP[document.getElementById('fProjektFelelos').value] || document.getElementById('fProjektFelelos').value,
     Szallitasi_hatarido: document.getElementById('fProjektSzallitas').value || null,
     Szamlazas_datum: szamlazasDatum,
+    Szamlazható_datum: szamlazhatoDatum || undefined,
     PO_szam: document.getElementById('fProjektPO').value.trim() || null,
     Jutalek_osszeg: parseFloat(document.getElementById('fProjektJutalek').value) || null,
     Deviza: document.getElementById('fProjektDeviza').value,

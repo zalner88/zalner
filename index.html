@@ -10,11 +10,11 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:14px}
 .nav{width:var(--nav-width);background:var(--nav-bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow:hidden}
-.nav-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.nav-logo{padding:14px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
 .nav-logo-name{font-size:15px;font-weight:600;color:#fff;letter-spacing:-0.3px}
 .nav-logo-sub{font-size:11px;color:rgba(255,255,255,0.3);margin-top:2px;font-family:'DM Mono',monospace}
-.nav-section{font-size:10px;font-weight:500;color:rgba(255,255,255,0.25);letter-spacing:0.08em;text-transform:uppercase;padding:20px 20px 6px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;margin:2px 8px;border-radius:7px;cursor:pointer;font-size:13.5px;color:rgba(255,255,255,0.55);transition:all 0.15s;border:none;background:none;width:calc(100% - 16px);text-align:left;font-family:'DM Sans',sans-serif}
+.nav-section{font-size:10px;font-weight:500;color:rgba(255,255,255,0.25);letter-spacing:0.08em;text-transform:uppercase;padding:10px 16px 4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 12px;margin:1px 6px;border-radius:7px;cursor:pointer;font-size:13px;color:rgba(255,255,255,0.55);transition:all 0.15s;border:none;background:none;width:calc(100% - 12px);text-align:left;font-family:'DM Sans',sans-serif}
 .nav-item:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.85)}
 .nav-item.active{background:rgba(79,127,255,0.18);color:#fff}
 .nav-scroll::-webkit-scrollbar{display:none}.nav-bottom{flex-shrink:0;padding:16px;border-top:1px solid rgba(255,255,255,0.06);font-size:12px;color:rgba(255,255,255,0.25);font-family:'DM Mono',monospace}
@@ -61,6 +61,8 @@ tbody tr:hover{background:#f9fafd}
 .badge-elkuldve{background:#dbeafe;color:#1d4ed8}
 .badge-elfogadva{background:#dcfce7;color:#15803d}
 .badge-elutasitva{background:#fee2e2;color:#991b1b}
+.ksz-dd-item{padding:9px 14px;font-size:13px;cursor:pointer;white-space:nowrap;transition:background 0.1s}
+.ksz-dd-item:hover{background:var(--bg-secondary)}
 .badge-lejart{background:#fef3c7;color:#92400e}
 .badge-megrendelve{background:#dbeafe;color:#1d4ed8}
 .badge-folyamatban{background:#e0f2fe;color:#0369a1}
@@ -205,6 +207,8 @@ select.form-control{cursor:pointer}
   <button class="nav-item" id="navItem-vrv" onclick="showPage('vrv')"><span>✉</span> Visszaigazolások</button>
   <button class="nav-item" id="navItem-szallitolevelek" onclick="showPage('szallitolevelek')"><span>◧</span> Szállítólevelek</button>
   <button class="nav-item" id="navItem-bejovo-szamlak" onclick="showPage('bejovo-szamlak')"><span>↓</span> Bejövő számlák</button>
+  <button class="nav-item" id="navItem-kimeno-szamlak" onclick="showPage('kimeno-szamlak')"><span>↑</span> Kimenő számlák</button>
+  <button class="nav-item" id="navItem-afa-bevallas" onclick="showPage('afa-bevallas')"><span>📊</span> ÁFA bevallás</button>
   <button class="nav-item" id="navItem-vamkezeles" onclick="showPage('vamkezeles')"><span>🛃</span> Vámkezelés</button>
   <button class="nav-item" id="navItem-beszallitok" onclick="showPage('beszallitok')"><span>🏭</span> Beszállítók</button>
   <button class="nav-item" id="navRendszerToggle" onclick="toggleRendszerMenu()" style="justify-content:space-between;">
@@ -212,25 +216,27 @@ select.form-control{cursor:pointer}
     <span id="navRendszerArrow" style="font-size:10px;opacity:0.5;">▸</span>
   </button>
   <div id="navRendszerMenu" style="display:none;overflow:hidden;">
-    <button class="nav-item" id="navAdminItem" id="navItem-felhasznalok" onclick="showPage('felhasznalok')" style="display:none;padding-left:28px;"><span>👥</span> Felhasználók</button>
+    <button class="nav-item" id="navItem-felhasznalok" onclick="showPage('felhasznalok')" style="display:none;padding-left:28px;"><span>👥</span> Felhasználók</button>
     <button class="nav-item" id="navItem-audit-log" onclick="showPage('audit-log')" style="padding-left:28px;"><span>📋</span> Audit log</button>
   </div>
   </div>
-  <div class="nav-bottom" style="display:flex;flex-direction:column;gap:6px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:10px;color:rgba(255,255,255,0.2);">Bejelentkezve:</div>
-      <div id="pollingDot" title="Háttér szinkron aktív" style="width:6px;height:6px;border-radius:50%;background:#22c55e;opacity:0.6;"></div>
+  <div class="nav-bottom" style="padding:10px 10px;border-top:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:rgba(79,127,255,0.25);border:1px solid rgba(79,127,255,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#4f7fff;flex-shrink:0;" id="navUserAvatar">—</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <div id="navCurrentUser" style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+          <div id="pollingDot" title="Háttér szinkron aktív" style="width:5px;height:5px;border-radius:50%;background:#22c55e;opacity:0.6;flex-shrink:0;"></div>
+        </div>
+        <div id="navUserRole" style="font-size:10px;color:rgba(255,255,255,0.3);white-space:nowrap;"></div>
+      </div>
+      <button onclick="authLogout()" title="Kijelentkezés" style="
+        background:none;border:1px solid rgba(255,255,255,0.1);border-radius:6px;
+        color:rgba(255,255,255,0.35);font-size:13px;padding:4px 7px;cursor:pointer;
+        font-family:'DM Sans',sans-serif;transition:all 0.15s;flex-shrink:0;line-height:1;
+      " onmouseover="this.style.borderColor='rgba(255,255,255,0.35)';this.style.color='rgba(255,255,255,0.8)'"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.35)'">⎋</button>
     </div>
-    <div id="navCurrentUser" style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.75);">—</div>
-    <div id="navUserRole" style="font-size:11px;color:rgba(255,255,255,0.35);"></div>
-    <button onclick="authLogout()" style="
-      background:none;border:1px solid rgba(255,255,255,0.1);border-radius:6px;
-      color:rgba(255,255,255,0.3);font-size:11px;padding:5px 8px;cursor:pointer;
-      font-family:'DM Sans',sans-serif;transition:all 0.15s;text-align:left;margin-top:2px;
-    " onmouseover="this.style.borderColor='rgba(255,255,255,0.3)';this.style.color='rgba(255,255,255,0.7)'"
-      onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.3)'">
-      ⎋ Kijelentkezés
-    </button>
   </div>
 </nav>
 
@@ -820,7 +826,57 @@ select.form-control{cursor:pointer}
   </div>
 
   <!-- ÁFA BEVALLÁS OLDAL -->
-  
+
+  <!-- KIMENŐ SZÁMLÁK OLDAL -->
+  <div class="page" id="page-kimeno-szamlak">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Kimenő számlák</div>
+        <div class="page-subtitle" id="kszSubtitle">Billingo e-számlák</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary" onclick="syncKimenoSzamlak()" id="syncKszBtn">🔄 Frissítés</button>
+        <button class="btn btn-primary" onclick="openKszModal()">＋ Új számla</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <div class="filter-pills" style="margin-bottom:0">
+          <button class="pill active" onclick="setKszFilter('mind',this)">Összes</button>
+          <button class="pill" onclick="setKszFilter('fizetesre_var',this)">Fizetésre vár</button>
+          <button class="pill" onclick="setKszFilter('fizetett',this)">Fizetett</button>
+        </div>
+        <div style="flex:1"></div>
+        <input class="search-input" type="text" placeholder="Ügyfél, számlaszám..." id="kszSearch" oninput="filterKimenoSzamlak()" style="width:240px">
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" style="width:100%;font-size:13px">
+          <thead>
+            <tr>
+              <th style="width:150px">Számlaszám</th>
+              <th>Ügyfél</th>
+              <th style="text-align:right;width:120px">Nettó</th>
+              <th style="text-align:right;width:100px">Bruttó</th>
+              <th style="width:50px">Dev.</th>
+              <th style="width:110px">Teljesítés</th>
+              <th style="width:110px">Fizetési hat.</th>
+              <th style="width:90px">Típus</th>
+              <th style="width:120px">Státusz</th>
+              <th style="width:110px">Műveletek</th>
+            </tr>
+          </thead>
+          <tbody id="kszTableBody">
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">Betöltés...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+        <div class="page-subtitle" id="kszCount"></div>
+        <div id="kszPagination" style="display:flex;gap:4px"></div>
+      </div>
+    </div>
+  </div>
+
 <div class="page" id="page-wise-sync">
   <div class="page-header">
     <div>
@@ -1066,6 +1122,23 @@ select.form-control{cursor:pointer}
           <tr><td colspan="5"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Billingo API beállítás -->
+    <div class="form-section" style="margin-top:28px;max-width:520px">
+      <div class="form-section-title">🔗 Billingo API beállítás</div>
+      <div class="form-section-body">
+        <div class="form-group">
+          <label class="form-label">Billingo API kulcs (X-API-KEY)</label>
+          <input class="form-control" type="password" id="billingoApiKeyInput" placeholder="pl. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">A Billingo fiókban: Beállítások → API kulcsok → Új kulcs létrehozása. Az API kulcs csak ebben a böngészőben tárolódik (localStorage).</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveBillingoApiKey()">💾 Mentés</button>
+          <button class="btn btn-secondary" onclick="testBillingoApiKey()">🔍 Kapcsolat tesztelése</button>
+          <span id="billingoApiKeyStatus" style="font-size:13px"></span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1669,6 +1742,176 @@ select.form-control{cursor:pointer}
     <div class="modal-footer" style="flex-shrink:0">
       <button class="btn btn-secondary" onclick="closeSzlModal()">Mégse</button>
       <button class="btn btn-primary" onclick="saveSzl()">💾 Mentés</button>
+    </div>
+  </div>
+</div>
+
+<!-- KIMENŐ SZÁMLA MODAL -->
+<div class="modal-overlay" id="kszModal">
+  <div class="modal" style="width:min(780px,96vw);max-width:96vw;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <div class="modal-title" id="kszModalTitle">Új kimenő számla</div>
+      <button class="modal-close" onclick="closeKszModal()">×</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <!-- Billingo API kulcs figyelmeztetés -->
+      <div id="kszApiKeyWarning" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e">
+        ⚠️ A Billingo API kulcs nincs beállítva. <a href="#" onclick="event.preventDefault();closeKszModal();showPage('felhasznalok')" style="color:#92400e;font-weight:600">Beállítás →</a>
+      </div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Bizonylat típusa *</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="kszTipusGrid">
+            <label id="kszTipusLabel_invoice" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--accent);border-radius:8px;cursor:pointer;background:var(--accent-light);font-size:13px;font-weight:600">
+              <input type="radio" name="kszTipus" value="invoice" checked onchange="onKszTipusChange()" style="width:15px;height:15px">
+              <span>🧾</span><span>Számla</span>
+            </label>
+            <label id="kszTipusLabel_proforma" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:13px">
+              <input type="radio" name="kszTipus" value="proforma" onchange="onKszTipusChange()" style="width:15px;height:15px">
+              <span>📋</span><span>Díjbekérő</span>
+            </label>
+            <label id="kszTipusLabel_advance" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:13px">
+              <input type="radio" name="kszTipus" value="advance" onchange="onKszTipusChange()" style="width:15px;height:15px">
+              <span>💰</span><span>Előlegszámla</span>
+            </label>
+            <label id="kszTipusLabel_final" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:13px">
+              <input type="radio" name="kszTipus" value="final" onchange="onKszTipusChange()" style="width:15px;height:15px">
+              <span>✅</span><span>Végszámla</span>
+            </label>
+            <label id="kszTipusLabel_draft" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:13px">
+              <input type="radio" name="kszTipus" value="draft" onchange="onKszTipusChange()" style="width:15px;height:15px">
+              <span>📝</span><span>Piszkozat</span>
+            </label>
+            <label id="kszTipusLabel_storno" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:13px">
+              <input type="radio" name="kszTipus" value="storno" onchange="onKszTipusChange()" style="width:15px;height:15px">
+              <span>❌</span><span>Sztornó</span>
+            </label>
+          </div>
+          <!-- Típus leírás -->
+          <div id="kszTipusInfo" style="margin-top:8px;padding:8px 12px;background:var(--bg-secondary);border-radius:6px;font-size:12px;color:var(--text-muted)">
+            Véglegesen kiállított számla, NAV felé bejelentve.
+          </div>
+        </div>
+        <!-- Sztornó: eredeti számla megadása -->
+        <div class="form-group full" id="kszStornoRef" style="display:none">
+          <label class="form-label">Sztornózandó számla <span style="color:#e74c3c">*</span></label>
+          <div style="display:flex;gap:8px">
+            <input class="form-control" id="fKszStornoBillingoId" placeholder="Billingo ID (pl. 12345678) — a kimenő számla listából" style="flex:1">
+            <button type="button" class="btn btn-secondary" onclick="kszStornoKereses()" style="white-space:nowrap">🔍 Keresés</button>
+          </div>
+          <div id="kszStornoFoundInfo" style="font-size:12px;color:var(--text-muted);margin-top:4px"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ügyfél *</label>
+          <select class="form-control" id="fKszUgyfel" onchange="onKszUgyfelChange()">
+            <option value="">— Válassz ügyfelet —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kapcsolódó projekt</label>
+          <select class="form-control" id="fKszProjekt" onchange="onKszProjektChange()">
+            <option value="">— Nincs kapcsolódó projekt —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teljesítés dátuma *</label>
+          <input class="form-control" type="date" id="fKszTeljesites">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fizetési határidő *</label>
+          <input class="form-control" type="date" id="fKszHatarido">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deviza</label>
+          <select class="form-control" id="fKszDeviza">
+            <option value="HUF">HUF</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fizetési mód</label>
+          <select class="form-control" id="fKszFizetesMod">
+            <option value="wire_transfer">Átutalás</option>
+            <option value="cash">Készpénz</option>
+            <option value="bankcard">Bankkártya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">PO szám</label>
+          <input class="form-control" id="fKszPoSzam" placeholder="pl. PO-2026-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Vevői kapcsolattartó</label>
+          <select class="form-control" id="fKszVevoiKontakt">
+            <option value="">— Válassz ügyfelet előbb —</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Saját kapcsolattartó</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="form-control" id="fKszSajatKapcsolattarto" onchange="onKszKapcsolattartoChange()" style="flex:1">
+              <option value="Jarfas Kitti">Járfás Kitti</option>
+              <option value="Wagner Szabolcs">Wágner Szabolcs</option>
+              <option value="Zombori Krisztina">Zombori Krisztina</option>
+            </select>
+            <div id="fKszKapcsolattartoEmail" style="font-size:12px;color:var(--text-muted);white-space:nowrap;padding:0 4px">jarfas.kitti@zalner.hu</div>
+          </div>
+        </div>
+        <div class="form-group full" id="kszTetelekWrap">
+          <label class="form-label">Tételek</label>
+          <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <table class="tetelek-table" style="width:100%">
+              <thead><tr>
+                <th class="col-megnevezes">Megnevezés</th>
+                <th class="col-menny" style="width:70px">Menny.</th>
+                <th class="col-egyseg" style="width:70px">Egység</th>
+                <th style="width:80px;text-align:center">ÁFA</th>
+                <th class="col-ar" style="text-align:right;width:110px">Nettó egységár</th>
+                <th class="col-osszeg" style="text-align:right;width:110px">Nettó összeg</th>
+                <th class="col-del" style="width:36px"></th>
+              </tr></thead>
+              <tbody id="kszTetelek"></tbody>
+            </table>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="addKszTetel()">＋ Tétel hozzáadása</button>
+        </div>
+        <div class="form-group full" id="kszOsszesitoWrap">
+          <label class="form-label" style="display:flex;justify-content:space-between">
+            <span>Összesítő</span>
+          </label>
+          <div id="kszOsszesito" style="background:var(--bg-secondary);border-radius:8px;padding:12px 16px;font-size:13px;display:grid;grid-template-columns:1fr auto;gap:4px 24px">
+            <span style="color:var(--text-muted)">Nettó összesen:</span><span id="kszNettoOssz" style="font-family:'DM Mono',monospace;text-align:right">0</span>
+            <span style="color:var(--text-muted)">ÁFA összesen:</span><span id="kszAfaOssz" style="font-family:'DM Mono',monospace;text-align:right;color:#4f7fff">0</span>
+            <span style="font-weight:600">Bruttó összesen:</span><span id="kszBruttoOssz" style="font-family:'DM Mono',monospace;text-align:right;font-weight:600">0</span>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Megjegyzés</label>
+          <textarea class="form-control" id="fKszMegjegyzes" rows="2" placeholder="Megjegyzés a számlára..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0">
+      <button class="btn btn-secondary" onclick="closeKszModal()">Mégse</button>
+      <button class="btn btn-secondary" onclick="previewKimenoSzamla()" style="gap:6px">👁 Előnézet</button>
+      <button class="btn btn-primary" id="kszSaveBtn" onclick="saveKimenoSzamla()">📤 Kiállítás Billingóban</button>
+    </div>
+  </div>
+</div>
+
+<!-- KIMENŐ SZÁMLA ELŐNÉZET MODAL -->
+<div class="modal-overlay" id="kszPreviewModal" style="z-index:1100">
+  <div class="modal" style="width:min(820px,96vw);max-width:96vw;max-height:95vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <div class="modal-title">👁 Számla előnézet</div>
+      <button class="modal-close" onclick="document.getElementById('kszPreviewModal').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1;padding:0">
+      <div id="kszPreviewContent" style="padding:32px 40px;font-family:'DM Sans',sans-serif;font-size:13px;color:#1a1a2e;background:#fff"></div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0">
+      <button class="btn btn-secondary" onclick="document.getElementById('kszPreviewModal').classList.remove('open')">Bezárás</button>
+      <button class="btn btn-primary" onclick="document.getElementById('kszPreviewModal').classList.remove('open');saveKimenoSzamla()">📤 Számla kiállítása Billingóban</button>
     </div>
   </div>
 </div>
@@ -2300,6 +2543,8 @@ const NAV_MENU_ITEMS = [
   { id: 'vrv',                label: 'Visszaigazolások',             icon: '✉' },
   { id: 'szallitolevelek',    label: 'Szállítólevelek',              icon: '◧' },
   { id: 'bejovo-szamlak',     label: 'Bejövő számlák',              icon: '↓' },
+  { id: 'kimeno-szamlak',     label: 'Kimenő számlák',              icon: '↑' },
+  { id: 'afa-bevallas',       label: 'ÁFA bevallás',                icon: '📊' },
   { id: 'vamkezeles',         label: 'Vámkezelés',                   icon: '🛃' },
   { id: 'beszallitok',        label: 'Beszállítók',                  icon: '🏭' },
   { id: 'penzugy_dashboard',  label: 'Pénzügyi kártyák (dashboard)', icon: '💳' },
@@ -2931,9 +3176,13 @@ function showPage(name) {
     'jutalek-szamlazott': 'jutalek',
     'vrv': 'vrv',
     'szallitolevelek': 'szallitolevelek',
-    'bejovo-szamlak': 'bejovo-szamlak', 'afa-bevallas': 'bejovo-szamlak', 'wise-sync': 'bejovo-szamlak',
+    'bejovo-szamlak': 'bejovo-szamlak', 'wise-sync': 'bejovo-szamlak',
+    'afa-bevallas': 'afa-bevallas',
+    'kimeno-szamlak': 'kimeno-szamlak',
     'vamkezeles': 'vamkezeles',
     'beszallitok': 'beszallitok',
+    'audit-log': 'audit-log',
+    'felhasznalok': 'felhasznalok',
   };
   const menuId = pageToMenuId[name];
   if (menuId && currentUser) {
@@ -2952,35 +3201,49 @@ function showPage(name) {
     ajanlatok: 'page-ajanlatok',
     'ajanlat-reszlet': 'page-ajanlat-reszlet', 'ajanlat-form': 'page-ajanlat-form',
     projektek: 'page-projektek', 'projekt-reszlet': 'page-projekt-reszlet', 'projekt-form': 'page-projekt-form',
-    jutalek: 'page-jutalek',
-    'jutalek-szamlazott': 'page-jutalek-szamlazott',
-    szallitolevelek: 'page-szallitolevelek',
-    vrv: 'page-vrv',
+    jutalek: 'page-jutalek', 'jutalek-szamlazott': 'page-jutalek-szamlazott',
+    szallitolevelek: 'page-szallitolevelek', vrv: 'page-vrv',
     'bejovo-szamlak': 'page-bejovo-szamlak',
     'afa-bevallas': 'page-afa-bevallas',
-    'vamkezeles': 'page-vamkezeles',
-    'wise-sync': 'page-wise-sync',
-    beszallitok: 'page-beszallitok',
-    'audit-log': 'page-audit-log',
-    felhasznalok: 'page-felhasznalok'
+    'kimeno-szamlak': 'page-kimeno-szamlak', 'vamkezeles': 'page-vamkezeles',
+    'wise-sync': 'page-wise-sync', beszallitok: 'page-beszallitok',
+    'audit-log': 'page-audit-log', felhasznalok: 'page-felhasznalok'
   };
-  const nm = { dashboard: 0, ugyfelek: 1, 'ugyfel-reszlet': 1, kontaktok: 2, ajanlatok: 3, 'ajanlat-reszlet': 3, 'ajanlat-form': 3, projektek: 4, 'projekt-reszlet': 4, 'projekt-form': 4, vrv: 6, szallitolevelek: 7, 'bejovo-szamlak': 8, vamkezeles: 9, beszallitok: 10, jutalek: 5, 'audit-log': 12, felhasznalok: 12 };
-  document.getElementById(pm[name]).classList.add('active');
-  document.querySelectorAll('.nav-item')[nm[name]]?.classList.add('active');
-  if (name === 'ugyfelek') loadUgyfelek();
-  if (name === 'kontaktok') loadKontaktok();
-  if (name === 'ajanlatok') loadAjanlatok();
-  if (name === 'projektek') loadProjektek();
-  if (name === 'dashboard') loadDashboard();
-  if (name === 'szallitolevelek') loadSzallitolevelek();
-  if (name === 'vrv') loadVrv();
-  if (name === 'bejovo-szamlak') initBevoSzamlak();
-  if (name === 'vamkezeles') loadVamkezeles();
-  if (name === 'beszallitok') loadBeszallitok();
-  if (name === 'audit-log') loadAuditLog();
-  if (name === 'felhasznalok') loadFelhasznalok();
-  if (name === 'jutalek') initJutalekOldal();
-  if (name === 'jutalek-szamlazott') renderSzamlazottJutalek();
+  const navIdMap = {
+    dashboard: 'navItem-dashboard', ugyfelek: 'navItem-ugyfelek',
+    'ugyfel-reszlet': 'navItem-ugyfelek', kontaktok: 'navItem-kontaktok',
+    ajanlatok: 'navItem-ajanlatok', 'ajanlat-reszlet': 'navItem-ajanlatok', 'ajanlat-form': 'navItem-ajanlatok',
+    projektek: 'navItem-projektek', 'projekt-reszlet': 'navItem-projektek', 'projekt-form': 'navItem-projektek',
+    jutalek: 'navItem-jutalek', 'jutalek-szamlazott': 'navItem-jutalek',
+    vrv: 'navItem-vrv', szallitolevelek: 'navItem-szallitolevelek',
+    'bejovo-szamlak': 'navItem-bejovo-szamlak', 'wise-sync': 'navItem-bejovo-szamlak',
+    'afa-bevallas': 'navItem-afa-bevallas',
+    'kimeno-szamlak': 'navItem-kimeno-szamlak', vamkezeles: 'navItem-vamkezeles',
+    beszallitok: 'navItem-beszallitok', 'audit-log': 'navItem-audit-log', felhasznalok: 'navItem-felhasznalok',
+  };
+  document.getElementById(pm[name])?.classList.add('active');
+  const activeNavId = navIdMap[name];
+  if (activeNavId) document.getElementById(activeNavId)?.classList.add('active');
+  try {
+    if (name === 'ugyfelek') loadUgyfelek();
+    if (name === 'kontaktok') loadKontaktok();
+    if (name === 'ajanlatok') loadAjanlatok();
+    if (name === 'projektek') loadProjektek();
+    if (name === 'dashboard') loadDashboard();
+    if (name === 'szallitolevelek') loadSzallitolevelek();
+    if (name === 'vrv') loadVrv();
+    if (name === 'bejovo-szamlak') initBevoSzamlak();
+    if (name === 'afa-bevallas') initAfaBevallas();
+    if (name === 'kimeno-szamlak') initKimenoSzamlak();
+    if (name === 'vamkezeles') loadVamkezeles();
+    if (name === 'beszallitok') loadBeszallitok();
+    if (name === 'audit-log') loadAuditLog();
+    if (name === 'felhasznalok') { loadFelhasznalok(); loadFelhasznalokWithBillingo(); }
+    if (name === 'jutalek') initJutalekOldal();
+    if (name === 'jutalek-szamlazott') renderSzamlazottJutalek();
+  } catch(e) {
+    console.error('showPage loader hiba (' + name + '):', e);
+  }
 }
 
 // ===== DASHBOARD =====
@@ -5962,6 +6225,7 @@ async function showProjektReszlet(id) {
             return html;
           })()}
           ${linkHtml('Számla', f.Szamla_link)}
+          <a href="#" onclick="event.preventDefault();openKszModalFromProjekt('${id}')" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">🧾 Kimenő számla kiállítása</a>
           ${(() => { try { const e = JSON.parse(f.Dokumentumok_extra || '{}'); const links = Array.isArray(e) ? e : (e._links || []); return links.map(l => linkHtml(l.nev, l.url)).join(''); } catch(e) { return ''; } })()}
         </div>
       </div>
@@ -6798,9 +7062,18 @@ function initAppShell(user) {
     roleEl.textContent = roleInfo.label;
     roleEl.style.color = roleInfo.color;
   }
+  // Avatar monogram
+  const avatarEl = document.getElementById('navUserAvatar');
+  if (avatarEl) {
+    const parts = (user.name || '').split(' ').filter(Boolean);
+    const initials = parts.length >= 2
+      ? parts[0][0] + parts[parts.length-1][0]
+      : (user.name || '—').substring(0, 2);
+    avatarEl.textContent = initials.toUpperCase();
+  }
 
   // Admin menüpont megjelenítése/elrejtése
-  const adminNavItem = document.getElementById('navAdminItem');
+  const adminNavItem = document.getElementById('navItem-felhasznalok');
   if (adminNavItem) adminNavItem.style.display = isAdmin() ? 'flex' : 'none';
 
   // Menüpont jogosultságok alkalmazása
@@ -8799,6 +9072,936 @@ async function saveSzl() {
   }
 }
 
+// ===== KIMENŐ SZÁMLÁK (BILLINGO) =====
+
+let kszInvoices = [];
+let kszFiltered = [];
+let kszFilter = 'mind';
+let kszCurrentPage = 1;
+const KSZ_PER_PAGE = 25;
+let editingKszId = null;
+let kszTetelCounter = 0;
+
+// --- Billingo API kulcs kezelés ---
+function getBillingoApiKey() {
+  return localStorage.getItem('billingoApiKey') || '';
+}
+function saveBillingoApiKey() {
+  const key = document.getElementById('billingoApiKeyInput')?.value?.trim();
+  if (!key) { toast('Adj meg egy API kulcsot!', 'error'); return; }
+  localStorage.setItem('billingoApiKey', key);
+  toast('Billingo API kulcs elmentve!', 'success');
+  const s = document.getElementById('billingoApiKeyStatus');
+  if (s) s.textContent = '✓ Elmentve';
+}
+async function testBillingoApiKey() {
+  const key = document.getElementById('billingoApiKeyInput')?.value?.trim() || getBillingoApiKey();
+  const s = document.getElementById('billingoApiKeyStatus');
+  if (!key) { toast('Nincs API kulcs megadva!', 'error'); return; }
+  if (s) s.textContent = '⏳ Tesztelés...';
+  try {
+    const r = await billingoApi('GET', 'organization');
+    const orgNev = r?.name || r?.data?.name || r?.organization?.name || '';
+    if (s) s.textContent = '✅ Kapcsolat OK' + (orgNev ? ' – ' + orgNev : '');
+    toast('Billingo API kapcsolat sikeres!', 'success');
+  } catch(e) {
+    if (s) s.textContent = '❌ Sikertelen';
+    toast('Billingo API hiba: ' + e.message, 'error');
+  }
+}
+
+async function billingoApi(method, path, body = null) {
+  return billingoApiDirect(method, path, body, null);
+}
+
+// --- Oldal inicializálás ---
+async function initKimenoSzamlak() {
+  const apiKey = getBillingoApiKey();
+  if (apiKey && document.getElementById('billingoApiKeyInput')) {
+    document.getElementById('billingoApiKeyInput').value = apiKey;
+  }
+  await syncKimenoSzamlak();
+}
+
+async function syncKimenoSzamlak() {
+  const btn = document.getElementById('syncKszBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const records = await atGet('Kimeno_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
+    kszInvoices = records.map(r => ({
+      _id: r.id,
+      _billingoId: r.fields.Billingo_id || null,
+      invoiceNumber: r.fields.Szamlaszam || '',
+      ugyfelNev: r.fields.Ugyfel_nev || '',
+      ugyfelId: r.fields.Ugyfel ? r.fields.Ugyfel[0] : null,
+      projektId: r.fields.Projekt ? r.fields.Projekt[0] : null,
+      nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
+      bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
+      currency: r.fields.Deviza || 'HUF',
+      teljesitesDatum: r.fields.Teljesites_datum || '',
+      fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
+      statusz: r.fields.Statusz || 'Fizetesre_var',
+      tipus: r.fields.Tipus || 'Számla',
+      pdfUrl: r.fields.PDF_url || null,
+      megjegyzes: r.fields.Megjegyzes || '',
+      tetelek: (() => { try { return JSON.parse(r.fields.Tetelek || '[]'); } catch(e) { return []; } })(),
+      poSzam: r.fields.PO_szam || '',
+      vevoiKontaktId: r.fields.Vevoi_kontakt_id || null,
+      sajatKapcsolattarto: r.fields.Sajat_kapcsolattarto || '',
+      sajatKapcsolattartoEmail: r.fields.Sajat_kapcsolattarto_email || '',
+    }));
+    document.getElementById('kszSubtitle').textContent = `${kszInvoices.length} számla`;
+    filterKimenoSzamlak();
+  } catch(e) {
+    toast('Kimenő számlák betöltési hiba: ' + e.message, 'error');
+    document.getElementById('kszTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">${e.message}</td></tr>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function setKszFilter(filter, btn) {
+  kszFilter = filter;
+  kszCurrentPage = 1;
+  document.querySelectorAll('#page-kimeno-szamlak .pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  filterKimenoSzamlak();
+}
+
+function filterKimenoSzamlak() {
+  const search = (document.getElementById('kszSearch')?.value || '').toLowerCase();
+  kszFiltered = kszInvoices.filter(inv => {
+    if (kszFilter === 'fizetesre_var' && inv.statusz !== 'Fizetesre_var') return false;
+    if (kszFilter === 'fizetett' && inv.statusz !== 'Fizetett') return false;
+    if (search) return (inv.invoiceNumber || '').toLowerCase().includes(search) || (inv.ugyfelNev || '').toLowerCase().includes(search);
+    return true;
+  });
+  renderKimenoSzamlak();
+}
+
+function renderKimenoSzamlak() {
+  const tbody = document.getElementById('kszTableBody');
+  const count = document.getElementById('kszCount');
+  const pagination = document.getElementById('kszPagination');
+  if (!kszFiltered.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">Nincs kimenő számla</td></tr>';
+    count.textContent = '0 számla';
+    pagination.innerHTML = '';
+    return;
+  }
+  const totalPages = Math.ceil(kszFiltered.length / KSZ_PER_PAGE);
+  if (kszCurrentPage > totalPages) kszCurrentPage = totalPages;
+  const start = (kszCurrentPage - 1) * KSZ_PER_PAGE;
+  const items = kszFiltered.slice(start, start + KSZ_PER_PAGE);
+  const totalNetto = kszFiltered.reduce((s, i) => s + (i.nettoOssz || 0), 0);
+  count.textContent = `${start + 1}–${Math.min(start + KSZ_PER_PAGE, kszFiltered.length)} / ${kszFiltered.length} számla | Nettó: ${Math.round(totalNetto).toLocaleString('hu-HU')}`;
+
+  if (totalPages > 1) {
+    let ph = `<button class="btn btn-secondary btn-sm" ${kszCurrentPage<=1?'disabled':''} onclick="kszGoToPage(${kszCurrentPage-1})" style="font-size:12px;padding:4px 10px">← Előző</button>`;
+    for (let p = 1; p <= totalPages; p++) ph += `<button class="btn ${p===kszCurrentPage?'btn-primary':'btn-secondary'} btn-sm" onclick="kszGoToPage(${p})" style="font-size:12px;padding:4px 10px;min-width:36px">${p}</button>`;
+    ph += `<button class="btn btn-secondary btn-sm" ${kszCurrentPage>=totalPages?'disabled':''} onclick="kszGoToPage(${kszCurrentPage+1})" style="font-size:12px;padding:4px 10px">Következő →</button>`;
+    pagination.innerHTML = ph;
+  } else { pagination.innerHTML = ''; }
+
+  const today = new Date().toISOString().split('T')[0];
+  tbody.innerHTML = items.map(inv => {
+    const tipusBadge = { 'Számla':'🧾','Díjbekérő':'📋','Előlegszámla':'💰','Végszámla':'✅','Piszkozat':'📝','Sztornó':'❌' }[inv.tipus || 'Számla'] || '🧾';
+    const overdue = inv.statusz !== 'Fizetett' && inv.fizetesiHatarido && inv.fizetesiHatarido < today;
+    const statuszBadge = inv.statusz === 'Fizetett'
+      ? `<span class="badge badge-elfogadva">Fizetett ✓</span>`
+      : overdue
+        ? `<span class="badge badge-elutasitva">Lejárt ⚠️</span>`
+        : `<span class="badge" style="background:#fef3c7;color:#92400e">Fizetésre vár</span>`;
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${inv.invoiceNumber || '—'}</td>
+      <td>${inv.ugyfelNev || '—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace">${(inv.nettoOssz||0).toLocaleString('hu-HU')}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600">${(inv.bruttoOssz||0).toLocaleString('hu-HU')}</td>
+      <td class="td-muted">${inv.currency || 'HUF'}</td>
+      <td class="td-muted">${inv.teljesitesDatum || '—'}</td>
+      <td class="td-muted" style="${overdue?'color:#e74c3c;font-weight:600':''}">${inv.fizetesiHatarido || '—'}</td>
+      <td><span style="font-size:12px">${tipusBadge} ${inv.tipus||'Számla'}</span></td>
+      <td>${statuszBadge}</td>
+      <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;position:relative">
+        ${inv.statusz !== 'Fizetett' && inv.statusz !== 'Storno' ? `<button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;color:#16a34a" onclick="markKszFizetett('${inv._id}','${inv._billingoId||''}')">✓ Fizetve</button>` : ''}
+        ${inv.pdfUrl ? `<a href="${inv.pdfUrl}" target="_blank" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px">📄 PDF</a>` : (inv._billingoId ? `<button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px" onclick="downloadKszPdf('${inv._id}','${inv._billingoId}')">📥 PDF</button>` : '')}
+        ${kszSzarmaztatottGomb(inv)}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function kszSzarmaztatottGomb(inv) {
+  const tipus = inv.tipus || 'Számla';
+  const storno = inv.statusz !== 'Storno' && ['Számla','Előlegszámla','Végszámla'].includes(tipus);
+  const szamlaFromDijb = tipus === 'Díjbekérő' && inv.statusz !== 'Storno';
+  const vegszamla = tipus === 'Előlegszámla' && inv.statusz !== 'Storno';
+
+  if (!storno && !szamlaFromDijb && !vegszamla) return '';
+
+  const id = `kszDd_${inv._id.replace(/[^a-zA-Z0-9]/g,'_')}`;
+  let items = '';
+  if (szamlaFromDijb) items += `<div class="ksz-dd-item" onclick="kszSzamlaFromDijbekero('${inv._id}')">🧾 Számla kiállítása ebből</div>`;
+  if (vegszamla)      items += `<div class="ksz-dd-item" onclick="kszVegszamlaFromElolег('${inv._id}')">✅ Végszámla kiállítása</div>`;
+  if (storno)         items += `<div class="ksz-dd-item" style="color:#e74c3c" onclick="kszStornoFromRow('${inv._id}','${inv._billingoId||''}','${(inv.invoiceNumber||'').replace(/'/g,'')}')">❌ Sztornó</div>`;
+
+  return `<div style="position:relative;display:inline-block">
+    <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px" onclick="toggleKszDd('${id}')">⋯</button>
+    <div id="${id}" class="ksz-dropdown" style="display:none;position:absolute;right:0;top:100%;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);min-width:200px;overflow:hidden">
+      ${items}
+    </div>
+  </div>`;
+}
+
+function toggleKszDd(id) {
+  // Zárd be az összes nyitott dropdownt
+  document.querySelectorAll('.ksz-dropdown').forEach(d => { if (d.id !== id) d.style.display = 'none'; });
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+// Kattintás bárhova → dropdown bezárás
+document.addEventListener('click', e => {
+  if (!e.target.closest('[id^="kszDd_"]') && !e.target.onclick?.toString().includes('toggleKszDd')) {
+    document.querySelectorAll('.ksz-dropdown').forEach(d => d.style.display = 'none');
+  }
+});
+
+function kszSzamlaFromDijbekero(airtableId) {
+  document.querySelectorAll('.ksz-dropdown').forEach(d => d.style.display = 'none');
+  const inv = kszInvoices.find(i => i._id === airtableId);
+  if (!inv) return;
+  openKszModal(null);
+  setTimeout(() => {
+    // Típus beállítása: számla
+    const r = document.querySelector('input[name="kszTipus"][value="invoice"]');
+    if (r) { r.checked = true; onKszTipusChange(); }
+    // Ügyfél és adatok átmásolása
+    document.getElementById('fKszUgyfel').value = inv.ugyfelId || '';
+    onKszUgyfelChange();
+    if (inv.projektId) {
+      document.getElementById('fKszProjekt').value = inv.projektId;
+    }
+    document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
+    document.getElementById('fKszPoSzam').value = inv.poSzam || '';
+    document.getElementById('fKszMegjegyzes').value = inv.megjegyzes ? `Díjbekérő alapján: ${inv.invoiceNumber}` : `Díjbekérő alapján: ${inv.invoiceNumber}`;
+    if (inv.sajatKapcsolattarto) {
+      document.getElementById('fKszSajatKapcsolattarto').value = inv.sajatKapcsolattarto;
+      onKszKapcsolattartoChange();
+    }
+    // Tételek betöltése
+    if (inv.tetelek?.length) loadKszTetelek(inv.tetelek);
+    toast('Töltsd ki a számla adatait és állítsd ki!', '');
+  }, 150);
+}
+
+function kszVegszamlaFromElolег(airtableId) {
+  document.querySelectorAll('.ksz-dropdown').forEach(d => d.style.display = 'none');
+  const inv = kszInvoices.find(i => i._id === airtableId);
+  if (!inv) return;
+  openKszModal(null);
+  setTimeout(() => {
+    const r = document.querySelector('input[name="kszTipus"][value="final"]');
+    if (r) { r.checked = true; onKszTipusChange(); }
+    document.getElementById('fKszUgyfel').value = inv.ugyfelId || '';
+    onKszUgyfelChange();
+    if (inv.projektId) document.getElementById('fKszProjekt').value = inv.projektId;
+    document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
+    document.getElementById('fKszPoSzam').value = inv.poSzam || '';
+    document.getElementById('fKszMegjegyzes').value = `Előlegszámla alapján: ${inv.invoiceNumber}`;
+    if (inv.sajatKapcsolattarto) {
+      document.getElementById('fKszSajatKapcsolattarto').value = inv.sajatKapcsolattarto;
+      onKszKapcsolattartoChange();
+    }
+    if (inv.tetelek?.length) loadKszTetelek(inv.tetelek);
+    toast('A végszámlán ne feledd levonni az előleget a tételek között!', '');
+  }, 150);
+}
+
+async function kszStornoFromRow(airtableId, billingoId, invoiceNumber) {
+  document.querySelectorAll('.ksz-dropdown').forEach(d => d.style.display = 'none');
+  if (!confirm(`Biztosan sztornózod a(z) "${invoiceNumber || airtableId}" számlát?\n\nEz végleges művelet, a Billingóban azonnal érvénytelenítésre kerül!`)) return;
+  const apiKey = getBillingoApiKey();
+  if (!apiKey) { toast('Nincs Billingo API kulcs!', 'error'); return; }
+  if (!billingoId) { toast('Nincs Billingo ID a számlán — csak manuálisan sztornózható a Billingóban.', 'error'); return; }
+  toast('⏳ Sztornózás folyamatban...', '');
+  try {
+    const resp = await billingoApiDirect('GET', `documents/${billingoId}/cancel`, null, apiKey);
+    const stornoId = resp.id;
+    const stornoSzam = resp.invoice_number || resp.invoice_no || ('STORNO-' + billingoId);
+    // Airtable: eredeti számla státuszának frissítése
+    await atPatch('Kimeno_Szamlak', airtableId, { Statusz: 'Storno' });
+    // Airtable: sztornó számla mentése
+    const inv = kszInvoices.find(i => i._id === airtableId);
+    await atPost('Kimeno_Szamlak', {
+      Szamlaszam: stornoSzam,
+      Billingo_id: String(stornoId || ''),
+      Ugyfel: inv?.ugyfelId ? [inv.ugyfelId] : undefined,
+      Ugyfel_nev: inv?.ugyfelNev || '',
+      Deviza: inv?.currency || 'HUF',
+      Statusz: 'Storno',
+      Tipus: 'Sztornó',
+      Kiallitas_datum: new Date().toISOString().split('T')[0],
+      Megjegyzes: `Sztornó: ${invoiceNumber}`,
+    });
+    toast(`✅ Sztornó kiállítva: ${stornoSzam}`, 'success');
+    await syncKimenoSzamlak();
+  } catch(e) {
+    toast('Sztornó hiba: ' + e.message, 'error');
+  }
+}
+
+function kszGoToPage(p) {
+  const total = Math.ceil(kszFiltered.length / KSZ_PER_PAGE);
+  if (p < 1 || p > total) return;
+  kszCurrentPage = p;
+  renderKimenoSzamlak();
+}
+
+// --- Modal megnyitás ---
+function openKszModal(id = null) {
+  editingKszId = id;
+  kszTetelCounter = 0;
+  document.getElementById('kszModalTitle').textContent = id ? 'Számla szerkesztése' : 'Új kimenő számla';
+
+  const selU = document.getElementById('fKszUgyfel');
+  selU.innerHTML = '<option value="">— Válassz ügyfelet —</option>' + ugyfelek.map(u => `<option value="${u.id}">${u.fields.Cegnev}</option>`).join('');
+  const selP = document.getElementById('fKszProjekt');
+  selP.innerHTML = '<option value="">— Nincs kapcsolódó projekt —</option>' + projektek.map(p => `<option value="${p.id}">${p.fields.Projekt_szam || p.id} – ${p.fields.Projekt_neve || ''}</option>`).join('');
+
+  const today = new Date().toISOString().split('T')[0];
+  const due = new Date(); due.setDate(due.getDate() + 30);
+  const dueStr = due.toISOString().split('T')[0];
+
+  if (id) {
+    const inv = kszInvoices.find(i => i._id === id);
+    if (!inv) return;
+    selU.value = inv.ugyfelId || '';
+    selP.value = inv.projektId || '';
+    document.getElementById('fKszTeljesites').value = inv.teljesitesDatum || today;
+    document.getElementById('fKszHatarido').value = inv.fizetesiHatarido || dueStr;
+    document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
+    document.getElementById('fKszMegjegyzes').value = inv.megjegyzes || '';
+    document.getElementById('fKszPoSzam').value = inv.poSzam || '';
+    document.getElementById('fKszSajatKapcsolattarto').value = inv.sajatKapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
+    onKszKapcsolattartoChange();
+    loadKszTetelek(inv.tetelek || []);
+    if (inv.ugyfelId) loadKszVevoiKontaktok(inv.ugyfelId, inv.vevoiKontaktId || null);
+  } else {
+    selU.value = '';
+    selP.value = '';
+    document.getElementById('fKszTeljesites').value = today;
+    document.getElementById('fKszHatarido').value = dueStr;
+    document.getElementById('fKszDeviza').value = 'HUF';
+    document.getElementById('fKszMegjegyzes').value = '';
+    document.getElementById('fKszPoSzam').value = '';
+    document.getElementById('fKszSajatKapcsolattarto').value = getCurrentUserAirtableName() || 'Jarfas Kitti';
+    onKszKapcsolattartoChange();
+    loadKszTetelek([]);
+    addKszTetel();
+    loadKszVevoiKontaktok('', null);
+  }
+
+  // Típus reset: mindig 'invoice'-ra álljon alapból
+  const invoiceRadio = document.querySelector('input[name="kszTipus"][value="invoice"]');
+  if (invoiceRadio) { invoiceRadio.checked = true; }
+  onKszTipusChange();
+
+  const apiKey = getBillingoApiKey();
+  document.getElementById('kszApiKeyWarning').style.display = apiKey ? 'none' : 'block';
+  document.getElementById('kszModal').classList.add('open');
+  calcKszOssz();
+}
+
+function openKszModalFromProjekt(projektId) {
+  openKszModal(null);
+  const selP = document.getElementById('fKszProjekt');
+  selP.value = projektId;
+  onKszProjektChange();
+}
+
+function closeKszModal() { document.getElementById('kszModal').classList.remove('open'); }
+
+function previewKimenoSzamla() {
+  // Validálás
+  const ugyfelId = document.getElementById('fKszUgyfel').value;
+  const teljesites = document.getElementById('fKszTeljesites').value;
+  const hatarido = document.getElementById('fKszHatarido').value;
+  const tetelek = getKszTetelek();
+  if (!ugyfelId) { toast('Ügyfél megadása kötelező!', 'error'); return; }
+  if (!tetelek.length) { toast('Legalább egy tétel megadása kötelező!', 'error'); return; }
+
+  const ugyfel = ugyfelek.find(u => u.id === ugyfelId);
+  const uf = ugyfel?.fields || {};
+  const deviza = document.getElementById('fKszDeviza').value || 'HUF';
+  const fizetesMod = document.getElementById('fKszFizetesMod').value;
+  const megjegyzes = document.getElementById('fKszMegjegyzes').value.trim();
+  const kiallitas = new Date().toISOString().split('T')[0];
+
+  const fizModLabel = { wire_transfer: 'Átutalás', cash: 'Készpénz', bankcard: 'Bankkártya' }[fizetesMod] || fizetesMod;
+
+  // Új mezők
+  const poSzam = document.getElementById('fKszPoSzam')?.value?.trim() || '';
+  const sajatKapcs = document.getElementById('fKszSajatKapcsolattarto')?.value || '';
+  const sajatKapcsEmail = ZALNER_EMAILS[sajatKapcs] || '';
+  const sajatKapcsNev = { 'Jarfas Kitti':'Járfás Kitti','Wagner Szabolcs':'Wágner Szabolcs','Zombori Krisztina':'Zombori Krisztina' }[sajatKapcs] || sajatKapcs;
+  const vevoiKontaktSel = document.getElementById('fKszVevoiKontakt');
+  const vevoiKontaktNev = vevoiKontaktSel?.options[vevoiKontaktSel?.selectedIndex]?.text?.replace(/ · .+$/, '') || '';
+
+  // Összegzés
+  let nettoOssz = 0, afaOssz = 0;
+  const tetelSorok = tetelek.map(t => {
+    const netto = t.mennyiseg * t.egyseg_ar;
+    const afaSzorzo = t.afa === '27%' ? 0.27 : t.afa === '5%' ? 0.05 : 0;
+    const afa = Math.round(netto * afaSzorzo * 100) / 100;
+    nettoOssz += netto;
+    afaOssz += afa;
+    return `<tr>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0">${t.megnevezes}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:center">${t.mennyiseg} ${t.egyseg}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:center">${t.afa}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:right;font-family:'DM Mono',monospace">${Number(t.egyseg_ar).toLocaleString('hu-HU')}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:right;font-family:'DM Mono',monospace;font-weight:600">${netto.toLocaleString('hu-HU')}</td>
+    </tr>`;
+  }).join('');
+  const bruttoOssz = nettoOssz + afaOssz;
+  const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' ' + deviza;
+
+  const bankAdat = CEGADATOK.bankszamlak[deviza === 'EUR' ? 'Wise EUR' : 'Wise HUF'] || CEGADATOK.bankszamlak['Wise HUF'];
+
+  document.getElementById('kszPreviewContent').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #1e3a5f">
+      <div>
+        <div style="font-size:22px;font-weight:700;color:#1e3a5f;letter-spacing:-0.5px">${{'invoice':'SZÁMLA','proforma':'DÍJBEKÉRŐ','advance':'ELŐLEGSZÁMLA','final':'VÉGSZÁMLA','draft':'PISZKOZAT','storno':'SZTORNÓ'}[getKszTipus()]||'SZÁMLA'}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px">⚠️ Ez egy előnézet — a számlaszámot a Billingo adja ki kiállításkor</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:13px;color:#6b7280">Kiállítás: <strong>${kiallitas}</strong></div>
+        <div style="font-size:13px;color:#6b7280">Teljesítés: <strong>${teljesites || '—'}</strong></div>
+        <div style="font-size:13px;color:#6b7280">Fizetési határidő: <strong style="color:${hatarido < kiallitas ? '#e74c3c' : '#1a1a2e'}">${hatarido || '—'}</strong></div>
+        ${poSzam ? `<div style="font-size:13px;color:#6b7280;margin-top:4px">PO szám: <strong style="font-family:'DM Mono',monospace">${poSzam}</strong></div>` : ''}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Eladó</div>
+        <div style="font-weight:600;font-size:14px">${CEGADATOK.nev}</div>
+        <div style="color:#6b7280;font-size:12px;margin-top:4px;line-height:1.7">
+          ${CEGADATOK.cim}<br>
+          Adószám: ${CEGADATOK.adoszam}<br>
+          EU adószám: ${CEGADATOK.eu_adoszam}
+          ${sajatKapcsNev ? `<br><strong>Kapcsolattartó:</strong> ${sajatKapcsNev}${sajatKapcsEmail ? ` · <a href="mailto:${sajatKapcsEmail}" style="color:var(--accent)">${sajatKapcsEmail}</a>` : ''}` : ''}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Vevő</div>
+        <div style="font-weight:600;font-size:14px">${uf.Cegnev || '—'}</div>
+        <div style="color:#6b7280;font-size:12px;margin-top:4px;line-height:1.7">
+          ${uf.Szekhely_cim || ''}${uf.Adoszam ? '<br>Adószám: ' + uf.Adoszam : ''}${uf.EU_adoszam ? '<br>EU adószám: ' + uf.EU_adoszam : ''}
+          ${vevoiKontaktNev ? `<br><strong>Kapcsolattartó:</strong> ${vevoiKontaktNev}` : ''}
+        </div>
+      </div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+      <thead>
+        <tr style="background:#f0f4ff">
+          <th style="padding:10px 12px;text-align:left;font-size:12px;color:#4b5563;font-weight:600">Megnevezés</th>
+          <th style="padding:10px 12px;text-align:center;font-size:12px;color:#4b5563;font-weight:600;width:100px">Menny.</th>
+          <th style="padding:10px 12px;text-align:center;font-size:12px;color:#4b5563;font-weight:600;width:60px">ÁFA</th>
+          <th style="padding:10px 12px;text-align:right;font-size:12px;color:#4b5563;font-weight:600;width:120px">Egységár</th>
+          <th style="padding:10px 12px;text-align:right;font-size:12px;color:#4b5563;font-weight:600;width:120px">Nettó</th>
+        </tr>
+      </thead>
+      <tbody>${tetelSorok}</tbody>
+    </table>
+
+    <div style="display:flex;justify-content:flex-end;margin-bottom:28px">
+      <div style="min-width:280px">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#6b7280">
+          <span>Nettó összesen:</span><span style="font-family:'DM Mono',monospace">${fmt(nettoOssz)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#4f7fff">
+          <span>ÁFA összesen:</span><span style="font-family:'DM Mono',monospace">${fmt(afaOssz)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0 6px;font-size:16px;font-weight:700;border-top:2px solid #1e3a5f;margin-top:4px">
+          <span>Bruttó összesen:</span><span style="font-family:'DM Mono',monospace">${fmt(bruttoOssz)}</span>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-top:6px;text-align:right">Fizetési mód: ${fizModLabel} · Deviza: ${deviza}</div>
+      </div>
+    </div>
+
+    ${bankAdat ? `<div style="background:#f8f9fc;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:12px">
+      <div style="font-weight:600;margin-bottom:6px;color:#1e3a5f">Bankszámla adatok</div>
+      <div style="color:#6b7280;line-height:1.8">
+        Bank: ${bankAdat.bank}<br>
+        IBAN: <span style="font-family:'DM Mono',monospace">${bankAdat.iban}</span><br>
+        SWIFT: <span style="font-family:'DM Mono',monospace">${bankAdat.swift}</span>
+      </div>
+    </div>` : ''}
+
+    ${megjegyzes ? `<div style="border-top:1px solid #e8eaf0;padding-top:14px;font-size:12px;color:#6b7280"><strong>Megjegyzés:</strong> ${megjegyzes}</div>` : ''}
+    <div style="margin-top:24px;padding-top:14px;border-top:1px solid #e8eaf0;font-size:11px;color:#9ca3af;text-align:center">
+      ${CEGADATOK.nev} · ${CEGADATOK.cim} · Adószám: ${CEGADATOK.adoszam}
+    </div>`;
+
+  document.getElementById('kszPreviewModal').classList.add('open');
+}
+
+const KSZ_TIPUS_INFO = {
+  invoice:  { label: '🧾 Számla kiállítása',        info: 'Véglegesen kiállított számla, NAV felé bejelentve.' },
+  proforma: { label: '📋 Díjbekérő kiállítása',     info: 'Nem kötelező érvényű, NAV-hoz nem kerül bejelentésre. A vevő fizetés előtt kapja.' },
+  advance:  { label: '💰 Előlegszámla kiállítása',  info: 'Előlegfizetésről szóló számla. A végszámlánál be kell számítani.' },
+  final:    { label: '✅ Végszámla kiállítása',      info: 'Előlegszámlához kapcsolódó végszámla, az előleget levonva.' },
+  draft:    { label: '📝 Piszkozat mentése',         info: 'Csak tervezet, nem végleges, nem kerül NAV-hoz. Később szerkeszthető és véglegesíthető.' },
+  storno:   { label: '❌ Sztornó kiállítása',        info: 'Egy meglévő számla érvénytelenítése. Megadandó az eredeti Billingo ID.' },
+};
+
+const ZALNER_EMAILS = {
+  'Jarfas Kitti':     'jarfas.kitti@zalner.hu',
+  'Wagner Szabolcs':  'wagner.szabolcs@zalner.hu',
+  'Zombori Krisztina':'zombori.krisztina@zalner.hu',
+};
+
+function onKszKapcsolattartoChange() {
+  const val = document.getElementById('fKszSajatKapcsolattarto')?.value || '';
+  const emailEl = document.getElementById('fKszKapcsolattartoEmail');
+  if (emailEl) emailEl.textContent = ZALNER_EMAILS[val] || '';
+}
+
+function getKszTipus() {
+  return document.querySelector('input[name="kszTipus"]:checked')?.value || 'invoice';
+}
+
+function onKszTipusChange() {
+  try {
+    const tipus = getKszTipus();
+    const info = KSZ_TIPUS_INFO[tipus];
+    const infoEl = document.getElementById('kszTipusInfo');
+    if (infoEl) infoEl.textContent = info?.info || '';
+    const btn = document.getElementById('kszSaveBtn');
+    if (btn) btn.textContent = info?.label || '📤 Kiállítás';
+    Object.keys(KSZ_TIPUS_INFO).forEach(t => {
+      const lbl = document.getElementById('kszTipusLabel_' + t);
+      if (!lbl) return;
+      if (t === tipus) {
+        lbl.style.borderColor = 'var(--accent)';
+        lbl.style.background = 'var(--accent-light)';
+        lbl.style.fontWeight = '600';
+      } else {
+        lbl.style.borderColor = 'var(--border)';
+        lbl.style.background = 'var(--surface)';
+        lbl.style.fontWeight = '400';
+      }
+    });
+    const stornoRef = document.getElementById('kszStornoRef');
+    if (stornoRef) stornoRef.style.display = tipus === 'storno' ? '' : 'none';
+    const hide = tipus === 'storno';
+    ['kszTetelekWrap','kszAddTetelWrap','kszOsszesitoWrap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = hide ? 'none' : '';
+    });
+  } catch(e) { console.warn('onKszTipusChange hiba:', e); }
+}
+
+async function loadKszVevoiKontaktok(ugyfelId, selectedId = null) {
+  const sel = document.getElementById('fKszVevoiKontakt');
+  if (!sel) return;
+  if (!ugyfelId) {
+    sel.innerHTML = '<option value="">— Válassz ügyfelet előbb —</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">Betöltés...</option>';
+  try {
+    const all = await atGet('Kapcsolattartok');
+    const kontaktok = all.filter(k => k.fields.Ugyfel && k.fields.Ugyfel.includes(ugyfelId));
+    if (!kontaktok.length) {
+      sel.innerHTML = '<option value="">— Nincs kontakt rögzítve —</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Válassz kontaktat —</option>' + kontaktok.map(k => {
+      const kf = k.fields;
+      const nev = ((kf.Vezeteknev || '') + ' ' + (kf.Keresztnev || '')).trim();
+      const fo = kf.Fo_kapcsolattarto ? ' ★' : '';
+      const email = kf.Email ? ' · ' + kf.Email : '';
+      return `<option value="${k.id}">${nev}${fo}${email}</option>`;
+    }).join('');
+    if (selectedId) {
+      sel.value = selectedId;
+    } else {
+      const fo = kontaktok.find(k => k.fields.Fo_kapcsolattarto);
+      if (fo) sel.value = fo.id;
+    }
+  } catch(e) {
+    sel.innerHTML = '<option value="">— Hiba a betöltésnél —</option>';
+  }
+}
+
+function onKszUgyfelChange() {
+  const uid = document.getElementById('fKszUgyfel').value;
+  if (!uid) { loadKszVevoiKontaktok('', null); return; }
+  const u = ugyfelek.find(x => x.id === uid);
+  if (!u) return;
+  if (u.fields.Fizetesi_hatarido_nap != null) {
+    const due = new Date(); due.setDate(due.getDate() + (u.fields.Fizetesi_hatarido_nap || 30));
+    document.getElementById('fKszHatarido').value = due.toISOString().split('T')[0];
+  }
+  loadKszVevoiKontaktok(uid, null);
+}
+
+function onKszProjektChange() {
+  const pid = document.getElementById('fKszProjekt').value;
+  if (!pid) return;
+  const p = projektek.find(x => x.id === pid);
+  if (!p) return;
+  if (p.fields.Ugyfel?.length) {
+    document.getElementById('fKszUgyfel').value = p.fields.Ugyfel[0];
+    onKszUgyfelChange();
+  }
+  // PO szám betöltése a projektből
+  if (p.fields.PO_szam) {
+    document.getElementById('fKszPoSzam').value = p.fields.PO_szam;
+  }
+  // Ajánlat tételek, deviza és vevői kontakt betöltése
+  if (p.fields.Ajanlat?.length) {
+    const ajanlatRec = ajanlatok.find(a => a.id === p.fields.Ajanlat[0]);
+    if (ajanlatRec?.fields?.Deviza) document.getElementById('fKszDeviza').value = ajanlatRec.fields.Deviza;
+    // Vevői kapcsolattartó az ajánlatból
+    if (ajanlatRec?.fields?.Vevoi_kapcsolattarto && p.fields.Ugyfel?.length) {
+      loadKszVevoiKontaktok(p.fields.Ugyfel[0], ajanlatRec.fields.Vevoi_kapcsolattarto);
+    }
+    atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(tetelek => {
+      if (tetelek.length) {
+        const ajanlatRec = ajanlatok.find(a => a.id === p.fields.Ajanlat[0]);
+        const afa = ajanlatRec?.fields?.Afa || '27%';
+        loadKszTetelek(tetelek.map(t => ({
+          megnevezes: t.fields.Megnevezes || '',
+          mennyiseg: t.fields.Mennyiseg || 1,
+          egyseg: t.fields.Egyseg || 'db',
+          afa: afa,
+          egyseg_ar: t.fields.Egyseg_ar || 0,
+        })));
+        calcKszOssz();
+      }
+    }).catch(() => {});
+  }
+}
+
+// --- Tételek kezelése ---
+function loadKszTetelek(tetelek) {
+  const tbody = document.getElementById('kszTetelek');
+  tbody.innerHTML = '';
+  kszTetelCounter = 0;
+  tetelek.forEach(t => addKszTetel(t));
+  calcKszOssz();
+}
+
+function addKszTetel(data = null) {
+  const id = ++kszTetelCounter;
+  const tbody = document.getElementById('kszTetelek');
+  const tr = document.createElement('tr');
+  tr.id = `kszTetel_${id}`;
+  const afaOpts = ['27%','5%','0%','AAM'].map(v => `<option value="${v}" ${(data?.afa||'27%')===v?'selected':''}>${v}</option>`).join('');
+  tr.innerHTML = `
+    <td class="col-megnevezes"><input type="text" name="megnevezes" placeholder="Megnevezés..." value="${data?.megnevezes||''}" oninput="calcKszOssz()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
+    <td class="col-menny"><input type="number" name="mennyiseg" value="${data?.mennyiseg??1}" min="0" step="0.01" oninput="calcKszTetel(${id});calcKszOssz()" style="width:60px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
+    <td><input type="text" name="egyseg" value="${data?.egyseg||'db'}" oninput="calcKszOssz()" style="width:56px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
+    <td><select name="afa" onchange="calcKszTetel(${id});calcKszOssz()" style="padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:70px">${afaOpts}</select></td>
+    <td class="col-ar"><input type="number" name="egyseg_ar" value="${data?.egyseg_ar||''}" min="0" step="1" oninput="calcKszTetel(${id});calcKszOssz()" style="width:100px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
+    <td class="col-osszeg" id="kszTetelOssz_${id}" style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;padding:0 8px">—</td>
+    <td class="col-del"><button type="button" onclick="document.getElementById('kszTetel_${id}').remove();calcKszOssz()" style="border:none;background:none;color:#e74c3c;cursor:pointer;font-size:16px;padding:4px 6px">✕</button></td>`;
+  tbody.appendChild(tr);
+  calcKszTetel(id);
+}
+
+function calcKszTetel(id) {
+  const tr = document.getElementById(`kszTetel_${id}`);
+  if (!tr) return;
+  const menny = parseFloat(tr.querySelector('[name=mennyiseg]')?.value) || 0;
+  const ar = parseFloat(tr.querySelector('[name=egyseg_ar]')?.value) || 0;
+  const netto = menny * ar;
+  const el = document.getElementById(`kszTetelOssz_${id}`);
+  if (el) el.textContent = netto ? netto.toLocaleString('hu-HU') : '—';
+}
+
+function getKszTetelek() {
+  const rows = document.getElementById('kszTetelek').querySelectorAll('tr');
+  return Array.from(rows).map(tr => ({
+    megnevezes: tr.querySelector('[name=megnevezes]')?.value?.trim() || '',
+    mennyiseg: parseFloat(tr.querySelector('[name=mennyiseg]')?.value) || 1,
+    egyseg: tr.querySelector('[name=egyseg]')?.value?.trim() || 'db',
+    afa: tr.querySelector('[name=afa]')?.value || '27%',
+    egyseg_ar: parseFloat(tr.querySelector('[name=egyseg_ar]')?.value) || 0,
+  })).filter(t => t.megnevezes);
+}
+
+function calcKszOssz() {
+  const tetelek = getKszTetelek();
+  let netto = 0, afa = 0;
+  tetelek.forEach(t => {
+    const n = t.mennyiseg * t.egyseg_ar;
+    const afaSzorzo = t.afa === '27%' ? 0.27 : t.afa === '5%' ? 0.05 : 0;
+    netto += n;
+    afa += Math.round(n * afaSzorzo * 100) / 100;
+  });
+  const brutto = netto + afa;
+  document.getElementById('kszNettoOssz').textContent = netto.toLocaleString('hu-HU');
+  document.getElementById('kszAfaOssz').textContent = Math.round(afa).toLocaleString('hu-HU');
+  document.getElementById('kszBruttoOssz').textContent = Math.round(brutto).toLocaleString('hu-HU');
+}
+
+// --- Számla kiállítása ---
+async function saveKimenoSzamla() {
+  const tipus = getKszTipus();
+  const ugyfelId = document.getElementById('fKszUgyfel').value;
+  const teljesites = document.getElementById('fKszTeljesites').value;
+  const hatarido = document.getElementById('fKszHatarido').value;
+  const tetelek = tipus === 'storno' ? [] : getKszTetelek();
+  const stornoBillingoId = document.getElementById('fKszStornoBillingoId')?.value?.trim();
+
+  if (!ugyfelId) { toast('Ügyfél megadása kötelező!', 'error'); return; }
+  if (tipus !== 'storno') {
+    if (!teljesites) { toast('Teljesítés dátuma kötelező!', 'error'); return; }
+    if (!hatarido) { toast('Fizetési határidő kötelező!', 'error'); return; }
+    if (!tetelek.length) { toast('Legalább egy tétel megadása kötelező!', 'error'); return; }
+  } else {
+    if (!stornoBillingoId) { toast('Sztornóhoz add meg az eredeti számla Billingo ID-ját!', 'error'); return; }
+  }
+
+  const apiKey = getBillingoApiKey();
+  if (!apiKey) { toast('Nincs Billingo API kulcs beállítva! (Rendszer → Felhasználók)', 'error'); return; }
+
+  const btn = document.getElementById('kszSaveBtn');
+  const tipusInfo = KSZ_TIPUS_INFO[tipus];
+  btn.disabled = true;
+  btn.textContent = '⏳ Feldolgozás...';
+
+  const ugyfel = ugyfelek.find(u => u.id === ugyfelId);
+  const projektId = document.getElementById('fKszProjekt').value;
+  const deviza = document.getElementById('fKszDeviza').value;
+  const fizetesMod = document.getElementById('fKszFizetesMod').value;
+  const megjegyzes = document.getElementById('fKszMegjegyzes').value.trim();
+  const poSzam = document.getElementById('fKszPoSzam')?.value?.trim() || '';
+  const vevoiKontaktId = document.getElementById('fKszVevoiKontakt')?.value || null;
+  const sajatKapcs = document.getElementById('fKszSajatKapcsolattarto')?.value || getCurrentUserAirtableName() || '';
+  const sajatKapcsEmail = ZALNER_EMAILS[sajatKapcs] || '';
+
+  try {
+    let billingoId, invoiceNumber, nettoOssz = 0, bruttoOssz = 0, pdfUrl = null;
+    let airtableStatusz = tipus === 'draft' ? 'Piszkozat' : tipus === 'proforma' ? 'Dijbekero' : 'Fizetesre_var';
+
+    if (tipus === 'storno') {
+      // --- SZTORNÓ: cancelInvoice endpoint ---
+      const resp = await billingoApiDirect('GET', 'documents/' + stornoBillingoId + '/cancel', null, apiKey);
+      billingoId = resp.id;
+      invoiceNumber = resp.invoice_number || resp.invoice_no || ('STORNO-' + stornoBillingoId);
+      airtableStatusz = 'Storno';
+
+    } else {
+      // --- NORMÁL KIÁLLÍTÁS ---
+      const billingoPartnerId = await getOrCreateBillingoPartner(ugyfel, apiKey);
+
+      const billingoItems = tetelek.map(t => {
+        const vatStr = t.afa === 'AAM' ? 'AAM' : t.afa === '27%' ? '27' : t.afa === '5%' ? '5' : '0';
+        return { description: t.megnevezes, vat: vatStr, quantity: t.mennyiseg, unit: t.egyseg, net_unit_price: t.egyseg_ar };
+      });
+
+      const billingoType = tipus === 'final' ? 'invoice' : tipus;
+
+      // Strukturált comment: PO szám + kapcsolattartók + felhasználói megjegyzés
+      const commentParts = [];
+      if (poSzam) commentParts.push(`PO: ${poSzam}`);
+      if (vevoiKontaktId) {
+        const vevoiSel = document.getElementById('fKszVevoiKontakt');
+        const vevoiNev = vevoiSel?.options[vevoiSel?.selectedIndex]?.text?.replace(/ · .+$/, '') || '';
+        if (vevoiNev) commentParts.push(`Vevői kapcsolattartó: ${vevoiNev}`);
+      }
+      if (sajatKapcs) {
+        const sajatNev = { 'Jarfas Kitti':'Járfás Kitti','Wagner Szabolcs':'Wágner Szabolcs','Zombori Krisztina':'Zombori Krisztina' }[sajatKapcs] || sajatKapcs;
+        commentParts.push(`Kapcsolattartó: ${sajatNev}${sajatKapcsEmail ? ` (${sajatKapcsEmail})` : ''}`);
+      }
+      if (megjegyzes) commentParts.push(megjegyzes);
+      const billingoComment = commentParts.length ? commentParts.join('\n') : undefined;
+
+      const szamlaAdat = {
+        partner_id: billingoPartnerId,
+        block_id: 0,
+        type: billingoType,
+        fulfillment_date: teljesites,
+        due_date: hatarido,
+        payment_method: fizetesMod,
+        language: 'hu',
+        currency: deviza,
+        electronic: true,
+        paid: false,
+        items: billingoItems,
+        comment: billingoComment,
+      };
+
+      const response = await billingoApiDirect('POST', 'documents', szamlaAdat, apiKey);
+      billingoId = response.id;
+      invoiceNumber = response.invoice_number || response.invoice_no || '';
+
+      tetelek.forEach(t => {
+        const n = t.mennyiseg * t.egyseg_ar;
+        const afaSzorzo = t.afa === '27%' ? 0.27 : t.afa === '5%' ? 0.05 : 0;
+        nettoOssz += n;
+        bruttoOssz += n * (1 + afaSzorzo);
+      });
+
+      try {
+        const pdfResp = await billingoApiDirect('GET', 'documents/' + billingoId + '/download-url', null, apiKey);
+        pdfUrl = pdfResp?.url || null;
+      } catch(e) {}
+    }
+
+    // Airtable mentés
+    const tipusLabelMap = { invoice:'Számla', proforma:'Díjbekérő', advance:'Előlegszámla', final:'Végszámla', draft:'Piszkozat', storno:'Sztornó' };
+    const fields = {
+      Szamlaszam: invoiceNumber,
+      Billingo_id: String(billingoId || ''),
+      Ugyfel: [ugyfelId],
+      Ugyfel_nev: ugyfel?.fields?.Cegnev || '',
+      Teljesites_datum: teljesites || null,
+      Fizetesi_hatarido: hatarido || null,
+      Deviza: deviza,
+      Fizetes_mod: fizetesMod,
+      Netto_osszeg: Math.round(nettoOssz * 100) / 100 || null,
+      Brutto_osszeg: Math.round(bruttoOssz * 100) / 100 || null,
+      Statusz: airtableStatusz,
+      Tipus: tipusLabelMap[tipus] || tipus,
+      Megjegyzes: megjegyzes || null,
+      Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,
+      PDF_url: pdfUrl || null,
+      Kiallitas_datum: new Date().toISOString().split('T')[0],
+      PO_szam: poSzam || null,
+      Vevoi_kontakt_id: vevoiKontaktId || null,
+      Sajat_kapcsolattarto: sajatKapcs || null,
+      Sajat_kapcsolattarto_email: sajatKapcsEmail || null,
+    };
+    if (projektId) fields.Projekt = [projektId];
+    Object.keys(fields).forEach(k => (fields[k] === null || fields[k] === undefined) && delete fields[k]);
+    await atPost('Kimeno_Szamlak', fields);
+
+    const tipusLabel = tipusLabelMap[tipus] || 'Bizonylat';
+    toast('✅ ' + tipusLabel + ' kiállítva: ' + invoiceNumber, 'success');
+    closeKszModal();
+    document.getElementById('kszPreviewModal')?.classList.remove('open');
+    await syncKimenoSzamlak();
+    if (projektId && currentProjekt?.id === projektId) {
+      try { projektek = await atGet('Projektek', 'sort%5B0%5D%5Bfield%5D=Projekt_szam&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
+      await showProjektReszlet(projektId);
+    }
+
+  } catch(e) {
+    toast('Hiba: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = tipusInfo?.label || '📤 Kiállítás';
+  }
+}
+
+async function billingoApiDirect(method, path, body, apiKey) {
+  const key = apiKey || getBillingoApiKey();
+  if (!key) throw new Error('Nincs Billingo API kulcs! Menj a Rendszer → Felhasználók oldalra.');
+  const sessionToken = localStorage.getItem('zalnerSessionToken') || '';
+  const proxyUrl = NAV_PROXY + '/api/billingo?path=' + encodeURIComponent(path);
+  const opts = {
+    method,
+    headers: {
+      'X-API-KEY': key,
+      'X-Session-Token': sessionToken,
+      'Content-Type': 'application/json',
+    },
+  };
+  if (body && !['GET','DELETE','HEAD'].includes(method)) opts.body = JSON.stringify(body);
+  const r = await fetch(proxyUrl, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const errMsg = (v => typeof v === 'string' ? v : v ? JSON.stringify(v) : null);
+    throw new Error(errMsg(data?.message) || errMsg(data?.error) || errMsg(data?.errors) || `Billingo HTTP ${r.status}`);
+  }
+  return data;
+}
+
+async function getOrCreateBillingoPartner(ugyfel, apiKey) {
+  if (!ugyfel) throw new Error('Nincs ügyfél kiválasztva');
+  const f = ugyfel.fields;
+
+  // Keresés meglévő partner között névvel
+  try {
+    const existing = await billingoApiDirect('GET', `partners?query=${encodeURIComponent(f.Cegnev)}&per_page=5`, null, apiKey);
+    const partners = existing?.data || [];
+    const found = partners.find(p => p.name?.trim().toLowerCase() === f.Cegnev?.trim().toLowerCase());
+    if (found) return found.id;
+  } catch(e) {}
+
+  // Létrehozás ha nem találtuk
+  const adoszam = f.Adoszam || '';
+  const partnerData = {
+    name: f.Cegnev,
+    address: {
+      country_code: 'HU',
+      post_code: (f.Szekhely_cim || '').match(/^\d{4}/)?.[0] || '1000',
+      city: (f.Szekhely_cim || '').replace(/^\d{4}\s*/, '').split(',')[0]?.trim() || '',
+      address: (f.Szekhely_cim || '').split(',').slice(1).join(',').trim() || f.Szekhely_cim || '',
+    },
+    taxcode: adoszam,
+    emails: f.Kapcsolattarto_email ? [f.Kapcsolattarto_email] : [],
+  };
+  const created = await billingoApiDirect('POST', 'partners', partnerData, apiKey);
+  return created.id;
+}
+
+async function markKszFizetett(airtableId, billingoId) {
+  if (!confirm('Biztosan megjelölöd fizetettként?')) return;
+  try {
+    // Billingo fizetési státusz frissítés
+    if (billingoId) {
+      const apiKey = getBillingoApiKey();
+      if (apiKey) {
+        try {
+          await billingoApiDirect('POST', `documents/${billingoId}/pay`, {
+            date: new Date().toISOString().split('T')[0],
+          }, apiKey);
+        } catch(e) { console.warn('Billingo fizetés beállítás hiba:', e.message); }
+      }
+    }
+    await atPatch('Kimeno_Szamlak', airtableId, { Statusz: 'Fizetett', Fizetes_datuma: new Date().toISOString().split('T')[0] });
+    const inv = kszInvoices.find(i => i._id === airtableId);
+    if (inv) { inv.statusz = 'Fizetett'; }
+    filterKimenoSzamlak();
+    toast('Számla fizetettként megjelölve!', 'success');
+  } catch(e) {
+    toast('Hiba: ' + e.message, 'error');
+  }
+}
+
+async function downloadKszPdf(airtableId, billingoId) {
+  if (!billingoId) { toast('Nincs Billingo ID!', 'error'); return; }
+  try {
+    const apiKey = getBillingoApiKey();
+    const resp = await billingoApiDirect('GET', `documents/${billingoId}/download-url`, null, apiKey);
+    const url = resp?.url;
+    if (!url) throw new Error('Nem sikerült a PDF URL lekérése');
+    // Mentsük Airtable-be is
+    await atPatch('Kimeno_Szamlak', airtableId, { PDF_url: url });
+    const inv = kszInvoices.find(i => i._id === airtableId);
+    if (inv) inv.pdfUrl = url;
+    window.open(url, '_blank');
+    filterKimenoSzamlak();
+  } catch(e) {
+    toast('PDF letöltési hiba: ' + e.message, 'error');
+  }
+}
+
+// --- Billingo API kulcs betöltése a felhasználók oldalra navigáláskor ---
+function loadFelhasznalokWithBillingo() {
+  const apiKey = getBillingoApiKey();
+  const input = document.getElementById('billingoApiKeyInput');
+  if (input && apiKey) input.value = apiKey;
+}
+
 // ===== ÁFA BEVALLÁS =====
 // ─── WISE SZINKRON ───────────────────────────────────────────
 let wiseManualSelected = null;
@@ -8959,21 +10162,109 @@ async function wiseManualSync() {
   toast('Szinkronizálva ✓', 'success');
 }
 
-function showAfaBevallas() {
-  // Év selector feltöltése
+function initAfaBevallas() {
   const evSel = document.getElementById('afaEv');
+  if (!evSel) return;
   const currentYear = new Date().getFullYear();
   evSel.innerHTML = '';
   for (let y = currentYear; y >= currentYear - 3; y--) {
     const opt = document.createElement('option');
-    opt.value = y;
-    opt.textContent = y;
+    opt.value = y; opt.textContent = y;
     evSel.appendChild(opt);
   }
-  // Aktuális hónap előre beállítva
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
   document.getElementById('afaHonap').value = currentMonth;
-  renderAfaBevallas();
+  loadMnbArfolyam();
+  // Bejövő és kimenő számlák betöltése ha még nem történt meg
+  const loadPromises = [];
+  if (!bszInvoices.length) {
+    loadPromises.push(
+      atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc')
+        .then(records => {
+          bszInvoices = records.map(r => ({
+            invoiceNumber: r.fields.Szamlaszam || '',
+            supplierName: r.fields.Szallito_nev || '',
+            supplierTaxNumber: r.fields.Szallito_adoszam || '',
+            invoiceIssueDate: r.fields.Kiallitas_datum || '',
+            invoiceDeliveryDate: r.fields.Teljesites_datum || '',
+            paymentDate: r.fields.Fizetesi_hatarido || '',
+            invoiceNetAmount: r.fields.Netto_osszeg || 0,
+            invoiceVatAmount: r.fields.Afa_osszeg || 0,
+            currency: r.fields.Deviza || 'HUF',
+            paymentMethod: r.fields.Fizetes_mod || '',
+            invoiceOperation: r.fields.Tipus || 'CREATE',
+            _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
+            _airtableKategoria: r.fields.Kategoria || '',
+            _airtableId: r.id,
+            _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
+          }));
+        }).catch(() => {})
+    );
+  }
+  if (!kszInvoices.length) {
+    loadPromises.push(
+      atGet('Kimeno_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc')
+        .then(records => {
+          kszInvoices = records.map(r => ({
+            _id: r.id,
+            _billingoId: r.fields.Billingo_id || null,
+            invoiceNumber: r.fields.Szamlaszam || '',
+            ugyfelNev: r.fields.Ugyfel_nev || '',
+            ugyfelId: r.fields.Ugyfel ? r.fields.Ugyfel[0] : null,
+            projektId: r.fields.Projekt ? r.fields.Projekt[0] : null,
+            nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
+            bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
+            currency: r.fields.Deviza || 'HUF',
+            teljesitesDatum: r.fields.Teljesites_datum || '',
+            fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
+            kiallitasDatum: r.fields.Kiallitas_datum || '',
+            statusz: r.fields.Statusz || 'Fizetesre_var',
+            tipus: r.fields.Tipus || 'Számla',
+            pdfUrl: r.fields.PDF_url || null,
+            megjegyzes: r.fields.Megjegyzes || '',
+            tetelek: (() => { try { return JSON.parse(r.fields.Tetelek || '[]'); } catch(e) { return []; } })(),
+            poSzam: r.fields.PO_szam || '',
+            sajatKapcsolattarto: r.fields.Sajat_kapcsolattarto || '',
+            sajatKapcsolattartoEmail: r.fields.Sajat_kapcsolattarto_email || '',
+          }));
+        }).catch(() => {})
+    );
+  }
+  if (loadPromises.length) {
+    Promise.all(loadPromises).then(() => renderAfaBevallas()).catch(() => renderAfaBevallas());
+  } else {
+    renderAfaBevallas();
+  }
+}
+
+async function loadMnbArfolyam() {
+  const btn = document.getElementById('mnbFrissitBtn');
+  const info = document.getElementById('mnbArfolyamInfo');
+  if (btn) btn.disabled = true;
+  if (info) info.textContent = '⏳ Betöltés...';
+  try {
+    // Frankfurter API – az Európai Központi Bank (EKB) hivatalos árfolyamai
+    // Ingyenes, nincs API kulcs, CORS-t engedélyez, naponta frissül
+    const resp = await fetch('https://api.frankfurter.dev/v2/rate/EUR/HUF');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const arfolyam = Math.round(data.rate * 100) / 100;
+    if (!arfolyam || isNaN(arfolyam)) throw new Error('Érvénytelen árfolyam');
+    const input = document.getElementById('eurHufArfolyam');
+    if (input) {
+      input.value = arfolyam;
+      updateTotalAfa();
+    }
+    if (info) info.textContent = `EKB · ${data.date} · ${arfolyam} HUF`;
+  } catch(e) {
+    if (info) info.textContent = `⚠ Árfolyam nem elérhető (${e.message})`;
+    console.warn('Árfolyam betöltés hiba:', e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function showAfaBevallas() {
   showPage('afa-bevallas');
 }
 
@@ -8987,368 +10278,511 @@ async function renderAfaBevallas() {
   if (!honap) {
     tartalom.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Válassz hónapot a kimutatáshoz</div></div>';
     if (letoltesBtn) letoltesBtn.style.display = 'none';
-    const excelBtnHide = document.getElementById('afaExcelExportBtn');
-    if (excelBtnHide) excelBtnHide.style.display = 'none';
+    document.getElementById('afaExcelExportBtn')?.style && (document.getElementById('afaExcelExportBtn').style.display = 'none');
     return;
   }
 
-  const prefix = `${ev}-${honap}`;
-  const szamlak = bszInvoices.filter(inv => (inv.invoiceIssueDate || '').startsWith(prefix));
+  tartalom.innerHTML = '<div class="loading"><div class="spinner"></div><br>Betöltés...</div>';
 
-  // Vámkezelés bejegyzések az adott hónapra
-  // vamRecords betöltése ha még nem történt meg
+  const prefix = `${ev}-${honap}`;
+
+  // ---- Bejövő számlák ----
+  const bejSzamlak = bszInvoices.filter(inv => (inv.invoiceIssueDate || '').startsWith(prefix));
+
+  // ---- Kimenő számlák az adott hónapra ----
+  let kimSzamlak = [];
+  try {
+    if (!kszInvoices || !kszInvoices.length) {
+      const records = await atGet('Kimeno_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
+      kszInvoices = records.map(r => ({
+        _id: r.id,
+        _billingoId: r.fields.Billingo_id || null,
+        invoiceNumber: r.fields.Szamlaszam || '',
+        ugyfelNev: r.fields.Ugyfel_nev || '',
+        ugyfelId: r.fields.Ugyfel ? r.fields.Ugyfel[0] : null,
+        projektId: r.fields.Projekt ? r.fields.Projekt[0] : null,
+        nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
+        bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
+        currency: r.fields.Deviza || 'HUF',
+        teljesitesDatum: r.fields.Teljesites_datum || '',
+        fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
+        kiallitasDatum: r.fields.Kiallitas_datum || '',
+        statusz: r.fields.Statusz || 'Fizetesre_var',
+        tipus: r.fields.Tipus || 'Számla',
+        pdfUrl: r.fields.PDF_url || null,
+        megjegyzes: r.fields.Megjegyzes || '',
+        tetelek: (() => { try { return JSON.parse(r.fields.Tetelek || '[]'); } catch(e) { return []; } })(),
+        poSzam: r.fields.PO_szam || '',
+        sajatKapcsolattarto: r.fields.Sajat_kapcsolattarto || '',
+        sajatKapcsolattartoEmail: r.fields.Sajat_kapcsolattarto_email || '',
+      }));
+    }
+    kimSzamlak = kszInvoices.filter(inv =>
+      (inv.kiallitasDatum || '').startsWith(prefix) &&
+      inv.statusz !== 'Storno' && inv.statusz !== 'Piszkozat'
+    );
+  } catch(e) { console.warn('Kimenő számlák betöltés hiba:', e); }
+
+  // ---- Vámkezelés ----
   if (!vamRecords || !vamRecords.length) {
     try { vamRecords = await atGet('Vamkezeles', 'sort%5B0%5D%5Bfield%5D=Vamhatarozat_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
   }
   const vamHavi = (vamRecords || []).filter(v => {
-    // Vámhatározat dátuma — Vamhatarozat_datum mező
     const datum = v.fields?.Vamhatarozat_datum || v.fields?.Datum || '';
     return datum.startsWith(prefix);
   });
   const vamImportAfa = vamHavi.reduce((s, v) => s + (parseFloat(v.fields?.Import_afa) || 0), 0);
 
-  const vanAdat = szamlak.length > 0 || vamHavi.length > 0;
+  const vanAdat = bejSzamlak.length > 0 || kimSzamlak.length > 0 || vamHavi.length > 0;
 
   if (!vanAdat) {
     tartalom.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Nincs adat ${ev}. ${parseInt(honap)}. hónapban</div></div>`;
     if (letoltesBtn) letoltesBtn.style.display = 'none';
-    const excelBtnHide2 = document.getElementById('afaExcelExportBtn');
-    if (excelBtnHide2) excelBtnHide2.style.display = 'none';
+    document.getElementById('afaExcelExportBtn')?.style && (document.getElementById('afaExcelExportBtn').style.display = 'none');
     return;
   }
 
-  const vanPdf = szamlak.some(i => i._pdfUrl);
+  const vanPdf = bejSzamlak.some(i => i._pdfUrl);
   if (letoltesBtn) letoltesBtn.style.display = vanPdf ? 'inline-flex' : 'none';
-  letoltesBtn && (letoltesBtn.onclick = () => afaCsatolmanyLetoltes(szamlak));
-
-  const excelBtn = document.getElementById('afaExcelExportBtn');
-  if (excelBtn) excelBtn.style.display = 'inline-flex';
-  // Tároljuk el a havi adatokat az export funkcióhoz
-  window._afaExportSzamlak = szamlak;
+  letoltesBtn && (letoltesBtn.onclick = () => afaCsatolmanyLetoltes(bejSzamlak));
+  document.getElementById('afaExcelExportBtn')?.style && (document.getElementById('afaExcelExportBtn').style.display = 'inline-flex');
+  window._afaExportSzamlak = bejSzamlak;
   window._afaExportEv = ev;
   window._afaExportHonap = honap;
 
   const honapNevek = ['','Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
-  const fmt = (n) => Number.isInteger(n) ? n.toLocaleString('hu-HU') : n.toLocaleString('hu-HU', {minimumFractionDigits:0, maximumFractionDigits:2});
+  const fmt = (n) => Math.round(n).toLocaleString('hu-HU');
+  const fmtDec = (n) => n.toLocaleString('hu-HU', {minimumFractionDigits:0, maximumFractionDigits:2});
 
-  // ---- Bejövő számlák tábla ----
-  const devizak = [...new Set(szamlak.map(i => i.currency || 'HUF'))].sort((a,b) => a === 'HUF' ? -1 : b === 'HUF' ? 1 : a.localeCompare(b));
+  // ---- Bejövő számlák számítás ----
+  const bejHuf = bejSzamlak.filter(i => (i.currency||'HUF') === 'HUF');
+  const bejEur = bejSzamlak.filter(i => (i.currency||'HUF') === 'EUR');
+  const bejHufNetto = bejHuf.reduce((s,i) => s + (parseFloat(i.invoiceNetAmount)||0), 0);
+  const bejHufAfa   = bejHuf.reduce((s,i) => s + (parseFloat(i.invoiceVatAmount)||0), 0);
+  const bejEurAfa   = bejEur.reduce((s,i) => s + (parseFloat(i.invoiceVatAmount)||0), 0);
 
-  const szamlakHtml = szamlak.length ? devizak.map(deviza => {
-    const csoport = szamlak.filter(i => (i.currency || 'HUF') === deviza);
-    const csNetto = csoport.reduce((s, i) => s + (parseFloat(i.invoiceNetAmount) || 0), 0);
-    const csAfa = csoport.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
-    const csBrutto = csNetto + csAfa;
-    return `
-      <div style="margin-bottom:28px">
-        <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;gap:8px">
-          <span style="background:var(--accent-light);color:var(--accent);padding:2px 10px;border-radius:20px;font-size:12px">${deviza}</span>
-          <span>${csoport.length} számla</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr>
-              <th>Számlaszám</th><th>Szállító</th><th>Kiállítás</th>
-              <th style="text-align:right">Nettó</th>
-              <th style="text-align:right">ÁFA</th>
-              <th style="text-align:right">Bruttó</th>
-              <th>PDF</th>
-            </tr></thead>
-            <tbody>
-              ${csoport.map(inv => {
-                const n = parseFloat(inv.invoiceNetAmount) || 0;
-                const a = parseFloat(inv.invoiceVatAmount) || 0;
-                return `<tr>
-                  <td class="td-name" style="font-family:'DM Mono',monospace;font-size:12px">${inv.invoiceNumber || '—'}</td>
-                  <td>${inv.supplierName || '—'}</td>
-                  <td class="td-muted">${inv.invoiceIssueDate || '—'}</td>
-                  <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(n)}</td>
-                  <td style="text-align:right;font-family:'DM Mono',monospace;color:#4f7fff;font-weight:500">${fmt(a)}</td>
-                  <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600">${fmt(n+a)}</td>
-                  <td>${inv._pdfUrl ? `<a href="${inv._pdfUrl}" target="_blank" class="btn btn-primary btn-xs">📄</a>` : '<span style="color:var(--text-light);font-size:12px">—</span>'}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-            <tfoot>
-              <tr style="background:#f9fafd;font-weight:600;border-top:2px solid var(--border)">
-                <td colspan="3" style="padding:10px 16px;font-size:13px">${deviza} összesen</td>
-                <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmt(csNetto)}</td>
-                <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace;color:#4f7fff">${fmt(csAfa)}</td>
-                <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmt(csBrutto)}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>`;
+  // ---- Kimenő számlák számítás ----
+  const kimHuf = kimSzamlak.filter(i => (i.currency||'HUF') === 'HUF');
+  const kimEur = kimSzamlak.filter(i => (i.currency||'HUF') === 'EUR');
+  const kimHufNetto  = kimHuf.reduce((s,i) => s + (i.nettoOssz||0), 0);
+  const kimHufBrutto = kimHuf.reduce((s,i) => s + (i.bruttoOssz||0), 0);
+  const kimHufAfa    = kimHufBrutto - kimHufNetto;
+  const kimEurNetto  = kimEur.reduce((s,i) => s + (i.nettoOssz||0), 0);
+  const kimEurBrutto = kimEur.reduce((s,i) => s + (i.bruttoOssz||0), 0);
+  const kimEurAfa    = kimEurBrutto - kimEurNetto;
+
+  // ---- Bejövő számlák tábla HTML ----
+  const bejDevizak = [...new Set(bejSzamlak.map(i => i.currency||'HUF'))].sort((a,b) => a==='HUF'?-1:b==='HUF'?1:a.localeCompare(b));
+  const bejSzamlakHtml = bejSzamlak.length ? bejDevizak.map(deviza => {
+    const cs = bejSzamlak.filter(i => (i.currency||'HUF') === deviza);
+    const csN = cs.reduce((s,i) => s+(parseFloat(i.invoiceNetAmount)||0),0);
+    const csA = cs.reduce((s,i) => s+(parseFloat(i.invoiceVatAmount)||0),0);
+    return `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="background:var(--accent-light);color:var(--accent);padding:2px 10px;border-radius:20px">${deviza}</span>
+        <span>${cs.length} számla</span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Számlaszám</th><th>Szállító</th><th>Kiállítás</th>
+          <th style="text-align:right">Nettó</th><th style="text-align:right">ÁFA</th><th style="text-align:right">Bruttó</th><th>PDF</th>
+        </tr></thead>
+        <tbody>${cs.map(inv => {
+          const n = parseFloat(inv.invoiceNetAmount)||0, a = parseFloat(inv.invoiceVatAmount)||0;
+          return `<tr>
+            <td class="td-name" style="font-family:'DM Mono',monospace;font-size:12px">${inv.invoiceNumber||'—'}</td>
+            <td>${inv.supplierName||'—'}</td>
+            <td class="td-muted">${inv.invoiceIssueDate||'—'}</td>
+            <td style="text-align:right;font-family:'DM Mono',monospace">${fmtDec(n)}</td>
+            <td style="text-align:right;font-family:'DM Mono',monospace;color:#4f7fff;font-weight:500">${fmtDec(a)}</td>
+            <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600">${fmtDec(n+a)}</td>
+            <td>${inv._pdfUrl?`<a href="${inv._pdfUrl}" target="_blank" class="btn btn-primary btn-xs">📄</a>`:'<span style="color:var(--text-light);font-size:12px">—</span>'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+        <tfoot><tr style="background:#f9fafd;font-weight:600;border-top:2px solid var(--border)">
+          <td colspan="3" style="padding:10px 16px">${deviza} összesen</td>
+          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmtDec(csN)}</td>
+          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace;color:#4f7fff">${fmtDec(csA)}</td>
+          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmtDec(csN+csA)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table></div>
+    </div>`;
   }).join('') : '';
 
-  // ---- Vámkezelés import ÁFA tábla ----
-  const vamHtml = vamHavi.length ? `
-    <div style="margin-bottom:28px">
-      <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;display:flex;align-items:center;gap:8px">
-        <span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:20px;font-size:12px">🛃 Vámkezelés</span>
-        <span>${vamHavi.length} bejegyzés</span>
+  // ---- Kimenő számlák tábla HTML ----
+  const kimDevizak = [...new Set(kimSzamlak.map(i => i.currency||'HUF'))].sort((a,b) => a==='HUF'?-1:b==='HUF'?1:a.localeCompare(b));
+  const kimSzamlakHtml = kimSzamlak.length ? kimDevizak.map(deviza => {
+    const cs = kimSzamlak.filter(i => (i.currency||'HUF') === deviza);
+    const csN = cs.reduce((s,i) => s+(i.nettoOssz||0),0);
+    const csB = cs.reduce((s,i) => s+(i.bruttoOssz||0),0);
+    const csA = csB - csN;
+    return `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="background:#dcfce7;color:#15803d;padding:2px 10px;border-radius:20px">${deviza}</span>
+        <span>${cs.length} számla</span>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>MRN szám</th>
-            <th>Vámhatározat dátuma</th>
-            <th>Szállítólevél</th>
-            <th>Megjegyzés</th>
-            <th style="text-align:right">Import ÁFA (HUF)</th>
-            <th>PDF</th>
-          </tr></thead>
-          <tbody>
-            ${vamHavi.map(v => {
-              const f = v.fields;
-              const afa = parseFloat(f.Import_afa) || 0;
-              return `<tr>
-                <td class="td-name" style="font-family:'DM Mono',monospace;font-size:12px">${f.MRN_szam || '—'}</td>
-                <td class="td-muted">${f.Datum || '—'}</td>
-                <td class="td-muted">${f.Szallitolevel_szam || '—'}</td>
-                <td class="td-muted">${f.Megjegyzes || '—'}</td>
-                <td style="text-align:right;font-family:'DM Mono',monospace;color:#92400e;font-weight:500">${fmt(afa)}</td>
-                <td>${f.PDF_url ? `<a href="${f.PDF_url}" target="_blank" class="btn btn-primary btn-xs">📄</a>` : '<span style="color:var(--text-light);font-size:12px">—</span>'}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-          <tfoot>
-            <tr style="background:#fef9ee;font-weight:600;border-top:2px solid var(--border)">
-              <td colspan="4" style="padding:10px 16px;font-size:13px">Import ÁFA összesen</td>
-              <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace;color:#92400e">${fmt(vamImportAfa)}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>` : '';
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Számlaszám</th><th>Ügyfél</th><th>Kiállítás</th><th>Típus</th>
+          <th style="text-align:right">Nettó</th><th style="text-align:right">ÁFA</th><th style="text-align:right">Bruttó</th>
+        </tr></thead>
+        <tbody>${cs.map(inv => {
+          const n = inv.nettoOssz||0, b = inv.bruttoOssz||0, a = b-n;
+          return `<tr>
+            <td class="td-name" style="font-family:'DM Mono',monospace;font-size:12px">${inv.invoiceNumber||'—'}</td>
+            <td>${inv.ugyfelNev||'—'}</td>
+            <td class="td-muted">${inv.kiallitasDatum||'—'}</td>
+            <td class="td-muted" style="font-size:12px">${inv.tipus||'Számla'}</td>
+            <td style="text-align:right;font-family:'DM Mono',monospace">${fmt(n)}</td>
+            <td style="text-align:right;font-family:'DM Mono',monospace;color:#15803d;font-weight:500">${fmt(a)}</td>
+            <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600">${fmt(b)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+        <tfoot><tr style="background:#f0fdf4;font-weight:600;border-top:2px solid var(--border)">
+          <td colspan="4" style="padding:10px 16px">${deviza} összesen</td>
+          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmt(csN)}</td>
+          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace;color:#15803d">${fmt(csA)}</td>
+          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmt(csB)}</td>
+        </tr></tfoot>
+      </table></div>
+    </div>`;
+  }).join('') : '';
 
-  // ---- Összesítő kártyák ----
-  const hufSzamlak = szamlak.filter(i => (i.currency || 'HUF') === 'HUF');
-  const eurSzamlak = szamlak.filter(i => (i.currency || 'HUF') === 'EUR');
-  const hufNetto = hufSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceNetAmount) || 0), 0);
-  const hufAfa = hufSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
-  const eurAfa = eurSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
+  // ---- Vámkezelés tábla HTML ----
+  const vamHtml = vamHavi.length ? `<div style="margin-bottom:20px">
+    <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+      <span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:20px">🛃 Vámkezelés</span>
+      <span>${vamHavi.length} bejegyzés</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>MRN szám</th><th>Dátum</th><th>Szállítólevél</th><th>Megjegyzés</th>
+        <th style="text-align:right">Import ÁFA (HUF)</th><th>PDF</th>
+      </tr></thead>
+      <tbody>${vamHavi.map(v => {
+        const f = v.fields, afa = parseFloat(f.Import_afa)||0;
+        return `<tr>
+          <td class="td-name" style="font-family:'DM Mono',monospace;font-size:12px">${f.MRN_szam||'—'}</td>
+          <td class="td-muted">${f.Datum||'—'}</td>
+          <td class="td-muted">${f.Szallitolevel_szam||'—'}</td>
+          <td class="td-muted">${f.Megjegyzes||'—'}</td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;color:#92400e;font-weight:500">${fmt(afa)}</td>
+          <td>${f.PDF_url?`<a href="${f.PDF_url}" target="_blank" class="btn btn-primary btn-xs">📄</a>`:'<span style="color:var(--text-light);font-size:12px">—</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr style="background:#fef9ee;font-weight:600;border-top:2px solid var(--border)">
+        <td colspan="4" style="padding:10px 16px">Import ÁFA összesen</td>
+        <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace;color:#92400e">${fmt(vamImportAfa)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table></div>
+  </div>` : '';
+
+  // ---- Összesítő blokk (árfolyam inputtal, befizetendő/visszaigényelhető számítással) ----
+  const arfolyam = parseFloat(document.getElementById('eurHufArfolyam')?.value) || 0;
+  const bejEurAfaHuf = Math.round(bejEurAfa * arfolyam);
+  const kimEurAfaHuf = Math.round(kimEurAfa * arfolyam);
+  const osszesBejAfa = Math.round(bejHufAfa) + bejEurAfaHuf + Math.round(vamImportAfa);
+  const osszesBefKimAfa = Math.round(kimHufAfa) + kimEurAfaHuf;
+  const egyenleg = osszesBefKimAfa - osszesBejAfa;
+  const egyenlegSzin = egyenleg > 0 ? '#e74c3c' : '#15803d';
+  const egyenlegLabel = egyenleg > 0 ? '⚠ Befizetendő ÁFA' : '✓ Visszaigényelhető ÁFA';
 
   tartalom.innerHTML = `
-    <div class="stats-grid" style="margin-bottom:16px">
+    <!-- Stat kártyák -->
+    <div class="stats-grid" style="margin-bottom:20px">
       <div class="stat-card">
-        <div class="stat-label">HUF Nettó összesen</div>
-        <div class="stat-value" style="font-size:20px">${Math.round(hufNetto).toLocaleString('hu-HU')}</div>
-        <div class="stat-sub">HUF · ${hufSzamlak.length} számla · ${ev}. ${honapNevek[parseInt(honap)]}</div>
+        <div class="stat-label">📄 Bejövő HUF levonható ÁFA</div>
+        <div class="stat-value" style="font-size:20px;color:#4f7fff">${fmt(bejHufAfa)}</div>
+        <div class="stat-sub">HUF · ${bejHuf.length} számla</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">HUF Levonható ÁFA</div>
-        <div class="stat-value" style="font-size:20px;color:#4f7fff">${Math.round(hufAfa).toLocaleString('hu-HU')}</div>
-        <div class="stat-sub">HUF · bejövő számlák</div>
+        <div class="stat-label">📄 Bejövő EUR levonható ÁFA</div>
+        <div class="stat-value" style="font-size:20px;color:#7c3aed">${fmtDec(bejEurAfa)}</div>
+        <div class="stat-sub">EUR · ${bejEur.length} számla</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">EUR Levonható ÁFA</div>
-        <div class="stat-value" style="font-size:20px;color:#7c3aed">${eurAfa.toLocaleString('hu-HU', {minimumFractionDigits:0,maximumFractionDigits:2})}</div>
-        <div class="stat-sub">EUR · ${eurSzamlak.length} számla</div>
+        <div class="stat-label">↑ Kimenő HUF fizetendő ÁFA</div>
+        <div class="stat-value" style="font-size:20px;color:#15803d">${fmt(kimHufAfa)}</div>
+        <div class="stat-sub">HUF · ${kimHuf.length} számla</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Import ÁFA (vámkezelés)</div>
-        <div class="stat-value" style="font-size:20px;color:#92400e">${Math.round(vamImportAfa).toLocaleString('hu-HU')}</div>
+        <div class="stat-label">↑ Kimenő EUR fizetendő ÁFA</div>
+        <div class="stat-value" style="font-size:20px;color:#15803d">${fmtDec(kimEurAfa)}</div>
+        <div class="stat-sub">EUR · ${kimEur.length} számla</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">🛃 Import ÁFA (vámkezelés)</div>
+        <div class="stat-value" style="font-size:20px;color:#92400e">${fmt(vamImportAfa)}</div>
         <div class="stat-sub">HUF · ${vamHavi.length} vámhatározat</div>
       </div>
     </div>
+
+    <!-- Kalkulátor -->
     <div class="form-section" style="margin-bottom:24px">
+      <div class="form-section-title">ÁFA egyenleg — ${ev}. ${honapNevek[parseInt(honap)]}</div>
       <div class="form-section-body" style="padding:16px 20px">
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <div style="font-size:13px;font-weight:500;color:var(--text-muted)">EUR/HUF árfolyam:</div>
-          <input type="number" id="eurHufArfolyam" value="400" min="1" step="1"
-            style="width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Mono',monospace;text-align:right"
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <span style="font-size:13px;font-weight:500;color:var(--text-muted)">EUR/HUF árfolyam:</span>
+          <input type="number" id="eurHufArfolyam" value="" min="1" step="1"
+            style="width:90px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'DM Mono',monospace;text-align:right"
             oninput="updateTotalAfa()">
-          <div style="font-size:13px;color:var(--text-muted)">×</div>
-          <div style="font-size:13px;color:var(--text-muted)">EUR ÁFA <span style="font-family:'DM Mono',monospace;font-weight:600;color:#7c3aed">${eurAfa.toLocaleString('hu-HU',{minimumFractionDigits:0,maximumFractionDigits:2})} EUR</span> =</div>
-          <div style="font-size:13px;color:var(--text-muted)">HUF-ban: <span id="eurAfaHufban" style="font-family:'DM Mono',monospace;font-weight:600;color:#7c3aed">${Math.round(eurAfa * 400).toLocaleString('hu-HU')} HUF</span></div>
-          <div style="width:1px;height:32px;background:var(--border)"></div>
-          <div style="font-size:13px;color:var(--text-muted)">Import ÁFA: <span style="font-family:'DM Mono',monospace;font-weight:600;color:#92400e">${Math.round(vamImportAfa).toLocaleString('hu-HU')} HUF</span></div>
-          <div style="width:1px;height:32px;background:var(--border)"></div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">Teljes levonható ÁFA:</div>
-          <div id="totalAfaOsszesen" style="font-size:22px;font-weight:700;color:#4f7fff;font-family:'DM Mono',monospace">${Math.round(hufAfa + eurAfa * 400 + vamImportAfa).toLocaleString('hu-HU')} HUF</div>
+          <span id="mnbArfolyamInfo" style="font-size:12px;color:var(--text-muted)"></span>
+          <button class="btn btn-secondary btn-sm" onclick="loadMnbArfolyam()" id="mnbFrissitBtn" style="font-size:12px;padding:4px 10px">🔄 EKB árfolyam</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:13px">
+          <!-- Fejléc -->
+          <div style="padding:10px 16px;background:#f0fdf4;font-weight:600;color:#15803d;border-bottom:1px solid var(--border)">↑ Fizetendő ÁFA (kimenő)</div>
+          <div style="padding:10px 16px;background:#eff6ff;font-weight:600;color:#4f7fff;border-bottom:1px solid var(--border);border-left:1px solid var(--border)">↓ Levonható ÁFA (bejövő + import)</div>
+          <!-- Sorok -->
+          <div style="padding:10px 16px;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">HUF kimenő ÁFA</span><span style="font-family:'DM Mono',monospace;font-weight:600">${fmt(kimHufAfa)} HUF</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--text-muted)">EUR kimenő ÁFA (HUF-ban)</span><span style="font-family:'DM Mono',monospace" id="kimEurAfaHufSor">${fmt(kimEurAfaHuf)} HUF</span></div>
+          </div>
+          <div style="padding:10px 16px;border-bottom:1px solid var(--border);border-left:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">HUF bejövő ÁFA</span><span style="font-family:'DM Mono',monospace;font-weight:600">${fmt(bejHufAfa)} HUF</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--text-muted)">EUR bejövő ÁFA (HUF-ban)</span><span style="font-family:'DM Mono',monospace" id="bejEurAfaHufSor">${fmt(bejEurAfaHuf)} HUF</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--text-muted)">Import ÁFA (vámkezelés)</span><span style="font-family:'DM Mono',monospace">${fmt(vamImportAfa)} HUF</span></div>
+          </div>
+          <!-- Összesen -->
+          <div style="padding:10px 16px;background:#f0fdf4;font-weight:600">
+            <div style="display:flex;justify-content:space-between"><span>Összesen</span><span style="font-family:'DM Mono',monospace;color:#15803d" id="kimOsszesSor">${fmt(osszesBefKimAfa)} HUF</span></div>
+          </div>
+          <div style="padding:10px 16px;background:#eff6ff;font-weight:600;border-left:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between"><span>Összesen</span><span style="font-family:'DM Mono',monospace;color:#4f7fff" id="bejOsszesSor">${fmt(osszesBejAfa)} HUF</span></div>
+          </div>
+        </div>
+        <!-- Egyenleg -->
+        <div style="margin-top:16px;padding:14px 20px;background:${egyenleg>0?'#fef2f2':'#f0fdf4'};border-radius:10px;border:2px solid ${egyenlegSzin};display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-size:14px;font-weight:600;color:${egyenlegSzin}">${egyenlegLabel}</div>
+          <div id="afaEgyenleg" style="font-size:26px;font-weight:700;color:${egyenlegSzin};font-family:'DM Mono',monospace">${fmt(Math.abs(egyenleg))} HUF</div>
         </div>
       </div>
     </div>
-    ${szamlak.length ? `<div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">📄 Bejövő számlák</div>` : ''}
-    ${szamlakHtml}
-    ${vamHavi.length ? `<div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;margin-top:8px">🛃 Vámkezelés import ÁFA</div>` : ''}
-    ${vamHtml}`;
 
-  window._afaHufAfa = hufAfa;
-  window._afaEurAfa = eurAfa;
+    <!-- Táblák -->
+    ${kimSzamlak.length ? `<div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">↑ Kimenő számlák</div>${kimSzamlakHtml}` : ''}
+    ${bejSzamlak.length ? `<div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;margin-top:8px">↓ Bejövő számlák</div>${bejSzamlakHtml}` : ''}
+    ${vamHavi.length ? `<div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;margin-top:8px">🛃 Vámkezelés import ÁFA</div>${vamHtml}` : ''}
+  `;
+
+  window._afaHufAfa = bejHufAfa;
+  window._afaEurAfa = bejEurAfa;
   window._afaVamAfa = vamImportAfa;
+  window._afaKimHufAfa = kimHufAfa;
+  window._afaKimEurAfa = kimEurAfa;
 }
 
 async function exportAfaExcel() {
-  const szamlak = window._afaExportSzamlak || [];
-  const ev = window._afaExportEv || '';
-  const honap = window._afaExportHonap || '';
+  const ev = window._afaExportEv || document.getElementById('afaEv')?.value || '';
+  const honap = window._afaExportHonap || document.getElementById('afaHonap')?.value || '';
 
   if (!honap) { toast('Nincs kiválasztott hónap!', 'error'); return; }
 
   const honapNevek = ['','Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
   const honapNev = honapNevek[parseInt(honap)] || honap;
   const prefix = `${ev}-${honap}`;
+  const arfolyam = parseFloat(document.getElementById('eurHufArfolyam')?.value) || 0;
+
+  // Ha a bejövő számlák még nem lettek betöltve, töltjük be most (mellékhatások nélkül)
+  if (!bszInvoices.length) {
+    toast('⏳ Bejövő számlák betöltése...', '');
+    try {
+      const records = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
+      bszInvoices = records.map(r => ({
+        invoiceNumber: r.fields.Szamlaszam || '',
+        supplierName: r.fields.Szallito_nev || '',
+        supplierTaxNumber: r.fields.Szallito_adoszam || '',
+        invoiceIssueDate: r.fields.Kiallitas_datum || '',
+        invoiceDeliveryDate: r.fields.Teljesites_datum || '',
+        paymentDate: r.fields.Fizetesi_hatarido || '',
+        invoiceNetAmount: r.fields.Netto_osszeg || 0,
+        invoiceVatAmount: r.fields.Afa_osszeg || 0,
+        currency: r.fields.Deviza || 'HUF',
+        paymentMethod: r.fields.Fizetes_mod || '',
+        invoiceOperation: r.fields.Tipus || 'CREATE',
+        _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
+        _airtableKategoria: r.fields.Kategoria || '',
+        _airtableId: r.id,
+        _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
+      }));
+    } catch(e) { console.warn('bsz betöltés hiba:', e); }
+  }
+
+  // Bejövő számlák az adott hónapra szűrve
+  const bejSzamlak = bszInvoices.filter(inv => (inv.invoiceIssueDate || '').startsWith(prefix));
+
+  if (!bejSzamlak.length && !kszInvoices.length) {
+    toast('Nincs adat a kiválasztott hónapra!', 'error'); return;
+  }
 
   toast('Excel generálása...', '');
 
   try {
     const XLSX = await importGetXLSX();
     const wb = XLSX.utils.book_new();
-
-    // ----- 1. LAP: Bejövő számlák -----
-    const szamlakFejlec = [
-      'Számlaszám', 'Szállító neve', 'Szállító adószáma',
-      'Kiállítás dátuma', 'Teljesítés dátuma', 'Fizetési határidő',
-      'Nettó összeg', 'ÁFA összeg', 'Bruttó összeg', 'Deviza',
-      'Fizetési mód', 'Típus', 'Státusz', 'Kategória', 'PDF'
-    ];
-
-    const szamlakSorok = szamlak.map(inv => {
-      const netto = parseFloat(inv.invoiceNetAmount) || 0;
-      const afa   = parseFloat(inv.invoiceVatAmount) || 0;
-      const tipusMap = { 'STORNO': 'Sztornó', 'MODIFY': 'Módosító', 'CREATE': 'Számla' };
-      const statuszMap = { 'Fizetett': 'Fizetett', 'Fizetesre_var': 'Fizetésre vár' };
-      return [
-        inv.invoiceNumber || '',
-        inv.supplierName || '',
-        inv.supplierTaxNumber || '',
-        inv.invoiceIssueDate || '',
-        inv.invoiceDeliveryDate || '',
-        inv.paymentDate || '',
-        netto,
-        afa,
-        netto + afa,
-        inv.currency || 'HUF',
-        inv.paymentMethod || '',
-        tipusMap[inv.invoiceOperation] || inv.invoiceOperation || 'Számla',
-        statuszMap[inv._airtableStatus] || inv._airtableStatus || '',
-        inv._airtableKategoria ? (BSZ_KATEGORIAK.find(k => k.value === inv._airtableKategoria)?.label || inv._airtableKategoria) : '',
-        inv._pdfUrl ? 'Van' : 'Nincs'
-      ];
-    });
-
-    // Összesítő sor per deviza
-    const devizak = [...new Set(szamlak.map(i => i.currency || 'HUF'))].sort((a, b) => a === 'HUF' ? -1 : b === 'HUF' ? 1 : a.localeCompare(b));
-    const osszesSorok = devizak.map(dev => {
-      const cs = szamlak.filter(i => (i.currency || 'HUF') === dev);
-      const csN = cs.reduce((s, i) => s + (parseFloat(i.invoiceNetAmount) || 0), 0);
-      const csA = cs.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
-      return [`${dev} összesen (${cs.length} db)`, '', '', '', '', '', csN, csA, csN + csA, dev, '', '', '', '', ''];
-    });
-
-    const ws1Data = [szamlakFejlec, ...szamlakSorok, [], ...osszesSorok];
-    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
-
-    // Oszlopszélességek
-    ws1['!cols'] = [
-      {wch:22},{wch:28},{wch:16},{wch:14},{wch:14},{wch:14},
-      {wch:14},{wch:14},{wch:14},{wch:8},
-      {wch:14},{wch:10},{wch:14},{wch:18},{wch:6}
-    ];
-
-    // Fejléc formázás
     const headerStyle = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1E3A5F' } }, alignment: { horizontal: 'center' } };
-    szamlakFejlec.forEach((_, ci) => {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
-      if (ws1[cellRef]) ws1[cellRef].s = headerStyle;
+    const greenHeader = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '166534' } }, alignment: { horizontal: 'center' } };
+    const styleRow = (ws, rowIdx, style, colCount) => {
+      for (let c = 0; c < colCount; c++) {
+        const ref = XLSX.utils.encode_cell({ r: rowIdx, c });
+        if (ws[ref]) ws[ref].s = style;
+      }
+    };
+
+    // ===== 1. LAP: Kimenő számlák =====
+    const kimSzamlak = kszInvoices.filter(i =>
+      (i.kiallitasDatum || '').startsWith(prefix) &&
+      i.statusz !== 'Storno' && i.statusz !== 'Piszkozat'
+    );
+    const kimFejlec = ['Számlaszám','Ügyfél','Kiállítás','Típus','Nettó','ÁFA','Bruttó','Deviza','Státusz','PO szám'];
+    const kimSorok = kimSzamlak.map(inv => {
+      const n = inv.nettoOssz || 0, b = inv.bruttoOssz || 0;
+      return [inv.invoiceNumber||'', inv.ugyfelNev||'', inv.kiallitasDatum||'', inv.tipus||'Számla',
+        n, Math.round((b-n)*100)/100, b, inv.currency||'HUF', inv.statusz||'', inv.poSzam||''];
     });
-
-    // Összesítő sorok formázása
-    const osszesSorStart = szamlakSorok.length + 2;
-    osszesSorok.forEach((_, ri) => {
-      const rowIdx = osszesSorStart + ri;
-      szamlakFejlec.forEach((__, ci) => {
-        const cellRef = XLSX.utils.encode_cell({ r: rowIdx, c: ci });
-        if (ws1[cellRef]) ws1[cellRef].s = { font: { bold: true }, fill: { fgColor: { rgb: 'E8F0FE' } } };
-      });
+    const kimDevizak = [...new Set(kimSzamlak.map(i => i.currency||'HUF'))].sort((a,b) => a==='HUF'?-1:b==='HUF'?1:a.localeCompare(b));
+    const kimOsszesSorok = kimDevizak.map(dev => {
+      const cs = kimSzamlak.filter(i => (i.currency||'HUF') === dev);
+      const csN = cs.reduce((s,i) => s+(i.nettoOssz||0), 0);
+      const csB = cs.reduce((s,i) => s+(i.bruttoOssz||0), 0);
+      return [`${dev} összesen (${cs.length} db)`,'','','', csN, Math.round((csB-csN)*100)/100, csB, dev,'',''];
     });
+    const ws1Data = [kimFejlec, ...kimSorok, [], ...kimOsszesSorok];
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!cols'] = [{wch:22},{wch:28},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:8},{wch:14},{wch:16}];
+    styleRow(ws1, 0, greenHeader, kimFejlec.length);
+    kimOsszesSorok.forEach((_, ri) => styleRow(ws1, kimSorok.length+2+ri, { font:{bold:true}, fill:{fgColor:{rgb:'DCFCE7'}} }, kimFejlec.length));
+    XLSX.utils.book_append_sheet(wb, ws1, 'Kimenő számlák');
 
-    XLSX.utils.book_append_sheet(wb, ws1, 'Bejövő számlák');
+    // ===== 2. LAP: Bejövő számlák =====
+    const bejFejlec = ['Számlaszám','Szállító neve','Szállító adószáma','Kiállítás','Teljesítés','Fiz. határidő',
+      'Nettó','ÁFA','Bruttó','Deviza','Fiz. mód','Típus','Státusz','Kategória','PDF'];
+    const bejSorok = bejSzamlak.map(inv => {
+      const n = parseFloat(inv.invoiceNetAmount)||0, a = parseFloat(inv.invoiceVatAmount)||0;
+      const tipusMap = {'STORNO':'Sztornó','MODIFY':'Módosító','CREATE':'Számla'};
+      const statuszMap = {'Fizetett':'Fizetett','Fizetesre_var':'Fizetésre vár'};
+      return [inv.invoiceNumber||'', inv.supplierName||'', inv.supplierTaxNumber||'',
+        inv.invoiceIssueDate||'', inv.invoiceDeliveryDate||'', inv.paymentDate||'',
+        n, a, n+a, inv.currency||'HUF', inv.paymentMethod||'',
+        tipusMap[inv.invoiceOperation]||inv.invoiceOperation||'Számla',
+        statuszMap[inv._airtableStatus]||inv._airtableStatus||'',
+        inv._airtableKategoria ? (BSZ_KATEGORIAK.find(k=>k.value===inv._airtableKategoria)?.label||inv._airtableKategoria) : '',
+        inv._pdfUrl ? 'Van' : 'Nincs'];
+    });
+    const bejDevizak = [...new Set(bejSzamlak.map(i=>i.currency||'HUF'))].sort((a,b)=>a==='HUF'?-1:b==='HUF'?1:a.localeCompare(b));
+    const bejOsszesSorok = bejDevizak.map(dev => {
+      const cs = bejSzamlak.filter(i=>(i.currency||'HUF')===dev);
+      const csN = cs.reduce((s,i)=>s+(parseFloat(i.invoiceNetAmount)||0),0);
+      const csA = cs.reduce((s,i)=>s+(parseFloat(i.invoiceVatAmount)||0),0);
+      return [`${dev} összesen (${cs.length} db)`,'','','','','', csN, csA, csN+csA, dev,'','','','',''];
+    });
+    const ws2Data = [bejFejlec, ...bejSorok, [], ...bejOsszesSorok];
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [{wch:22},{wch:28},{wch:16},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:13},{wch:7},{wch:13},{wch:10},{wch:13},{wch:18},{wch:5}];
+    styleRow(ws2, 0, headerStyle, bejFejlec.length);
+    bejOsszesSorok.forEach((_,ri) => styleRow(ws2, bejSorok.length+2+ri, {font:{bold:true},fill:{fgColor:{rgb:'E8F0FE'}}}, bejFejlec.length));
+    XLSX.utils.book_append_sheet(wb, ws2, 'Bejövő számlák');
 
-    // ----- 2. LAP: Vámkezelés -----
+    // ===== 3. LAP: Vámkezelés =====
     let vamSzamlak = [];
     try {
       if (!window.vamRecords || !window.vamRecords.length) {
         window.vamRecords = await atGet('Vamkezeles', 'sort%5B0%5D%5Bfield%5D=Vamhatarozat_datum&sort%5B0%5D%5Bdirection%5D=desc');
       }
-      vamSzamlak = (window.vamRecords || []).filter(v => {
-        const datum = v.fields?.Vamhatarozat_datum || v.fields?.Datum || '';
-        return datum.startsWith(prefix);
-      });
+      vamSzamlak = (window.vamRecords||[]).filter(v => (v.fields?.Vamhatarozat_datum||v.fields?.Datum||'').startsWith(prefix));
     } catch(e) {}
-
-    const vamFejlec = ['MRN szám', 'Vámhatározat dátuma', 'Szállítólevél szám', 'Megjegyzés', 'Import ÁFA (HUF)', 'Számla érték', 'Deviza', 'PDF'];
+    const vamImportAfa = vamSzamlak.reduce((s,v)=>s+(parseFloat(v.fields?.Import_afa)||0),0);
+    const vamFejlec = ['MRN szám','Vámhatározat dátuma','Szállítólevél szám','Megjegyzés','Import ÁFA (HUF)','Számla érték','Deviza','PDF'];
     const vamSorok = vamSzamlak.map(v => {
       const f = v.fields;
-      return [
-        f.MRN_szam || '',
-        f.Vamhatarozat_datum || f.Datum || '',
-        f.Szallitolevel_szam || '',
-        f.Megjegyzes || '',
-        parseFloat(f.Import_afa) || 0,
-        parseFloat(f.Szamla_ertek) || 0,
-        f.Deviza || 'HUF',
-        f.PDF_url ? 'Van' : 'Nincs'
-      ];
+      return [f.MRN_szam||'', f.Vamhatarozat_datum||f.Datum||'', f.Szallitolevel_szam||'', f.Megjegyzes||'',
+        parseFloat(f.Import_afa)||0, parseFloat(f.Szamla_ertek)||0, f.Deviza||'HUF', f.PDF_url?'Van':'Nincs'];
     });
-
-    const vamOssz = vamSzamlak.reduce((s, v) => s + (parseFloat(v.fields?.Import_afa) || 0), 0);
-    const ws2Data = [
-      vamFejlec,
-      ...vamSorok,
-      [],
-      ['Import ÁFA összesen (HUF)', '', '', '', vamOssz, '', '', '']
-    ];
-    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
-    ws2['!cols'] = [{wch:22},{wch:22},{wch:20},{wch:28},{wch:18},{wch:14},{wch:8},{wch:6}];
-    vamFejlec.forEach((_, ci) => {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
-      if (ws2[cellRef]) ws2[cellRef].s = headerStyle;
-    });
-
-    XLSX.utils.book_append_sheet(wb, ws2, 'Vámkezelés');
-
-    // ----- 3. LAP: ÁFA összesítő -----
-    const arfolyam = parseFloat(document.getElementById('eurHufArfolyam')?.value) || 400;
-    const hufSzamlak = szamlak.filter(i => (i.currency || 'HUF') === 'HUF');
-    const eurSzamlak = szamlak.filter(i => (i.currency || 'HUF') === 'EUR');
-    const hufNetto = hufSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceNetAmount) || 0), 0);
-    const hufAfa   = hufSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
-    const eurAfa   = eurSzamlak.reduce((s, i) => s + (parseFloat(i.invoiceVatAmount) || 0), 0);
-    const eurAfaHuf = Math.round(eurAfa * arfolyam);
-    const totalAfa  = Math.round(hufAfa + eurAfaHuf + vamOssz);
-
-    const ws3Data = [
-      [`ÁFA Bevallás összesítő — ${ev}. ${honapNev}`],
-      [],
-      ['Tétel', 'Érték', 'Deviza', 'Megjegyzés'],
-      ['HUF Nettó összesen', Math.round(hufNetto), 'HUF', `${hufSzamlak.length} számla`],
-      ['HUF Levonható ÁFA', Math.round(hufAfa), 'HUF', 'Bejövő számlák (HUF)'],
-      ['EUR Levonható ÁFA', eurAfa, 'EUR', `${eurSzamlak.length} számla`],
-      ['EUR/HUF árfolyam', arfolyam, '', 'Kézzel megadott'],
-      ['EUR ÁFA (HUF-ban)', eurAfaHuf, 'HUF', `${eurAfa.toFixed(2)} EUR × ${arfolyam}`],
-      ['Import ÁFA (vámkezelés)', Math.round(vamOssz), 'HUF', `${vamSzamlak.length} vámhatározat`],
-      [],
-      ['TELJES LEVONHATÓ ÁFA', totalAfa, 'HUF', 'HUF ÁFA + EUR ÁFA (HUF-ban) + Import ÁFA'],
-    ];
+    const ws3Data = [vamFejlec, ...vamSorok, [], ['Import ÁFA összesen (HUF)','','','', vamImportAfa,'','','']];
     const ws3 = XLSX.utils.aoa_to_sheet(ws3Data);
-    ws3['!cols'] = [{wch:30},{wch:18},{wch:8},{wch:40}];
-    // Cím formázás
-    if (ws3['A1']) ws3['A1'].s = { font: { bold: true, sz: 14 } };
-    // Fejléc sor (3. sor, index 2)
-    ['A3','B3','C3','D3'].forEach(ref => { if (ws3[ref]) ws3[ref].s = headerStyle; });
-    // Összesítő sor (utolsó)
-    const lastRow = ws3Data.length;
-    [`A${lastRow}`,`B${lastRow}`,`C${lastRow}`,`D${lastRow}`].forEach(ref => {
-      if (ws3[ref]) ws3[ref].s = { font: { bold: true, sz: 12 }, fill: { fgColor: { rgb: 'D0E4FF' } } };
-    });
+    ws3['!cols'] = [{wch:22},{wch:22},{wch:20},{wch:28},{wch:18},{wch:14},{wch:8},{wch:6}];
+    styleRow(ws3, 0, { font:{bold:true,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'92400E'}}, alignment:{horizontal:'center'} }, vamFejlec.length);
+    styleRow(ws3, vamSorok.length+2, {font:{bold:true},fill:{fgColor:{rgb:'FEF9EE'}}}, vamFejlec.length);
+    XLSX.utils.book_append_sheet(wb, ws3, 'Vámkezelés');
 
-    XLSX.utils.book_append_sheet(wb, ws3, 'ÁFA összesítő');
+    // ===== 4. LAP: ÁFA egyenleg kalkuláció =====
+    // Bejövő számítás
+    const bejHuf = bejSzamlak.filter(i=>(i.currency||'HUF')==='HUF');
+    const bejEur = bejSzamlak.filter(i=>(i.currency||'HUF')==='EUR');
+    const bejHufNetto = bejHuf.reduce((s,i)=>s+(parseFloat(i.invoiceNetAmount)||0),0);
+    const bejHufAfa   = bejHuf.reduce((s,i)=>s+(parseFloat(i.invoiceVatAmount)||0),0);
+    const bejEurAfa   = bejEur.reduce((s,i)=>s+(parseFloat(i.invoiceVatAmount)||0),0);
+    const bejEurAfaHuf = Math.round(bejEurAfa * arfolyam);
+    const osszesBejAfa = Math.round(bejHufAfa) + bejEurAfaHuf + Math.round(vamImportAfa);
+    // Kimenő számítás
+    const kimHuf = kimSzamlak.filter(i=>(i.currency||'HUF')==='HUF');
+    const kimEur = kimSzamlak.filter(i=>(i.currency||'HUF')==='EUR');
+    const kimHufNetto  = kimHuf.reduce((s,i)=>s+(i.nettoOssz||0),0);
+    const kimHufBrutto = kimHuf.reduce((s,i)=>s+(i.bruttoOssz||0),0);
+    const kimHufAfa    = kimHufBrutto - kimHufNetto;
+    const kimEurNetto  = kimEur.reduce((s,i)=>s+(i.nettoOssz||0),0);
+    const kimEurBrutto = kimEur.reduce((s,i)=>s+(i.bruttoOssz||0),0);
+    const kimEurAfa    = kimEurBrutto - kimEurNetto;
+    const kimEurAfaHuf = Math.round(kimEurAfa * arfolyam);
+    const osszesBefKimAfa = Math.round(kimHufAfa) + kimEurAfaHuf;
+    const egyenleg = osszesBefKimAfa - osszesBejAfa;
+    const egyenlegLabel = egyenleg > 0 ? 'BEFIZETENDŐ ÁFA' : 'VISSZAIGÉNYELHETŐ ÁFA';
+
+    const ws4Data = [
+      [`ÁFA Egyenleg Kalkuláció — ${ev}. ${honapNev}`],
+      [`EUR/HUF árfolyam: ${arfolyam} (EKB)`],
+      [],
+      ['', 'FIZETENDŐ ÁFA (↑ Kimenő)', '', 'LEVONHATÓ ÁFA (↓ Bejövő + Import)', ''],
+      ['', 'Tétel', 'Összeg (HUF)', 'Tétel', 'Összeg (HUF)'],
+      ['', `HUF kimenő ÁFA (${kimHuf.length} számla)`, Math.round(kimHufAfa), `HUF bejövő ÁFA (${bejHuf.length} számla)`, Math.round(bejHufAfa)],
+      ['', `EUR kimenő ÁFA (${kimEur.length} számla, ×${arfolyam})`, kimEurAfaHuf, `EUR bejövő ÁFA (${bejEur.length} számla, ×${arfolyam})`, bejEurAfaHuf],
+      ['', '', '', `Import ÁFA – vámkezelés (${vamSzamlak.length} db)`, Math.round(vamImportAfa)],
+      ['', 'ÖSSZESEN', osszesBefKimAfa, 'ÖSSZESEN', osszesBejAfa],
+      [],
+      ['', egyenlegLabel, Math.abs(egyenleg), 'HUF', egyenleg > 0 ? '→ befizetendő a NAV felé' : '→ visszaigényelhető a NAV-tól'],
+      [],
+      ['Részletes bontás', '', '', '', ''],
+      ['Tétel', 'Deviza', 'Összeg (eredeti deviza)', 'Árfolyam', 'Összeg (HUF)', 'Megjegyzés'],
+      ['HUF bejövő nettó', 'HUF', Math.round(bejHufNetto), 1, Math.round(bejHufNetto), `${bejHuf.length} bejövő HUF számla`],
+      ['HUF bejövő levonható ÁFA', 'HUF', Math.round(bejHufAfa), 1, Math.round(bejHufAfa), 'Bejövő számlák (HUF)'],
+      ['EUR bejövő levonható ÁFA', 'EUR', Math.round(bejEurAfa*100)/100, arfolyam, bejEurAfaHuf, `${bejEur.length} bejövő EUR számla`],
+      ['Import ÁFA (vámkezelés)', 'HUF', Math.round(vamImportAfa), 1, Math.round(vamImportAfa), `${vamSzamlak.length} vámhatározat`],
+      ['HUF kimenő nettó', 'HUF', Math.round(kimHufNetto), 1, Math.round(kimHufNetto), `${kimHuf.length} kimenő HUF számla`],
+      ['HUF kimenő fizetendő ÁFA', 'HUF', Math.round(kimHufAfa), 1, Math.round(kimHufAfa), 'Kimenő számlák (HUF)'],
+      ['EUR kimenő nettó', 'EUR', Math.round(kimEurNetto*100)/100, arfolyam, Math.round(kimEurNetto*arfolyam), `${kimEur.length} kimenő EUR számla`],
+      ['EUR kimenő fizetendő ÁFA', 'EUR', Math.round(kimEurAfa*100)/100, arfolyam, kimEurAfaHuf, 'Kimenő számlák (EUR)'],
+      [],
+      ['LEVONHATÓ ÁFA összesen', 'HUF', osszesBejAfa, '', osszesBejAfa, 'HUF bejövő + EUR bejövő + Import'],
+      ['FIZETENDŐ ÁFA összesen', 'HUF', osszesBefKimAfa, '', osszesBefKimAfa, 'HUF kimenő + EUR kimenő'],
+      ['EGYENLEG', 'HUF', egyenleg, '', Math.abs(egyenleg), egyenlegLabel],
+    ];
+    const ws4 = XLSX.utils.aoa_to_sheet(ws4Data);
+    ws4['!cols'] = [{wch:28},{wch:36},{wch:22},{wch:36},{wch:22},{wch:35}];
+    // Cím
+    if (ws4['A1']) ws4['A1'].s = { font:{bold:true,sz:14} };
+    // Fejléc blokk (4. és 5. sor)
+    [3,4].forEach(ri => [0,1,2,3,4].forEach(ci => {
+      const ref = XLSX.utils.encode_cell({r:ri,c:ci});
+      if (ws4[ref]) ws4[ref].s = ri===3
+        ? { font:{bold:true,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:ci<3?'166534':'1E3A5F'}} }
+        : { font:{bold:true,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:ci<3?'166534':'1E3A5F'}} };
+    }));
+    // Összesen sorok (index 8)
+    styleRow(ws4, 8, {font:{bold:true},fill:{fgColor:{rgb:'F0FDF4'}}}, 5);
+    // Egyenleg sor (index 10)
+    const egyenlegStyle = {font:{bold:true,sz:12,color:{rgb: egyenleg>0?'991B1B':'166534'}}, fill:{fgColor:{rgb: egyenleg>0?'FEF2F2':'F0FDF4'}}};
+    styleRow(ws4, 10, egyenlegStyle, 5);
+    // Részletes fejléc (index 13)
+    styleRow(ws4, 13, {font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'374151'}}}, 6);
+    // Utolsó 3 összesítő sor
+    const lastRows = [ws4Data.length-3, ws4Data.length-2, ws4Data.length-1];
+    lastRows.forEach((ri, i) => {
+      const style = i===2 ? egyenlegStyle : {font:{bold:true},fill:{fgColor:{rgb:'E8F0FE'}}};
+      styleRow(ws4, ri, style, 6);
+    });
+    XLSX.utils.book_append_sheet(wb, ws4, 'ÁFA kalkuláció');
 
     // Letöltés
     const fileName = `afa_bevallas_${ev}_${honap}_${honapNev}.xlsx`;
@@ -9363,13 +10797,35 @@ async function exportAfaExcel() {
 
 function updateTotalAfa() {
   const arfolyam = parseFloat(document.getElementById('eurHufArfolyam')?.value) || 0;
-  const eurAfaHuf = Math.round((window._afaEurAfa || 0) * arfolyam);
-  const vamAfa = Math.round(window._afaVamAfa || 0);
-  const total = Math.round((window._afaHufAfa || 0) + eurAfaHuf + vamAfa);
-  const eurEl = document.getElementById('eurAfaHufban');
-  const totalEl = document.getElementById('totalAfaOsszesen');
-  if (eurEl) eurEl.textContent = eurAfaHuf.toLocaleString('hu-HU') + ' HUF';
-  if (totalEl) totalEl.textContent = total.toLocaleString('hu-HU') + ' HUF';
+  const fmt = n => Math.round(n).toLocaleString('hu-HU');
+
+  // Levonható (bejövő) ÁFA
+  const bejEurAfaHuf = Math.round((window._afaEurAfa || 0) * arfolyam);
+  const osszesBejAfa = Math.round((window._afaHufAfa || 0)) + bejEurAfaHuf + Math.round(window._afaVamAfa || 0);
+
+  // Fizetendő (kimenő) ÁFA
+  const kimEurAfaHuf = Math.round((window._afaKimEurAfa || 0) * arfolyam);
+  const osszesBefKimAfa = Math.round((window._afaKimHufAfa || 0)) + kimEurAfaHuf;
+
+  // Egyenleg
+  const egyenleg = osszesBefKimAfa - osszesBejAfa;
+
+  // DOM frissítés
+  const el = (id) => document.getElementById(id);
+  if (el('bejEurAfaHufSor')) el('bejEurAfaHufSor').textContent = fmt(bejEurAfaHuf) + ' HUF';
+  if (el('kimEurAfaHufSor')) el('kimEurAfaHufSor').textContent = fmt(kimEurAfaHuf) + ' HUF';
+  if (el('bejOsszesSor')) el('bejOsszesSor').textContent = fmt(osszesBejAfa) + ' HUF';
+  if (el('kimOsszesSor')) el('kimOsszesSor').textContent = fmt(osszesBefKimAfa) + ' HUF';
+  if (el('afaEgyenleg')) {
+    el('afaEgyenleg').textContent = fmt(Math.abs(egyenleg)) + ' HUF';
+    const szin = egyenleg > 0 ? '#e74c3c' : '#15803d';
+    el('afaEgyenleg').style.color = szin;
+    const egyenlegLabel = egyenleg > 0 ? '⚠ Befizetendő ÁFA' : '✓ Visszaigényelhető ÁFA';
+    const labelEl = el('afaEgyenleg').previousElementSibling;
+    if (labelEl) { labelEl.textContent = egyenlegLabel; labelEl.style.color = szin; }
+    const box = el('afaEgyenleg').parentElement;
+    if (box) { box.style.background = egyenleg > 0 ? '#fef2f2' : '#f0fdf4'; box.style.borderColor = szin; }
+  }
 }
 
 async function zipEsLetolt(pdfek, zipNev) {
@@ -9396,8 +10852,70 @@ async function zipEsLetolt(pdfek, zipNev) {
 }
 
 async function afaOsszesCsatolmanyLetoltes() {
-  const pdfek = bszInvoices.filter(i => i._pdfUrl);
-  await zipEsLetolt(pdfek, 'szamlak_osszes');
+  const ev = document.getElementById('afaEv')?.value || '';
+  const honap = document.getElementById('afaHonap')?.value || '';
+  const idoszak = ev && honap ? `${ev}_${honap}` : 'osszes';
+
+  // Bejövő számlák PDF-jei
+  const bejovoPdfek = bszInvoices.filter(i => i._pdfUrl);
+
+  // Kimenő számlák PDF-jei (csak az aktuális hónaposak ha van hónap kiválasztva, különben mind)
+  const prefix = ev && honap ? `${ev}-${honap}` : '';
+  const kimenoSzamlak = prefix
+    ? kszInvoices.filter(i => (i.kiallitasDatum||'').startsWith(prefix) && i.pdfUrl)
+    : kszInvoices.filter(i => i.pdfUrl);
+  const kimenoPdfek = kimenoSzamlak.map(i => ({ invoiceNumber: i.invoiceNumber || i._id, _pdfUrl: i.pdfUrl }));
+
+  // Vámhatározatok PDF-jei
+  if (!vamRecords || !vamRecords.length) {
+    try { vamRecords = await atGet('Vamkezeles', 'sort%5B0%5D%5Bfield%5D=Vamhatarozat_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
+  }
+  const vamHavi = prefix
+    ? (vamRecords||[]).filter(v => (v.fields?.Vamhatarozat_datum||v.fields?.Datum||'').startsWith(prefix) && v.fields?.PDF_url)
+    : (vamRecords||[]).filter(v => v.fields?.PDF_url);
+  const vamPdfek = vamHavi.map(v => ({
+    invoiceNumber: v.fields?.MRN_szam || v.id,
+    _pdfUrl: v.fields.PDF_url
+  }));
+
+  const osszes = bejovoPdfek.length + kimenoPdfek.length + vamPdfek.length;
+  if (!osszes) { toast('Nincs letölthető PDF csatolmány!', 'error'); return; }
+
+  toast(`⏳ ${osszes} PDF zippelésse folyamatban...`, '');
+
+  try {
+    const zip = new JSZip();
+    const bejMappa = zip.folder('bejövő számlák');
+    const kimMappa = zip.folder('kimenő számlák');
+    const vamMappa = zip.folder('vámhatározatok');
+
+    const fetchPdf = async (url, fileName, mappa) => {
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const blob = await resp.blob();
+        mappa.file(fileName.replace(/[/\\:*?"<>|]/g, '_') + '.pdf', blob);
+      } catch(e) {
+        console.warn(`PDF letöltés sikertelen: ${fileName}`, e.message);
+      }
+    };
+
+    await Promise.all([
+      ...bejovoPdfek.map(inv => fetchPdf(inv._pdfUrl, inv.invoiceNumber || 'szamla', bejMappa)),
+      ...kimenoPdfek.map(inv => fetchPdf(inv._pdfUrl, inv.invoiceNumber || 'kimeno', kimMappa)),
+      ...vamPdfek.map(inv => fetchPdf(inv._pdfUrl, inv.invoiceNumber || 'vam', vamMappa)),
+    ]);
+
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = `csatolmanyok_${idoszak}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast(`✓ ${osszes} PDF letöltve (bejövő: ${bejovoPdfek.length}, kimenő: ${kimenoPdfek.length}, vám: ${vamPdfek.length})`, 'success');
+  } catch(e) {
+    toast('Hiba a zip generálásakor: ' + e.message, 'error');
+  }
 }
 
 async function afaCsatolmanyLetoltes(szamlak) {

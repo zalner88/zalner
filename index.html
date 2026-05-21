@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zalner ERP v151</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{--nav-bg:#0f1117;--nav-width:220px;--accent:#4f7fff;--accent-light:#e8eeff;--bg:#f7f8fc;--surface:#ffffff;--border:#e5e7f0;--text:#1a1d2e;--text-muted:#6b7280;--text-light:#9ca3af;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,0.08);--shadow-md:0 4px 16px rgba(0,0,0,0.10)}
@@ -313,7 +314,10 @@ select.form-control{cursor:pointer}
   <div class="page" id="page-ugyfelek">
     <div class="page-header">
       <div><div class="page-title">Ügyfelek</div><div class="page-subtitle" id="ugyfelCount">Betöltés...</div></div>
-      <button class="btn btn-primary" onclick="openUgyfelModal()">＋ Új ügyfél</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="openUgyfelImportModal()">⬆ Import</button>
+        <button class="btn btn-primary" onclick="openUgyfelModal()">＋ Új ügyfél</button>
+      </div>
     </div>
     <div class="page-content">
       <div class="search-bar">
@@ -353,6 +357,7 @@ select.form-control{cursor:pointer}
       <div><div class="page-title">Kontaktok</div><div class="page-subtitle" id="kontaktCount">Betöltés...</div></div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-secondary" onclick="openImportModal()">⬆ Import</button>
+        <button class="btn btn-secondary" onclick="openDuplikacioModal()" title="Duplikációk keresése és összevonása">⊕ Duplikációk</button>
         <button class="btn btn-primary" onclick="openKontaktModal()">＋ Új kontakt</button>
       </div>
     </div>
@@ -386,8 +391,8 @@ select.form-control{cursor:pointer}
         </div>
       </div>
       <div class="filter-pills">
-        <span class="pill" onclick="setAjanlatFilter('mind',this)">Mind</span>
-        <span class="pill active" onclick="setAjanlatFilter('Tervezet',this)">Tervezet</span>
+        <span class="pill active" onclick="setAjanlatFilter('mind',this)">Mind</span>
+        <span class="pill" onclick="setAjanlatFilter('Tervezet',this)">Tervezet</span>
         <span class="pill" onclick="setAjanlatFilter('Elkuldve',this)">Elküldve</span>
         <span class="pill" onclick="setAjanlatFilter('Elfogadva',this)">Elfogadva</span>
         <span class="pill" onclick="setAjanlatFilter('Elutasitva',this)">Elutasítva</span>
@@ -396,7 +401,7 @@ select.form-control{cursor:pointer}
       <div class="filter-pills" id="ajanlatKapcsolattartoFilter">
         <span style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;padding:0 4px;">Kapcsolattartó:</span>
         <span class="pill" id="ajanlatSajatPill" onclick="setAjanlatKapcsolattartoFilter('sajat',this)">👤 Saját</span>
-        <span class="pill" id="ajanlatOsszesPill" onclick="setAjanlatKapcsolattartoFilter('osszes',this)">Összes</span>
+        <span class="pill active" id="ajanlatOsszesPill" onclick="setAjanlatKapcsolattartoFilter('osszes',this)">Összes</span>
       </div>
       <div class="table-wrap">
         <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th>Nettó</th><th>Bruttó</th><th>Deviza</th><th>Kiállítás</th><th>Érvényesség</th><th>Sz. határidő</th><th>Státusz</th><th></th></tr></thead>
@@ -430,7 +435,6 @@ select.form-control{cursor:pointer}
         <button class="btn btn-secondary" onclick="showPage('ajanlatok')">← Vissza az ajánlatokhoz</button>
         <button class="btn btn-secondary" id="vissszaProjektBtn" onclick="vissszaProjektbe()" style="display:none">← Vissza a projektbe</button>
         <button class="btn btn-danger btn-sm" id="deleteAjanlatFormBtn" onclick="deleteCurrentAjanlat()" style="display:none">✕ Törlés</button>
-        <button class="btn btn-primary" onclick="saveAjanlat()" id="saveAjanlatBtn">💾 Mentés</button>
       </div>
     </div>
     <div class="ajanlat-form-page">
@@ -533,6 +537,10 @@ select.form-control{cursor:pointer}
               <input class="form-control" type="number" id="fAjanlatJutalek" placeholder="0" min="0" step="any">
             </div>
           </div>
+          <div class="form-group full" style="margin-top:16px">
+            <label class="form-label">Megjegyzés az ajánlatra <span style="font-size:11px;color:var(--text-muted)">(megjelenik a PDF-en)</span></label>
+            <textarea class="form-control" id="fAjanlatPdfMegjegyzes" rows="3" placeholder="pl. Az ajánlat érvényessége 30 nap. Az árak tartalmazzák a szállítás költségét..."></textarea>
+          </div>
           <div class="form-group" style="margin-top:16px">
             <label class="form-label">Napló bejegyzés</label>
             <textarea class="form-control" id="fAjanlatMegjegyzes" rows="2" placeholder="Írj ide..."></textarea>
@@ -574,6 +582,11 @@ select.form-control{cursor:pointer}
         </table>
       </div>
 
+      <!-- MENTÉS SÁTOR (alján) -->
+      <div style="display:flex;justify-content:flex-end;padding:20px 0 8px 0;border-top:1px solid var(--border);margin-top:24px">
+        <button class="btn btn-primary" onclick="saveAjanlat()" id="saveAjanlatBtn" style="min-width:140px;font-size:15px;padding:10px 28px">💾 Mentés</button>
+      </div>
+
     </div>
   </div>
 
@@ -591,8 +604,8 @@ select.form-control{cursor:pointer}
         </div>
       </div>
       <div class="filter-pills">
-        <span class="pill" onclick="setProjektFilter('mind',this)">Mind</span>
-        <span class="pill active" onclick="setProjektFilter('Beerkezett_Folyamatban',this)">Folyamatban</span>
+        <span class="pill active" onclick="setProjektFilter('mind',this)">Mind</span>
+        <span class="pill" onclick="setProjektFilter('Beerkezett_Folyamatban',this)">Folyamatban</span>
         <span class="pill" onclick="setProjektFilter('Beszallitas_alatt',this)">Beszállítás</span>
         <span class="pill" onclick="setProjektFilter('Szamlazhato',this)">Számlázható</span>
         <span class="pill" onclick="setProjektFilter('Szamlazott',this)">Számlázott</span>
@@ -601,7 +614,7 @@ select.form-control{cursor:pointer}
       <div class="filter-pills" id="projektFelelosFilter">
         <span style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;padding:0 4px;">Felelős:</span>
         <span class="pill" id="projektSajatPill" onclick="setProjektFelelosFilter('sajat',this)">👤 Saját</span>
-        <span class="pill" id="projektOsszesPill" onclick="setProjektFelelosFilter('osszes',this)">Összes</span>
+        <span class="pill active" id="projektOsszesPill" onclick="setProjektFelelosFilter('osszes',this)">Összes</span>
       </div>
       <div class="table-wrap">
         <table><thead><tr>
@@ -634,7 +647,6 @@ select.form-control{cursor:pointer}
         <button class="back-btn" onclick="lockRelease();showPage('projektek')" style="margin:0">← Vissza</button>
         <div class="page-title" id="projektFormCim" style="margin-top:4px">Új projekt</div>
       </div>
-      <button class="btn btn-primary" onclick="saveProjekt()" id="saveProjektBtn">💾 Mentés</button>
     </div>
     <div class="ajanlat-form-page">
       <div class="form-section">
@@ -729,6 +741,12 @@ select.form-control{cursor:pointer}
           </div>
         </div>
       </div>
+
+      <!-- MENTÉS (alján) -->
+      <div style="display:flex;justify-content:flex-end;padding:20px 0 8px 0;border-top:1px solid var(--border);margin-top:24px">
+        <button class="btn btn-primary" onclick="saveProjekt()" id="saveProjektBtn" style="min-width:140px;font-size:15px;padding:10px 28px">💾 Mentés</button>
+      </div>
+
     </div>
   </div>
 
@@ -1480,8 +1498,9 @@ select.form-control{cursor:pointer}
         </div>
         <input type="file" id="importFileInput" accept=".xlsx" style="display:none" onchange="handleImportFile(this.files[0])">
         <div id="importFileInfo" style="display:none;background:var(--bg-secondary);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text);margin-bottom:8px"></div>
-        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;background:#fef3c7;border-radius:8px;padding:12px 14px;border:1px solid #fde68a;">
-          <strong style="color:#92400e;">Sablon letöltése:</strong> Töltsd le a sablon Excel-t az importáláshoz, töltsd ki, majd töltsd vissza ide. A <em>Cegnev_kapcsolat</em> oszlopnak pontosan egyeznie kell a cégnévvel.
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;background:#fef3c7;border-radius:8px;padding:12px 14px;border:1px solid #fde68a;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div><strong style="color:#92400e;">Sablon letöltése:</strong> Töltsd le az üres sablont, töltsd ki, majd töltsd vissza ide. A <em>Cegnev_kapcsolat</em> oszlopnak pontosan egyeznie kell a cégnévvel.</div>
+          <button onclick="downloadImportTemplate()" style="flex-shrink:0;background:#92400e;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">⬇ Sablon letöltése</button>
         </div>
       </div>
 
@@ -1514,6 +1533,120 @@ select.form-control{cursor:pointer}
     <div class="modal-footer" id="importFooter">
       <button class="btn btn-secondary" onclick="closeImportModal()">Mégse</button>
       <button class="btn btn-primary" id="importNextBtn" onclick="importNext()" disabled>Tovább →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ÜGYFÉL IMPORT MODAL -->
+<div class="modal-overlay" id="ugyfelImportModal">
+  <div class="modal" style="max-width:660px">
+    <div class="modal-header">
+      <div class="modal-title">Excel Import — Ügyfelek</div>
+      <button class="modal-close" onclick="closeUgyfelImportModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="ugyfelImportSteps" style="display:flex;gap:0;margin-bottom:20px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+        <div id="ugyfelImportStep1" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;background:var(--accent);color:#fff;">1. Fájl feltöltés</div>
+        <div id="ugyfelImportStep2" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;background:var(--bg-secondary);color:var(--text-muted);">2. Előnézet</div>
+        <div id="ugyfelImportStep3" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;background:var(--bg-secondary);color:var(--text-muted);">3. Importálás</div>
+      </div>
+
+      <!-- Lépés 1 -->
+      <div id="ugyfelImportPane1">
+        <div style="border:2px dashed var(--border);border-radius:10px;padding:32px;text-align:center;margin-bottom:16px;cursor:pointer;transition:border-color .2s" id="ugyfelImportDropZone" onclick="document.getElementById('ugyfelImportFileInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleUgyfelImportDrop(event)">
+          <div style="font-size:32px;margin-bottom:8px">📂</div>
+          <div style="font-weight:600;margin-bottom:4px;color:var(--text)">Húzd ide az Excel fájlt, vagy kattints a tallózáshoz</div>
+          <div style="font-size:12px;color:var(--text-muted)">.xlsx formátum — Zalner Ügyfél Import sablon (Ugyfelek_import lap)</div>
+        </div>
+        <input type="file" id="ugyfelImportFileInput" accept=".xlsx" style="display:none" onchange="handleUgyfelImportFile(this.files[0])">
+        <div id="ugyfelImportFileInfo" style="display:none;background:var(--bg-secondary);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text);margin-bottom:8px"></div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;background:#fef3c7;border-radius:8px;padding:12px 14px;border:1px solid #fde68a;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div><strong style="color:#92400e;">Sablon letöltése:</strong> Töltsd le az üres sablont, töltsd ki, majd töltsd vissza ide.</div>
+          <button onclick="downloadUgyfelImportTemplate()" style="flex-shrink:0;background:#92400e;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">⬇ Sablon letöltése</button>
+        </div>
+      </div>
+
+      <!-- Lépés 2 -->
+      <div id="ugyfelImportPane2" style="display:none">
+        <div id="ugyfelImportPreviewStats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
+        <div style="margin-bottom:10px;font-weight:600;font-size:13px;color:var(--text)">Előnézet (első 5 sor)</div>
+        <div style="overflow-x:auto;margin-bottom:16px"><table id="ugyfelImportPreviewTable" style="font-size:12px;width:100%;border-collapse:collapse"></table></div>
+        <div id="ugyfelImportWarnings" style="margin-top:14px"></div>
+      </div>
+
+      <!-- Lépés 3 -->
+      <div id="ugyfelImportPane3" style="display:none">
+        <div id="ugyfelImportProgressWrap" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+            <span id="ugyfelImportProgressLabel">Előkészítés...</span>
+            <span id="ugyfelImportProgressPct">0%</span>
+          </div>
+          <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+            <div id="ugyfelImportProgressBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:4px"></div>
+          </div>
+        </div>
+        <div id="ugyfelImportLog" style="background:var(--bg-secondary);border-radius:8px;padding:12px;font-size:12px;font-family:'DM Mono',monospace;max-height:260px;overflow-y:auto;line-height:1.8"></div>
+        <div id="ugyfelImportResult" style="display:none;margin-top:14px;padding:14px;border-radius:8px;font-weight:600;font-size:14px;text-align:center"></div>
+      </div>
+    </div>
+    <div class="modal-footer" id="ugyfelImportFooter">
+      <button class="btn btn-secondary" onclick="closeUgyfelImportModal()">Mégse</button>
+      <button class="btn btn-primary" id="ugyfelImportNextBtn" onclick="ugyfelImportNext()" disabled>Tovább →</button>
+    </div>
+  </div>
+</div>
+
+<!-- DUPLIKÁCIÓ MODAL -->
+<div class="modal-overlay" id="duplikacioModal">
+  <div class="modal" style="max-width:780px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <div class="modal-title">Duplikált kontaktok összevonása</div>
+      <button class="modal-close" onclick="closeDuplikacioModal()">×</button>
+    </div>
+    <div class="modal-body" style="flex:1;overflow-y:auto;padding-bottom:8px">
+
+      <!-- Scan panel -->
+      <div id="dupScanPanel">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+          A rendszer megkeresi azokat a kontaktokat, akiknél egyező <strong>email cím</strong>, <strong>telefonszám</strong>, vagy <strong>azonos teljes név + cég</strong> kombinációt talál. Te döntöd el, melyiket tartod meg.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="dupByEmail" checked> Email egyezés
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="dupByTelefon" checked> Telefon egyezés
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="dupByNevCeg" checked> Név + Cég egyezés
+          </label>
+        </div>
+        <button class="btn btn-primary" onclick="scanDuplikációk()" id="dupScanBtn">🔍 Duplikációk keresése</button>
+      </div>
+
+      <!-- Results -->
+      <div id="dupResultPanel" style="display:none;margin-top:16px">
+        <div id="dupStats" style="margin-bottom:12px"></div>
+        <div id="dupGroups"></div>
+      </div>
+
+      <!-- Merge progress -->
+      <div id="dupMergePanel" style="display:none;margin-top:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span id="dupMergeLabel">Összevonás folyamatban...</span>
+          <span id="dupMergePct">0%</span>
+        </div>
+        <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-bottom:12px">
+          <div id="dupMergeBar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:4px"></div>
+        </div>
+        <div id="dupMergeLog" style="background:var(--bg-secondary);border-radius:8px;padding:12px;font-size:12px;font-family:'DM Mono',monospace;max-height:260px;overflow-y:auto;line-height:1.8"></div>
+        <div id="dupMergeResult" style="display:none;margin-top:12px;padding:12px;border-radius:8px;font-weight:600;font-size:14px;text-align:center"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer" id="dupFooter" style="flex-shrink:0">
+      <button class="btn btn-secondary" onclick="closeDuplikacioModal()">Bezárás</button>
+      <button class="btn btn-danger" id="dupMergeBtn" style="display:none" onclick="mergeSelectedDuplikációk()">⊕ Kijelöltek összevonása</button>
     </div>
   </div>
 </div>
@@ -1899,6 +2032,43 @@ select.form-control{cursor:pointer}
   </div>
 </div>
 
+<!-- KIMENŐ SZÁMLA E-MAIL KÜLDÉS MODAL -->
+<div class="modal-overlay" id="kszEmailModal" style="z-index:1050">
+  <div class="modal" style="width:min(560px,95vw)">
+    <div class="modal-header">
+      <div class="modal-title">✉ Számla küldése e-mailben</div>
+      <button class="modal-close" onclick="closeKszEmailModal()">×</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div id="kszEmailInfo" style="background:#f0f4ff;border:1px solid #c7d5ff;border-radius:8px;padding:10px 14px;font-size:13px;color:#1a1d2e"></div>
+      <div class="form-group">
+        <label class="form-label">Címzett e-mail *</label>
+        <input class="form-control" type="email" id="kszEmailTo" placeholder="pl. ugyfel@ceg.com">
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px" id="kszEmailToHint"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Másolat (CC)</label>
+        <input class="form-control" type="email" id="kszEmailCc" placeholder="opcionális">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tárgy *</label>
+        <input class="form-control" type="text" id="kszEmailSubject">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Üzenet törzsszövege *</label>
+        <textarea class="form-control" id="kszEmailBody" rows="8" style="font-size:13px;line-height:1.6"></textarea>
+      </div>
+      <div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#15803d">
+        ✅ A számla PDF-je automatikusan csatolódik az e-mailhez — nem kell kézzel csatolni. Ha a PDF átmenetileg nem érhető el, az e-mail a letöltési linket tartalmazza.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeKszEmailModal()">Mégse</button>
+      <button class="btn btn-primary" id="kszEmailSendBtn" onclick="sendKszEmail()">✉ Küldés PDF-fel</button>
+    </div>
+  </div>
+</div>
+
 <!-- KIMENŐ SZÁMLA ELŐNÉZET MODAL -->
 <div class="modal-overlay" id="kszPreviewModal" style="z-index:1100">
   <div class="modal" style="width:min(820px,96vw);max-width:96vw;max-height:95vh;display:flex;flex-direction:column">
@@ -2095,7 +2265,7 @@ const PAGE_SIZE = 20;
 
 let ugyfelek = [], ajanlatok = [], ajanlatTetelek = [];
 let filteredUgyfelek = [], filteredAjanlatok = [];
-let ugyfelFilter = 'mind', ajanlatFilter = 'Tervezet';
+let ugyfelFilter = 'mind', ajanlatFilter = 'mind';
 let ugyfelCurrentPage = 1, ajanlatCurrentPage = 1;
 let editingUgyfelId = null, editingAjanlatId = null, visszaProjektId = null;
 let currentUgyfel = null, currentAjanlat = null;
@@ -3983,7 +4153,7 @@ function setProjektFelelosFilter(val, el) {
 
 // Alapértelmezett szűrő beállítása bejelentkezés után
 function initOwnerFilters() {
-  const defaultFilter = isAdmin() ? 'osszes' : 'sajat';
+  const defaultFilter = 'osszes';
 
   ajanlatKapcsolattartoFilter = defaultFilter;
   projektFelelosFilter = defaultFilter;
@@ -3994,17 +4164,10 @@ function initOwnerFilters() {
   const projektSajat = document.getElementById('projektSajatPill');
   const projektOsszes = document.getElementById('projektOsszesPill');
 
-  if (defaultFilter === 'sajat') {
-    ajanlatSajat?.classList.add('active');
-    ajanlatOsszes?.classList.remove('active');
-    projektSajat?.classList.add('active');
-    projektOsszes?.classList.remove('active');
-  } else {
-    ajanlatOsszes?.classList.add('active');
-    ajanlatSajat?.classList.remove('active');
-    projektOsszes?.classList.add('active');
-    projektSajat?.classList.remove('active');
-  }
+  ajanlatOsszes?.classList.add('active');
+  ajanlatSajat?.classList.remove('active');
+  projektOsszes?.classList.add('active');
+  projektSajat?.classList.remove('active');
 }
 
 function filterAjanlatok() {
@@ -4018,7 +4181,7 @@ function filterAjanlatok() {
     const mk = ajanlatKapcsolattartoFilter === 'osszes' ||
       (f.Kapcsolattarto || '').toLowerCase() === meNev.toLowerCase();
     return ms && mf && mk;
-  });
+  }).sort((a, b) => (b.fields.Ajanlat_szam || '').localeCompare(a.fields.Ajanlat_szam || '', undefined, {numeric: true}));
   ajanlatCurrentPage = 1; renderAjanlatok();
 }
 
@@ -4617,6 +4780,7 @@ function ujAjanlatForm() {
   loadVevoiKontaktok('');
   document.getElementById('fTargy').value = '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
+  document.getElementById('fAjanlatPdfMegjegyzes').value = '';
   document.getElementById('fAjanlatJutalek').value = '';
   document.getElementById('tetelekBody').innerHTML = '';
   tetelCounter = 0;
@@ -4666,6 +4830,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
   document.getElementById('fTargy').value = f.Targy || '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
+  document.getElementById('fAjanlatPdfMegjegyzes').value = f.Megjegyzes_ajanlatra || '';
   document.getElementById('fAjanlatJutalek').value = f.Jutalek_osszeg || '';
   // Vevői kapcsolattartó betöltése a mentett értékkel
   if (f.Ugyfel && f.Ugyfel[0]) {
@@ -4833,8 +4998,12 @@ async function saveAjanlat() {
   let ajanlat_szam;
   if (!editingAjanlatId) {
     const ev = new Date().getFullYear();
-    const num = ajanlatok.length + 1;
-    ajanlat_szam = `AJ-${ev}-${String(num).padStart(3, '0')}`;
+    // Az összes létező ajánlatszámból kivesszük a max sorszámot (törölt ajánlatok sem kaphatják vissza a számukat)
+    const maxNum = ajanlatok.reduce((max, a) => {
+      const m = (a.fields.Ajanlat_szam || '').match(/AJ-\d{4}-(\d+)/);
+      return m ? Math.max(max, parseInt(m[1], 10)) : max;
+    }, 0);
+    ajanlat_szam = `AJ-${ev}-${String(maxNum + 1).padStart(3, '0')}`;
   } else {
     ajanlat_szam = ajanlatok.find(a => a.id === editingAjanlatId)?.fields?.Ajanlat_szam;
   }
@@ -4858,7 +5027,8 @@ async function saveAjanlat() {
     Kapcsolattarto: USER_NAME_MAP[document.getElementById('fKapcsolattarto').value] || document.getElementById('fKapcsolattarto').value,
     Vevoi_kapcsolattarto: document.getElementById('fVevoiKapcsolattarto').value || null,
     Targy: document.getElementById('fTargy').value.trim(),
-    Jutalek_osszeg: parseFloat(document.getElementById('fAjanlatJutalek').value) || null
+    Jutalek_osszeg: parseFloat(document.getElementById('fAjanlatJutalek').value) || null,
+    Megjegyzes_ajanlatra: document.getElementById('fAjanlatPdfMegjegyzes').value.trim() || null
   };
 
   try {
@@ -5233,6 +5403,8 @@ async function generatePDF() {
   '.bank-box{background:#f7f8fc;border-radius:8px;padding:14px 16px;margin-top:20px}' +
   '.bank-row{display:flex;gap:8px;font-size:12px;margin-bottom:4px}' +
   '.bank-lbl{color:#9ca3af;min-width:60px}.bank-val{font-weight:600;font-family:monospace}' +
+  '.megjegyzes-box{border:1px solid #e5e7f0;border-radius:8px;padding:14px 18px;margin-top:20px;margin-bottom:4px;width:100%;box-sizing:border-box}' +
+  '.megjegyzes-text{font-size:12.5px;color:#374151;line-height:1.7;white-space:pre-wrap}' +
   '.footer{border-top:1px solid #e5e7f0;padding-top:14px;margin-top:24px;display:flex;justify-content:space-between;font-size:11px;color:#9ca3af}' +
   '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}' +
   '</style></head><body><div class="page">' +
@@ -5278,6 +5450,12 @@ async function generatePDF() {
     '<tr><td class="ossz-lbl">' + T.afa + ' (' + (f.Afa||'0%') + '):</td><td class="ossz-val">' + fmt(afaOssz) + '</td></tr>' +
     '<tr class="ossz-total"><td>' + T.brutto + ':</td><td style="text-align:right;font-family:monospace">' + fmt(brutto) + '</td></tr>' +
   '</table></div>' +
+
+  (f.Megjegyzes_ajanlatra ? (
+    '<div class="megjegyzes-box">' +
+      '<div class="megjegyzes-text">' + (f.Megjegyzes_ajanlatra||'').replace(/\n/g,'<br>') + '</div>' +
+    '</div>'
+  ) : '') +
 
   '<div class="section-title">' + T.bankszamla + '</div>' +
   '<div class="bank-box">' +
@@ -6082,7 +6260,7 @@ function filterProjektek() {
     const mfe = projektFelelosFilter === 'osszes' ||
       (f.Felelos || '').toLowerCase() === meNev.toLowerCase();
     return ms && mf && mfe;
-  });
+  }).sort((a, b) => (b.fields.Projekt_szam || '').localeCompare(a.fields.Projekt_szam || '', undefined, {numeric: true}));
   projektCurrentPage = 1;
   renderProjektek();
 }
@@ -6424,8 +6602,11 @@ async function ujProjekt() {
   document.getElementById('fProjektSzerzo').textContent = currentUser?.name || '—';
   // Projekt szám generálás
   const ev = new Date().getFullYear();
-  const num = projektek.length + 1;
-  const szam = `${ev}_${String(num).padStart(3,'0')}`;
+  const maxNumP = projektek.reduce((max, p) => {
+    const m = (p.fields.Projekt_szam || '').match(/\d{4}_(\d+)/);
+    return m ? Math.max(max, parseInt(m[1], 10)) : max;
+  }, 0);
+  const szam = `${ev}_${String(maxNumP + 1).padStart(3,'0')}`;
   document.getElementById('fProjektNev').placeholder = `Projekt neve...`;
   document.getElementById('projektFormCim').textContent = `Új projekt (${szam})`;
   showPage('projekt-form');
@@ -6493,8 +6674,11 @@ async function saveProjekt() {
   let projekt_szam;
   if (!editingProjektId) {
     const ev = new Date().getFullYear();
-    const num = projektek.length + 1;
-    projekt_szam = `${ev}_${String(num).padStart(3,'0')}`;
+    const maxNum = projektek.reduce((max, p) => {
+      const m = (p.fields.Projekt_szam || '').match(/\d{4}_(\d+)/);
+      return m ? Math.max(max, parseInt(m[1], 10)) : max;
+    }, 0);
+    projekt_szam = `${ev}_${String(maxNum + 1).padStart(3,'0')}`;
   } else {
     projekt_szam = projektek.find(p => p.id === editingProjektId)?.fields?.Projekt_szam;
   }
@@ -8288,6 +8472,309 @@ async function importGetXLSX() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// ÜGYFÉL IMPORT
+// ═══════════════════════════════════════════════════════════════════════
+let ugyfelImportStep = 1;
+let ugyfelImportData = [];
+
+function openUgyfelImportModal() {
+  ugyfelImportStep = 1;
+  ugyfelImportData = [];
+  setUgyfelImportStep(1);
+  document.getElementById('ugyfelImportPane1').style.display = '';
+  document.getElementById('ugyfelImportPane2').style.display = 'none';
+  document.getElementById('ugyfelImportPane3').style.display = 'none';
+  document.getElementById('ugyfelImportFileInfo').style.display = 'none';
+  document.getElementById('ugyfelImportFileInput').value = '';
+  document.getElementById('ugyfelImportNextBtn').disabled = true;
+  document.getElementById('ugyfelImportNextBtn').textContent = 'Tovább →';
+  document.getElementById('ugyfelImportFooter').style.display = '';
+  document.getElementById('ugyfelImportResult').style.display = 'none';
+  document.getElementById('ugyfelImportLog').innerHTML = '';
+  document.getElementById('ugyfelImportModal').classList.add('open');
+}
+
+function closeUgyfelImportModal() {
+  document.getElementById('ugyfelImportModal').classList.remove('open');
+}
+
+function setUgyfelImportStep(s) {
+  ugyfelImportStep = s;
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('ugyfelImportStep' + i);
+    if (i === s) { el.style.background = 'var(--accent)'; el.style.color = '#fff'; }
+    else if (i < s) { el.style.background = '#d1fae5'; el.style.color = '#065f46'; }
+    else { el.style.background = 'var(--bg-secondary)'; el.style.color = 'var(--text-muted)'; }
+  });
+}
+
+function handleUgyfelImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('ugyfelImportDropZone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) handleUgyfelImportFile(file);
+}
+
+async function handleUgyfelImportFile(file) {
+  if (!file || !file.name.endsWith('.xlsx')) {
+    toast('Csak .xlsx fájl fogadható el!', 'error'); return;
+  }
+  const infoEl = document.getElementById('ugyfelImportFileInfo');
+  infoEl.style.display = ''; infoEl.textContent = 'Fájl olvasása...';
+  try {
+    const XLSX = await importGetXLSX();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    // Find Ugyfelek_import sheet (case-insensitive)
+    const uSheet = wb.SheetNames.find(n => n.toLowerCase().replace(/[_\s]/g,'').includes('ugyfelek'));
+    if (!uSheet) {
+      toast('Nem található "Ugyfelek_import" lap!', 'error');
+      infoEl.textContent = '❌ Hibás formátum — hiányzik az Ugyfelek_import lap';
+      return;
+    }
+
+    const FIELDS = ['Cegnev','Ceg_adoszama','EU_adoszam','Cegjegyzekszam','Statusz',
+      'Szekhely_cim','Telephely_cim','Weboldal','Iparag',
+      'Alkalmazottak_szama','Alapitas_eve','Tevekenysegi_kor',
+      'Megjegyzes','Fizetesi_hatarido_nap','Felelos'];
+
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[uSheet], { header: 1, defval: '' });
+    const dataRows = rows.slice(2).filter(r => r.some(c => c !== '' && c !== null));
+    ugyfelImportData = dataRows.map(row => {
+      const obj = {};
+      FIELDS.forEach((f, i) => { obj[f] = (row[i] !== undefined && row[i] !== null) ? String(row[i]).trim() : ''; });
+      return obj;
+    }).filter(r => r.Cegnev);
+
+    infoEl.style.display = '';
+    infoEl.innerHTML = `✅ <strong>${file.name}</strong> — ${ugyfelImportData.length} ügyfél beolvasva`;
+    document.getElementById('ugyfelImportNextBtn').disabled = ugyfelImportData.length === 0;
+  } catch(e) {
+    infoEl.textContent = '❌ Hiba a fájl olvasásakor: ' + e.message;
+  }
+}
+
+function showUgyfelImportPreview() {
+  setUgyfelImportStep(2);
+  document.getElementById('ugyfelImportPane1').style.display = 'none';
+  document.getElementById('ugyfelImportPane2').style.display = '';
+
+  const data = ugyfelImportData;
+  const noName = data.filter(r => !r.Cegnev).length;
+
+  document.getElementById('ugyfelImportPreviewStats').innerHTML = [
+    { label: 'Ügyfél összesen', count: data.length, color: '#2980b9' },
+    { label: 'Hiányzó cégnév', count: noName, color: '#e74c3c' },
+  ].map(s => `<div style="flex:1;min-width:100px;background:var(--bg-secondary);border-radius:8px;padding:10px 14px;text-align:center;border-left:3px solid ${s.color}">
+    <div style="font-size:20px;font-weight:700;color:${s.color}">${s.count}</div>
+    <div style="font-size:11px;color:var(--text-muted)">${s.label}</div></div>`).join('');
+
+  // Preview table
+  const cols = ['Cegnev','Ceg_adoszama','Statusz','Szekhely_cim','Iparag','Megjegyzes'];
+  const labels = ['Cégnév','Adószám','Státusz','Székhely','Iparág','Megjegyzés'];
+  const tbl = document.getElementById('ugyfelImportPreviewTable');
+  const th = cols.map((c,i) => `<th style="background:var(--bg-secondary);padding:6px 8px;text-align:left;font-size:11px;border-bottom:2px solid var(--border)">${labels[i]}</th>`).join('');
+  const trs = data.slice(0,5).map(row =>
+    '<tr>' + cols.map(c => `<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px">${row[c] || ''}</td>`).join('') + '</tr>'
+  ).join('');
+  tbl.innerHTML = `<thead><tr>${th}</tr></thead><tbody>${trs}</tbody>`;
+
+  const warns = [];
+  if (noName) warns.push(`⚠️ ${noName} sor üres cégnévvel — ezek kihagyásra kerülnek.`);
+  document.getElementById('ugyfelImportWarnings').innerHTML = warns.map(w =>
+    `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:6px">${w}</div>`).join('');
+}
+
+async function startUgyfelImport() {
+  setUgyfelImportStep(3);
+  document.getElementById('ugyfelImportPane2').style.display = 'none';
+  document.getElementById('ugyfelImportPane3').style.display = '';
+  document.getElementById('ugyfelImportNextBtn').style.display = 'none';
+
+  const log = document.getElementById('ugyfelImportLog');
+  const setProgress = (pct, label) => {
+    document.getElementById('ugyfelImportProgressBar').style.width = pct + '%';
+    document.getElementById('ugyfelImportProgressPct').textContent = Math.round(pct) + '%';
+    document.getElementById('ugyfelImportProgressLabel').textContent = label;
+  };
+  const addLog = (msg, color) => {
+    log.innerHTML += `<div style="color:${color||'var(--text)'}">${msg}</div>`;
+    log.scrollTop = log.scrollHeight;
+  };
+
+  const existing = await getUgyfelek(true);
+  const existingNames = new Set(existing.map(u => (u.fields.Cegnev||'').toLowerCase()));
+
+  let ok = 0, skip = 0, err = 0;
+  const total = ugyfelImportData.length;
+
+  for (let i = 0; i < ugyfelImportData.length; i++) {
+    const row = ugyfelImportData[i];
+    setProgress((i / total) * 95, `Feldolgozás: ${i+1} / ${total}`);
+    if (!row.Cegnev) { skip++; continue; }
+    if (existingNames.has(row.Cegnev.toLowerCase())) {
+      addLog(`⏭ Kihagyva (már létezik): ${row.Cegnev}`, '#e67e22'); skip++; continue;
+    }
+    try {
+      const extraInfo = [
+        row.Weboldal ? `Web: ${row.Weboldal}` : '',
+        row.Iparag ? `Iparág: ${row.Iparag}` : '',
+        row.Tevekenysegi_kor ? `Tevékenység: ${row.Tevekenysegi_kor}` : '',
+        row.Alkalmazottak_szama ? `Alkalmazottak: ${row.Alkalmazottak_szama}` : '',
+        row.Alapitas_eve ? `Alapítva: ${row.Alapitas_eve}` : '',
+        row.Megjegyzes || '',
+      ].filter(Boolean).join(' | ');
+      const fields = {
+        Cegnev: row.Cegnev,
+        Ceg_adoszama: row.Ceg_adoszama || null,
+        Statusz: ['Aktiv','Potencialis','Inaktiv'].includes(row.Statusz) ? row.Statusz : 'Potencialis',
+        Szekhely_cim: row.Szekhely_cim || null,
+        Telephely_cim: row.Telephely_cim || null,
+        Megjegyzes: extraInfo || null,
+        Fizetesi_hatarido_nap: parseInt(row.Fizetesi_hatarido_nap) || 30,
+      };
+      await atPost('Ugyfelek', fields);
+      existingNames.add(row.Cegnev.toLowerCase());
+      addLog(`✅ ${row.Cegnev}`, '#27ae60'); ok++;
+    } catch(e) {
+      addLog(`❌ Hiba (${row.Cegnev}): ${e.message}`, '#e74c3c'); err++;
+    }
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  setProgress(100, 'Kész!');
+  cacheInvalidate('ugyfelek');
+  await getUgyfelek(true);
+  filterUgyfelek();
+  document.getElementById('ugyfelCount').textContent = `${ugyfelek.length} ügyfél összesen`;
+
+  const res = document.getElementById('ugyfelImportResult');
+  res.style.display = '';
+  res.style.background = err ? '#fef3c7' : '#d1fae5';
+  res.style.color = err ? '#92400e' : '#065f46';
+  res.textContent = `Import kész — ✅ ${ok} létrehozva, ⏭ ${skip} kihagyva${err ? `, ❌ ${err} hiba` : ''}`;
+
+  const footer = document.getElementById('ugyfelImportFooter');
+  footer.innerHTML = '<button class="btn btn-primary" onclick="closeUgyfelImportModal()">Bezárás</button>';
+}
+
+function ugyfelImportNext() {
+  if (ugyfelImportStep === 1) showUgyfelImportPreview();
+  else if (ugyfelImportStep === 2) startUgyfelImport();
+}
+
+async function downloadUgyfelImportTemplate() {
+  const XLSX = await importGetXLSX();
+  const wb = XLSX.utils.book_new();
+
+  const uHeaders = [
+    ['Cégnév *','Cég adószáma','EU adószám','Cégjegyzékszám','Státusz',
+     'Székhely cím','Telephely cím','Weboldal','Iparág',
+     'Alkalmazottak száma','Alapítás éve','Tevékenységi kör',
+     'Megjegyzés','Fizetési határidő (nap)','Felelős'],
+    ['Cegnev','Ceg_adoszama','EU_adoszam','Cegjegyzekszam','Statusz',
+     'Szekhely_cim','Telephely_cim','Weboldal','Iparag',
+     'Alkalmazottak_szama','Alapitas_eve','Tevekenysegi_kor',
+     'Megjegyzes','Fizetesi_hatarido_nap','Felelos'],
+    ['Példa Kft.','12345678-2-41','HU12345678','01-09-123456','Aktiv',
+     '1052 Budapest, Váci utca 1.','9700 Szombathely, Fő tér 1.','https://pelda.hu','Gyártás',
+     '50','2005','Fémmegmunkálás','Belső megjegyzés ide','30','Kovács János'],
+  ];
+  const wsU = XLSX.utils.aoa_to_sheet(uHeaders);
+  wsU['!cols'] = [45,18,18,20,12,50,50,35,15,12,12,40,60,14,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, wsU, 'Ugyfelek_import');
+
+  const guide = [
+    ['ZALNER ERP — Ügyfél Import Sablon Útmutató'],[''],
+    ['MEZŐ','LEÍRÁS','PÉLDA'],
+    ['Cegnev *','Kötelező. Egyedi cégnév.','Példa Kft.'],
+    ['Ceg_adoszama','Magyar adószám','12345678-2-41'],
+    ['EU_adoszam','EU adószám','HU12345678'],
+    ['Cegjegyzekszam','Cégjegyzékszám','01-09-123456'],
+    ['Statusz','Aktiv / Potencialis / Inaktiv','Aktiv'],
+    ['Szekhely_cim','Teljes székhely cím','1052 Budapest, Váci utca 1.'],
+    ['Telephely_cim','Telephely cím (ha eltér)','9700 Szombathely, Fő tér 1.'],
+    ['Weboldal','Weboldal URL','https://pelda.hu'],
+    ['Iparag','Iparág szabad szöveg','Gyártás'],
+    ['Alkalmazottak_szama','Szám','50'],
+    ['Alapitas_eve','Alapítás éve (szám)','2005'],
+    ['Tevekenysegi_kor','Tevékenységi kör leírása','Fémmegmunkálás'],
+    ['Megjegyzes','Belső megjegyzés',''],
+    ['Fizetesi_hatarido_nap','Fizetési határidő napban (alapért.: 30)','30'],
+    ['Felelos','Felelős kollégák neve','Kovács János'],
+    [''],
+    ['FONTOS','Az első 2 sor fejléc — ne módosítsd! Az adatok a 3. sortól kezdődnek.',''],
+  ];
+  const wsG = XLSX.utils.aoa_to_sheet(guide);
+  wsG['!cols'] = [{wch:25},{wch:55},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, wsG, 'Útmutató');
+
+  XLSX.writeFile(wb, 'zalner_ugyfel_import_sablon.xlsx');
+}
+
+async function downloadImportTemplate() {
+  const XLSX = await importGetXLSX();
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Ugyfelek_import lap ──────────────────────────────────────────────────
+  const uHeaders = [
+    ['Cégnév *','Cég adószáma','EU adószám','Cégjegyzékszám','Státusz',
+     'Székhely cím','Telephely cím','Weboldal','Iparág',
+     'Alkalmazottak száma','Alapítás éve','Tevékenységi kör',
+     'Megjegyzés','Fizetési határidő (nap)','Felelős'],
+    ['Cegnev','Ceg_adoszama','EU_adoszam','Cegjegyzekszam','Statusz',
+     'Szekhely_cim','Telephely_cim','Weboldal','Iparag',
+     'Alkalmazottak_szama','Alapitas_eve','Tevekenysegi_kor',
+     'Megjegyzes','Fizetesi_hatarido_nap','Felelos'],
+    ['Példa Kft.','12345678-2-41','HU12345678','01-09-123456','Aktív',
+     '1052 Budapest, Váci utca 1.','','https://pelda.hu','Gyártás',
+     '50','2005','Fémmegmunkálás','Megjegyzés ide','30','Kovács János'],
+  ];
+  const wsU = XLSX.utils.aoa_to_sheet(uHeaders);
+  wsU['!cols'] = [45,18,18,20,10,50,50,35,15,12,12,40,60,14,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, wsU, 'Ugyfelek_import');
+
+  // ── Kapcsolattartok_import lap ───────────────────────────────────────────
+  const kHeaders = [
+    ['Vezetéknév *','Keresztnév *','Cégnév (kapcsolat) *','Email','Telefon',
+     'Beosztás','Megjegyzés','Fő kapcsolattartó'],
+    ['Vezeteknev','Keresztnev','Cegnev_kapcsolat','Email','Telefon',
+     'Beosztas','Megjegyzes','Fo_kapcsolattarto'],
+    ['Kovács','János','Példa Kft.','kovacs.janos@pelda.hu','+36 30 123 4567',
+     'Ugyvezeto','','igen'],
+  ];
+  const wsK = XLSX.utils.aoa_to_sheet(kHeaders);
+  wsK['!cols'] = [18,16,45,35,22,14,40,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, wsK, 'Kapcsolattartok_import');
+
+  // ── Útmutató lap ────────────────────────────────────────────────────────
+  const guide = [
+    ['ZALNER ERP — Import Sablon Útmutató'],
+    [''],
+    ['LAP','MEZŐ','LEÍRÁS'],
+    ['Ugyfelek_import','Cegnev *','Kötelező. Pontosan egyezzen a Kapcsolattartok lap Cegnev_kapcsolat oszlopával.'],
+    ['Ugyfelek_import','Statusz','Aktív / Inaktív / Prospect'],
+    ['Ugyfelek_import','Ceg_adoszama','Magyar adószám (pl. 12345678-2-41)'],
+    ['Ugyfelek_import','EU_adoszam','EU adószám (pl. HU12345678)'],
+    [''],
+    ['Kapcsolattartok_import','Vezeteknev *','Kötelező.'],
+    ['Kapcsolattartok_import','Keresztnev *','Kötelező.'],
+    ['Kapcsolattartok_import','Cegnev_kapcsolat *','Kötelező. Pontosan egyezzen az Ugyfelek lap Cegnev oszlopával!'],
+    ['Kapcsolattartok_import','Beosztas','Ugyvezeto | Dontehozo | Mernok | Beszerzo | Penzugy | Egyeb'],
+    ['Kapcsolattartok_import','Fo_kapcsolattarto','igen  (vagy hagyja üresen = nem)'],
+    [''],
+    ['FONTOS','','Az első 2 sor (fejléc) nem módosítható. Az adatok a 3. sortól kezdődnek.'],
+  ];
+  const wsH = XLSX.utils.aoa_to_sheet(guide);
+  wsH['!cols'] = [{wch:28},{wch:28},{wch:70}];
+  XLSX.utils.book_append_sheet(wb, wsH, 'Útmutató');
+
+  XLSX.writeFile(wb, 'zalner_import_sablon.xlsx');
+}
+
 function importNext() {
   if (importStep === 1) showImportPreview();
   else if (importStep === 2) startImport();
@@ -8655,7 +9142,280 @@ function deleteKontakt(id, nev) {
   });
 }
 
-// ===== SZÁLLÍTÓLEVELEK =====
+// ═══════════════════════════════════════════════════════════════════════
+// DUPLIKÁCIÓ KEZELŐ
+// ═══════════════════════════════════════════════════════════════════════
+
+let dupGroups = []; // [{reason, records:[{id,fields,cegnev}]}]
+
+function openDuplikacioModal() {
+  dupGroups = [];
+  document.getElementById('dupScanPanel').style.display = '';
+  document.getElementById('dupResultPanel').style.display = 'none';
+  document.getElementById('dupMergePanel').style.display = 'none';
+  document.getElementById('dupMergeBtn').style.display = 'none';
+  document.getElementById('dupScanBtn').disabled = false;
+  document.getElementById('dupScanBtn').textContent = '🔍 Duplikációk keresése';
+  document.getElementById('dupMergeResult').style.display = 'none';
+  document.getElementById('dupMergeLog').innerHTML = '';
+  document.getElementById('dupGroups').innerHTML = '';
+  document.getElementById('dupikacioModal')?.classList.remove('open');
+  document.getElementById('duplikacioModal').classList.add('open');
+}
+
+function closeDuplikacioModal() {
+  document.getElementById('duplikacioModal').classList.remove('open');
+}
+
+function normalizePhone(p) {
+  return (p || '').replace(/[\s\-\+\(\)\.]/g, '').replace(/^0036/, '').replace(/^36/, '').replace(/^06/, '');
+}
+
+function normalizeEmail(e) {
+  return (e || '').toLowerCase().trim();
+}
+
+function normalizeName(v, k) {
+  return ((v || '') + ' ' + (k || '')).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+async function scanDuplikációk() {
+  const byEmail  = document.getElementById('dupByEmail').checked;
+  const byTelefon = document.getElementById('dupByTelefon').checked;
+  const byNevCeg = document.getElementById('dupByNevCeg').checked;
+
+  const btn = document.getElementById('dupScanBtn');
+  btn.disabled = true; btn.textContent = 'Keresés...';
+
+  // Friss adatok betöltése
+  await getUgyfelek();
+  kontaktok = await atGet('Kapcsolattartok', 'sort%5B0%5D%5Bfield%5D=Vezeteknev&sort%5B0%5D%5Bdirection%5D=asc');
+
+  // Enrich with cegnev
+  const enriched = kontaktok.map(k => ({
+    id: k.id,
+    f: k.fields,
+    cegnev: k.fields.Ugyfel ? (ugyfelek.find(u => u.id === k.fields.Ugyfel[0])?.fields?.Cegnev || '') : '',
+  }));
+
+  const groups = [];
+  const usedIds = new Set();
+
+  const addGroup = (reason, records) => {
+    // Deduplicate: only add if at least one new id
+    const ids = records.map(r => r.id);
+    if (ids.every(id => usedIds.has(id))) return;
+    ids.forEach(id => usedIds.add(id));
+    groups.push({ reason, records });
+  };
+
+  if (byEmail) {
+    const emailMap = {};
+    enriched.forEach(r => {
+      const em = normalizeEmail(r.f.Email);
+      if (!em) return;
+      if (!emailMap[em]) emailMap[em] = [];
+      emailMap[em].push(r);
+    });
+    Object.values(emailMap).forEach(recs => {
+      if (recs.length > 1) addGroup(`📧 Egyező email: ${normalizeEmail(recs[0].f.Email)}`, recs);
+    });
+  }
+
+  if (byTelefon) {
+    const telMap = {};
+    enriched.forEach(r => {
+      const t = normalizePhone(r.f.Telefon);
+      if (t.length < 6) return;
+      if (!telMap[t]) telMap[t] = [];
+      telMap[t].push(r);
+    });
+    Object.values(telMap).forEach(recs => {
+      if (recs.length > 1) addGroup(`📞 Egyező telefon: ${recs[0].f.Telefon}`, recs);
+    });
+  }
+
+  if (byNevCeg) {
+    const nevMap = {};
+    enriched.forEach(r => {
+      const key = normalizeName(r.f.Vezeteknev, r.f.Keresztnev) + '|' + r.cegnev.toLowerCase();
+      if (normalizeName(r.f.Vezeteknev, r.f.Keresztnev).length < 3) return;
+      if (!nevMap[key]) nevMap[key] = [];
+      nevMap[key].push(r);
+    });
+    Object.values(nevMap).forEach(recs => {
+      if (recs.length > 1) addGroup(`👤 Egyező név + cég: ${normalizeName(recs[0].f.Vezeteknev, recs[0].f.Keresztnev)} / ${recs[0].cegnev}`, recs);
+    });
+  }
+
+  dupGroups = groups;
+  btn.textContent = '🔍 Újrakeresés';
+  btn.disabled = false;
+  renderDupGroups();
+}
+
+function renderDupGroups() {
+  const panel = document.getElementById('dupResultPanel');
+  const statsEl = document.getElementById('dupStats');
+  const groupsEl = document.getElementById('dupGroups');
+  panel.style.display = '';
+
+  if (!dupGroups.length) {
+    statsEl.innerHTML = `<div style="background:#d1fae5;border-radius:8px;padding:12px 16px;font-size:13px;color:#065f46;font-weight:600">✅ Nem található duplikáció a megadott feltételek alapján!</div>`;
+    groupsEl.innerHTML = '';
+    document.getElementById('dupMergeBtn').style.display = 'none';
+    return;
+  }
+
+  statsEl.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+    <div style="background:#fef3c7;border-radius:8px;padding:10px 16px;font-size:13px;color:#92400e;font-weight:600;border-left:3px solid #f59e0b">
+      ⚠️ ${dupGroups.length} duplikáció-csoport találva
+    </div>
+    <div style="font-size:12px;color:var(--text-muted)">Jelöld ki melyik verziót tartod meg, majd kattints az összevonásra.</div>
+  </div>`;
+
+  const beosztasLabel = { 'Ugyvezeto':'Ügyvezető','Dontehozo':'Döntéshozó','Mernok':'Mérnök','Beszerzo':'Beszerző','Penzugy':'Pénzügy','Egyeb':'Egyéb' };
+
+  groupsEl.innerHTML = dupGroups.map((g, gi) => {
+    const cards = g.records.map((r, ri) => {
+      const f = r.f;
+      const isFirst = ri === 0;
+      return `<div class="dup-card" id="dupcard-${gi}-${ri}" data-gi="${gi}" data-ri="${ri}"
+        style="flex:1;min-width:200px;border:2px solid ${isFirst ? 'var(--accent)' : 'var(--border)'};border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s;background:${isFirst ? 'var(--accent-light,#eff6ff)' : 'var(--bg)'}"
+        onclick="selectDupCard(${gi},${ri})">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-weight:700;font-size:13px">${f.Vezeteknev || ''} ${f.Keresztnev || ''}</span>
+          <span class="dup-keep-badge" id="dupbadge-${gi}-${ri}" style="font-size:11px;padding:2px 8px;border-radius:12px;background:${isFirst ? 'var(--accent)' : 'var(--border)'};color:${isFirst ? '#fff' : 'var(--text-muted)'};">${isFirst ? 'Megtartandó' : 'Törlendő'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
+          ${r.cegnev ? `<div>🏢 ${r.cegnev}</div>` : ''}
+          ${f.Email ? `<div>📧 ${f.Email}</div>` : '<div style="opacity:.4">📧 —</div>'}
+          ${f.Telefon ? `<div>📞 ${f.Telefon}</div>` : '<div style="opacity:.4">📞 —</div>'}
+          ${f.Beosztas ? `<div>💼 ${beosztasLabel[f.Beosztas] || f.Beosztas}</div>` : ''}
+          ${f.Megjegyzes ? `<div title="${f.Megjegyzes}">📝 ${f.Megjegyzes.substring(0,40)}${f.Megjegyzes.length>40?'…':''}</div>` : ''}
+          ${f.Fo_kapcsolattarto ? `<div>⭐ Fő kapcsolattartó</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--bg-secondary);border-radius:12px;padding:14px 16px;margin-bottom:16px;border:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:10px">${g.reason}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${cards}</div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text-muted)">
+        💡 A <strong>megtartandó</strong> rekord megkapja a törlendő adatait (ha hiányoznak), majd a törlendő törlésre kerül.
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('dupMergeBtn').style.display = '';
+}
+
+function selectDupCard(gi, ri) {
+  const g = dupGroups[gi];
+  // Toggle: click on current "keep" → cycle to next
+  const currentKeep = g._keepIdx !== undefined ? g._keepIdx : 0;
+  const newKeep = ri;
+  g._keepIdx = newKeep;
+
+  g.records.forEach((r, i) => {
+    const card = document.getElementById(`dupcard-${gi}-${i}`);
+    const badge = document.getElementById(`dupbadge-${gi}-${i}`);
+    const isKeep = i === newKeep;
+    card.style.borderColor = isKeep ? 'var(--accent)' : 'var(--border)';
+    card.style.background = isKeep ? 'var(--accent-light,#eff6ff)' : 'var(--bg)';
+    badge.style.background = isKeep ? 'var(--accent)' : 'var(--border)';
+    badge.style.color = isKeep ? '#fff' : 'var(--text-muted)';
+    badge.textContent = isKeep ? 'Megtartandó' : 'Törlendő';
+  });
+}
+
+async function mergeSelectedDuplikációk() {
+  document.getElementById('dupResultPanel').style.display = 'none';
+  document.getElementById('dupMergePanel').style.display = '';
+  document.getElementById('dupMergeBtn').style.display = 'none';
+
+  const logEl = document.getElementById('dupMergeLog');
+  const addLog = (msg, color) => {
+    logEl.innerHTML += `<div style="color:${color||'var(--text)'}">${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+  const setProgress = (pct, label) => {
+    document.getElementById('dupMergeBar').style.width = pct + '%';
+    document.getElementById('dupMergePct').textContent = Math.round(pct) + '%';
+    document.getElementById('dupMergeLabel').textContent = label;
+  };
+
+  let merged = 0, errors = 0;
+  const total = dupGroups.reduce((s, g) => s + g.records.length - 1, 0);
+  let done = 0;
+
+  for (const g of dupGroups) {
+    const keepIdx = g._keepIdx !== undefined ? g._keepIdx : 0;
+    const keep = g.records[keepIdx];
+    const toDelete = g.records.filter((_, i) => i !== keepIdx);
+
+    // Merge best data into keep record
+    const patch = {};
+    if (!keep.f.Email) {
+      const donor = toDelete.find(r => r.f.Email);
+      if (donor) patch.Email = donor.f.Email;
+    }
+    if (!keep.f.Telefon) {
+      const donor = toDelete.find(r => r.f.Telefon);
+      if (donor) patch.Telefon = donor.f.Telefon;
+    }
+    if (!keep.f.Beosztas) {
+      const donor = toDelete.find(r => r.f.Beosztas);
+      if (donor) patch.Beosztas = donor.f.Beosztas;
+    }
+    if (!keep.f.Megjegyzes) {
+      const donor = toDelete.find(r => r.f.Megjegyzes);
+      if (donor) patch.Megjegyzes = donor.f.Megjegyzes;
+    }
+    // Promote to fo kapcsolattarto if any was
+    if (!keep.f.Fo_kapcsolattarto && toDelete.some(r => r.f.Fo_kapcsolattarto)) {
+      patch.Fo_kapcsolattarto = true;
+    }
+
+    // Apply patch if needed
+    if (Object.keys(patch).length) {
+      try {
+        await atPatch('Kapcsolattartok', keep.id, patch);
+        addLog(`✏️ Frissítve: ${keep.f.Vezeteknev} ${keep.f.Keresztnev} (${Object.keys(patch).join(', ')})`, '#2980b9');
+      } catch(e) {
+        addLog(`⚠️ Frissítési hiba: ${e.message}`, '#e67e22');
+      }
+    }
+
+    // Delete duplicates
+    for (const rec of toDelete) {
+      setProgress((done / Math.max(total,1)) * 100, `Törlés: ${rec.f.Vezeteknev} ${rec.f.Keresztnev}`);
+      try {
+        await atDelete('Kapcsolattartok', rec.id);
+        addLog(`🗑️ Törölve: ${rec.f.Vezeteknev} ${rec.f.Keresztnev}${rec.cegnev ? ' / ' + rec.cegnev : ''}`, '#e74c3c');
+        merged++;
+      } catch(e) {
+        addLog(`❌ Törlési hiba (${rec.f.Vezeteknev} ${rec.f.Keresztnev}): ${e.message}`, '#e74c3c');
+        errors++;
+      }
+      done++;
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+
+  setProgress(100, 'Kész!');
+  await loadKontaktok();
+
+  const res = document.getElementById('dupMergeResult');
+  res.style.display = '';
+  res.style.background = errors ? '#fef3c7' : '#d1fae5';
+  res.style.color = errors ? '#92400e' : '#065f46';
+  res.textContent = `Összevonás kész — ${merged} duplikált rekord törölve${errors ? `, ${errors} hiba` : ''}`;
+
+  document.getElementById('dupFooter').innerHTML = '<button class="btn btn-primary" onclick="closeDuplikacioModal()">Bezárás</button>';
+}
+
+
 
 const SZL_STATUSZ = {
   'Kiallitva':  { label: 'Kiállítva',        cls: 'badge-elkuldve' },
@@ -9225,6 +9985,7 @@ function renderKimenoSzamlak() {
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;position:relative">
         ${inv.statusz !== 'Fizetett' && inv.statusz !== 'Storno' ? `<button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;color:#16a34a" onclick="markKszFizetett('${inv._id}','${inv._billingoId||''}')">✓ Fizetve</button>` : ''}
         ${inv.pdfUrl ? `<a href="${inv.pdfUrl}" target="_blank" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px">📄 PDF</a>` : (inv._billingoId ? `<button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px" onclick="downloadKszPdf('${inv._id}','${inv._billingoId}')">📥 PDF</button>` : '')}
+        <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;color:#4f7fff" title="E-mail küldése az ügyfélnek" onclick="openKszEmailModal('${inv._id}')">✉ E-mail</button>
         ${kszSzarmaztatottGomb(inv)}
       </td>
     </tr>`;
@@ -9241,6 +10002,7 @@ function kszSzarmaztatottGomb(inv) {
 
   const id = `kszDd_${inv._id.replace(/[^a-zA-Z0-9]/g,'_')}`;
   let items = '';
+  items += `<div class="ksz-dd-item" onclick="openKszEmailModal('${inv._id}')">✉ E-mail küldése</div>`;
   if (szamlaFromDijb) items += `<div class="ksz-dd-item" onclick="kszSzamlaFromDijbekero('${inv._id}')">🧾 Számla kiállítása ebből</div>`;
   if (vegszamla)      items += `<div class="ksz-dd-item" onclick="kszVegszamlaFromElolег('${inv._id}')">✅ Végszámla kiállítása</div>`;
   if (storno)         items += `<div class="ksz-dd-item" style="color:#e74c3c" onclick="kszStornoFromRow('${inv._id}','${inv._billingoId||''}','${(inv.invoiceNumber||'').replace(/'/g,'')}')">❌ Sztornó</div>`;
@@ -9251,6 +10013,137 @@ function kszSzarmaztatottGomb(inv) {
       ${items}
     </div>
   </div>`;
+}
+
+// ---- KIMENŐ SZÁMLA E-MAIL KÜLDÉS ----
+let kszEmailInvId = null;
+
+function openKszEmailModal(airtableId) {
+  kszEmailInvId = airtableId;
+  const inv = kszInvoices.find(i => i._id === airtableId);
+  if (!inv) { toast('Számla nem található!', 'error'); return; }
+
+  // Számla infó megjelenítése
+  const infoEl = document.getElementById('kszEmailInfo');
+  if (infoEl) {
+    infoEl.innerHTML = `<strong>Számlaszám:</strong> ${inv.invoiceNumber || '—'} &nbsp;|&nbsp; <strong>Ügyfél:</strong> ${inv.ugyfelNev || '—'} &nbsp;|&nbsp; <strong>Bruttó:</strong> ${(inv.bruttoOssz||0).toLocaleString('hu-HU')} ${inv.currency || 'HUF'}`;
+  }
+
+  // Vevői kapcsolattartó e-mail előtöltése
+  let toEmail = '';
+  let toHint = '';
+  if (inv.vevoiKontaktId) {
+    const kontakt = kontaktok?.find(k => k.id === inv.vevoiKontaktId);
+    if (kontakt?.fields?.Email) {
+      toEmail = kontakt.fields.Email;
+      const nev = ((kontakt.fields.Vezeteknev||'') + ' ' + (kontakt.fields.Keresztnev||'')).trim();
+      toHint = `Automatikusan kitöltve: ${nev} (vevői kapcsolattartó)`;
+    }
+  }
+  document.getElementById('kszEmailTo').value = toEmail;
+  document.getElementById('kszEmailToHint').textContent = toHint;
+
+  // CC: alapértelmezetten szabolcs.wagner@zalner.hu
+  document.getElementById('kszEmailCc').value = 'szabolcs.wagner@zalner.hu';
+
+  // Tárgy
+  const tipusNev = inv.tipus || 'Számla';
+  document.getElementById('kszEmailSubject').value = `${tipusNev}: ${inv.invoiceNumber || ''} – ${inv.ugyfelNev || ''}`;
+
+  // Törzsszöveg
+  const cegnev = inv.ugyfelNev || 'Partnerünk';
+  const ossz = (inv.bruttoOssz||0).toLocaleString('hu-HU') + ' ' + (inv.currency||'HUF');
+
+  document.getElementById('kszEmailBody').value =
+`Tisztelt ${cegnev}!
+
+Ezúton küldjük a ${inv.invoiceNumber || ''} számú, bruttó ${ossz} számlánkat.
+
+A dokumentum PDF formátumban, mellékletként érhető el.
+
+Kérdés esetén állunk rendelkezésére.
+
+Üdvözlettel,
+
+ZALNER Engineering Kft.`;
+
+  document.getElementById('kszEmailModal').classList.add('open');
+}
+
+function closeKszEmailModal() {
+  document.getElementById('kszEmailModal').classList.remove('open');
+  kszEmailInvId = null;
+}
+
+async function sendKszEmail() {
+  const to      = document.getElementById('kszEmailTo').value.trim();
+  const cc      = document.getElementById('kszEmailCc').value.trim();
+  const subject = document.getElementById('kszEmailSubject').value.trim();
+  const body    = document.getElementById('kszEmailBody').value.trim();
+
+  if (!to)      { toast('Add meg a címzett e-mail címét!', 'error'); return; }
+  if (!subject) { toast('A tárgy megadása kötelező!', 'error'); return; }
+
+  const inv = kszInvoices.find(i => i._id === kszEmailInvId);
+  const billingoId    = inv?._billingoId  || null;
+  const invoiceNumber = inv?.invoiceNumber || '';
+  const pdfUrl        = inv?.pdfUrl       || null;
+  const billingoKey   = getBillingoApiKey();
+
+  // Gomb letiltása, töltés jelzés
+  const btn = document.getElementById('kszEmailSendBtn');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Küldés...';
+
+  try {
+    const resp = await fetch(NAV_PROXY + '/api/billingo?action=send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Token': getToken(),
+        ...(billingoKey ? { 'X-API-KEY': billingoKey } : {}),
+      },
+      body: JSON.stringify({
+        to, cc, subject,
+        body,
+        billingoId,
+        invoiceNumber,
+        pdfUrl,
+      }),
+    });
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (!resp.ok) {
+      // Ha a szerver nincs konfigurálva, fallback: levelező megnyitása
+      if (data.code === 'NO_EMAIL_CONFIG') {
+        let mailtoUrl = `mailto:${encodeURIComponent(to)}`;
+        const params = [];
+        if (cc) params.push(`cc=${encodeURIComponent(cc)}`);
+        params.push(`subject=${encodeURIComponent(subject)}`);
+        params.push(`body=${encodeURIComponent(body)}`);
+        mailtoUrl += '?' + params.join('&');
+        window.location.href = mailtoUrl;
+        toast('⚠️ E-mail szerver nincs konfigurálva — levelező megnyílt (PDF nélkül)', 'error');
+        closeKszEmailModal();
+        return;
+      }
+      throw new Error(data.error || `Szerver hiba (${resp.status})`);
+    }
+
+    const pdfInfo = data.pdfAttached
+      ? ` · PDF csatolva (${Math.round(data.pdfSize / 1024)} KB)`
+      : ' · PDF nem sikerült csatolni';
+    toast(`✅ E-mail elküldve: ${to}${pdfInfo}`, 'success');
+    closeKszEmailModal();
+
+  } catch (e) {
+    toast('❌ Küldési hiba: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
 }
 
 function toggleKszDd(id) {
@@ -11205,77 +12098,184 @@ function aiQuickQuestion(q) {
   sendAiMessage();
 }
 
-// ---- ERP kontextus ----
-async function buildErpContext() {
+// ---- ERP kontextus — kulcsszó alapú intelligens szűrés ----
+// ---- ERP kontextus — token-tudatos, szűrt ----
+
+const MAX_ROWS = 40; // max rekord modulonként
+
+// Tokenbarát szövegszűrő: visszaadja a kérdésre leginkább illő sorokat
+function filterRelevant(rows, msgLower, MAX = MAX_ROWS) {
+  if (!rows?.length) return [];
+  if (!msgLower) return rows.slice(0, MAX);
+  // Szavak a kérdésből (2+ karakter)
+  const words = msgLower.split(/\s+/).filter(w => w.length >= 2);
+  if (!words.length) return rows.slice(0, MAX);
+  // Pontozás: hány szó szerepel a sorban
+  const scored = rows.map(r => {
+    const s = r.toLowerCase();
+    const score = words.reduce((n, w) => n + (s.includes(w) ? 1 : 0), 0);
+    return { r, score };
+  });
+  // Relevánsat először, majd a maradékból töltjük fel MAX-ig
+  const relevant = scored.filter(x => x.score > 0).map(x => x.r);
+  const rest = scored.filter(x => x.score === 0).map(x => x.r);
+  return [...relevant, ...rest].slice(0, MAX);
+}
+
+async function buildErpContext(userMsg = '') {
+  const msgLower = (userMsg || '').toLowerCase();
+  const words = msgLower.split(/\s+/).filter(w => w.length >= 2);
+  const has = (...kws) => kws.some(k => msgLower.includes(k));
+  const isGeneral = !userMsg || has('összefoglaló','mindent','általános','mi van','összes','minden','áttekintés');
   const parts = [];
 
+  // ── Ügyfelek (mindig, de csak max MAX_ROWS, releváns először) ────────────
   if (ugyfelek?.length) {
-    parts.push(`ÜGYFELEK (${ugyfelek.length} db):\n` + ugyfelek.map(u => {
+    const rows = ugyfelek.map(u => {
       const f = u.fields;
-      return `- ${f.Cegnev||'?'} | Státusz: ${f.Statusz||'?'} | Adószám: ${f.Ceg_adoszama||'—'} | Székhely: ${f.Szekhely_cim||'—'}`;
-    }).join('\n'));
+      return `- ${f.Cegnev||'?'} | ${f.Statusz||'?'} | ${f.Ceg_adoszama||'—'} | ${f.Szekhely_cim||'—'}`;
+    });
+    const sel = filterRelevant(rows, msgLower);
+    parts.push(`ÜGYFELEK (${ugyfelek.length} db, top ${sel.length} mutatva):\n${sel.join('\n')}`);
   }
 
+  // ── Kontaktok (mindig, erősen szűrve) ────────────────────────────────────
+  if (kontaktok?.length) {
+    const bl = {'Ugyvezeto':'Üv','Dontehozo':'Dönt','Mernok':'Mérn','Beszerzo':'Besz','Penzugy':'Pénz','Egyeb':'Egyéb'};
+    const rows = kontaktok.map(k => {
+      const f = k.fields;
+      const ceg = f.Ugyfel ? (ugyfelek.find(u=>u.id===f.Ugyfel[0])?.fields?.Cegnev||'?') : '?';
+      return `- ${f.Vezeteknev||''} ${f.Keresztnev||''} | ${ceg} | ${bl[f.Beosztas]||'—'} | ${f.Email||'—'}${f.Fo_kapcsolattarto?' ★':''}`;
+    });
+    const sel = filterRelevant(rows, msgLower);
+    parts.push(`KONTAKTOK (${kontaktok.length} db, top ${sel.length} mutatva):\n${sel.join('\n')}`);
+  }
+
+  // ── Ajánlatok (mindig, szűrve) ────────────────────────────────────────────
   if (ajanlatok?.length) {
-    parts.push(`AJÁNLATOK (${ajanlatok.length} db):\n` + ajanlatok.map(a => {
+    const rows = ajanlatok.map(a => {
       const f = a.fields;
       const un = f.Ugyfel ? (ugyfelek.find(u=>u.id===f.Ugyfel[0])?.fields?.Cegnev||'?') : '?';
-      return `- ${f.Ajanlat_szam||'?'} | Ügyfél: ${un} | Státusz: ${f.Statusz||'?'} | Nettó: ${f.Netto_osszeg||0} ${f.Deviza||'HUF'} | Kiállítás: ${f.Kiallitas_datum||'—'} | Szállítás: ${f.Szallitasi_hatarido||'—'}`;
-    }).join('\n'));
+      return `- ${f.Ajanlat_szam||'?'} | ${un} | ${f.Statusz||'?'} | ${f.Netto_osszeg||0} ${f.Deviza||'HUF'} | ${f.Kiallitas_datum||'—'} | ${f.Szallitasi_hatarido||'—'}`;
+    });
+    const sel = filterRelevant(rows, msgLower);
+    parts.push(`AJÁNLATOK (${ajanlatok.length} db, top ${sel.length} mutatva):\n${sel.join('\n')}`);
   }
 
-  // Ajánlat napló bejegyzések lekérdezése
-  try {
-    const ajanlatNaplo = await atGet('Ajanlat_Naplo',
-      'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc');
-    if (ajanlatNaplo?.length) {
-      parts.push(`AJÁNLAT NAPLÓ (${ajanlatNaplo.length} bejegyzés):\n` + ajanlatNaplo.map(n => {
-        const f = n.fields;
-        const ajanlatSzam = f.Ajanlat ? (ajanlatok.find(a=>a.id===f.Ajanlat?.[0])?.fields?.Ajanlat_szam||f.Ajanlat?.[0]||'?') : '?';
-        const dt = f.Datum ? new Date(f.Datum).toLocaleString('hu-HU') : '—';
-        return `- [${ajanlatSzam}] ${dt} | ${f.Szerzo||'?'}: ${f.Megjegyzes||''}`;
-      }).join('\n'));
-    }
-  } catch(e) {}
-
+  // ── Projektek (mindig, szűrve) ────────────────────────────────────────────
   if (typeof projektek !== 'undefined' && projektek?.length) {
     const ma = new Date().toISOString().split('T')[0];
-    parts.push(`PROJEKTEK (${projektek.length} db):\n` + projektek.map(p => {
+    const rows = projektek.map(p => {
       const f = p.fields;
       const un = f.Ugyfel ? (ugyfelek.find(u=>u.id===f.Ugyfel[0])?.fields?.Cegnev||'?') : '?';
-      const k = f.Szallitasi_hatarido && f.Szallitasi_hatarido < ma && f.Statusz !== 'Szamlazott' ? ' ⚠️KÉSÉS' : '';
-      return `- ${f.Projekt_szam||'?'} | ${f.Projekt_nev||'?'} | Ügyfél: ${un} | Felelős: ${f.Felelos||'?'} | Státusz: ${f.Statusz||'?'} | Szállítás: ${f.Szallitasi_hatarido||'—'}${k}`;
-    }).join('\n'));
+      const k = f.Szallitasi_hatarido && f.Szallitasi_hatarido < ma && f.Statusz !== 'Szamlazott' ? ' ⚠️' : '';
+      return `- ${f.Projekt_szam||'?'} | ${f.Projekt_nev||f.Projekt_neve||'?'} | ${un} | ${f.Felelos||'?'} | ${f.Statusz||'?'} | ${f.Szallitasi_hatarido||'—'}${k}`;
+    });
+    const sel = filterRelevant(rows, msgLower);
+    parts.push(`PROJEKTEK (${projektek.length} db, top ${sel.length} mutatva):\n${sel.join('\n')}`);
   }
 
-  // Projekt napló bejegyzések lekérdezése
-  try {
-    const projektNaplo = await atGet('Projekt_Naplo',
-      'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc');
-    if (projektNaplo?.length) {
-      parts.push(`PROJEKT NAPLÓ (${projektNaplo.length} bejegyzés):\n` + projektNaplo.map(n => {
-        const f = n.fields;
-        const projektNev = f.Projekt ? (projektek?.find(p=>p.id===f.Projekt?.[0])?.fields?.Projekt_nev||f.Projekt?.[0]||'?') : '?';
-        const dt = f.Datum ? new Date(f.Datum).toLocaleString('hu-HU') : '—';
-        return `- [${projektNev}] ${dt} | ${f.Szerzo||'?'}: ${f.Megjegyzes||''}`;
-      }).join('\n'));
+  // ── Opcionális modulok (csak ha releváns kulcsszó van) ───────────────────
+
+  if (isGeneral || has('napló','megjegyzés','bejegyzés','log','tevékenység')) {
+    try {
+      const data = await atGet('Ajanlat_Naplo','sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc');
+      if (data?.length) {
+        const rows = data.map(n => {
+          const f = n.fields;
+          const szam = f.Ajanlat ? (ajanlatok.find(a=>a.id===f.Ajanlat?.[0])?.fields?.Ajanlat_szam||'?') : '?';
+          const dt = f.Datum ? new Date(f.Datum).toLocaleDateString('hu-HU') : '—';
+          return `- [${szam}] ${dt} | ${f.Szerzo||'?'}: ${(f.Megjegyzes||'').substring(0,80)}`;
+        });
+        const sel = filterRelevant(rows, msgLower, 20);
+        parts.push(`AJÁNLAT NAPLÓ (${data.length} db, top ${sel.length}):\n${sel.join('\n')}`);
+      }
+    } catch(e) {}
+    try {
+      const data = await atGet('Projekt_Naplo','sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc');
+      if (data?.length) {
+        const rows = data.map(n => {
+          const f = n.fields;
+          const pn = f.Projekt ? (projektek?.find(p=>p.id===f.Projekt?.[0])?.fields?.Projekt_nev||'?') : '?';
+          const dt = f.Datum ? new Date(f.Datum).toLocaleDateString('hu-HU') : '—';
+          return `- [${pn}] ${dt} | ${f.Szerzo||'?'}: ${(f.Megjegyzes||'').substring(0,80)}`;
+        });
+        const sel = filterRelevant(rows, msgLower, 20);
+        parts.push(`PROJEKT NAPLÓ (${data.length} db, top ${sel.length}):\n${sel.join('\n')}`);
+      }
+    } catch(e) {}
+  }
+
+  if (isGeneral || has('szállítólevél','szállítólevelek','szl','kiszállítás')) {
+    if (typeof szallitolevelek !== 'undefined' && szallitolevelek?.length) {
+      const rows = szallitolevelek.map(s => {
+        const f = s.fields;
+        const un = f.Ugyfel ? (ugyfelek.find(u=>u.id===f.Ugyfel[0])?.fields?.Cegnev||'?') : '?';
+        return `- ${f.Szallitolevel_szam||'?'} | ${un} | ${f.Statusz||'?'} | ${f.Szallitas_datum||f.Kiallitas_datum||'—'}`;
+      });
+      const sel = filterRelevant(rows, msgLower);
+      parts.push(`SZÁLLÍTÓLEVELEK (${szallitolevelek.length} db, top ${sel.length}):\n${sel.join('\n')}`);
     }
-  } catch(e) {}
-
-  if (typeof bszInvoices !== 'undefined' && bszInvoices?.length) {
-    parts.push(`BEJÖVŐ SZÁMLÁK (${bszInvoices.length} db):\n` + bszInvoices.map(i =>
-      `- ${i.invoiceNumber||'?'} | Szállító: ${i.supplierName||'?'} | Nettó: ${i.invoiceNetAmount||0} | ÁFA: ${i.invoiceVatAmount||0} | Deviza: ${i.currency||'HUF'} | Státusz: ${i.paymentStatus||'?'} | Fiz.határidő: ${i.paymentDue||'—'}`
-    ).join('\n'));
   }
 
-  if (typeof vamBejegyzesek !== 'undefined' && vamBejegyzesek?.length) {
-    parts.push(`VÁMKEZELÉS (${vamBejegyzesek.length} db):\n` + vamBejegyzesek.map(v => {
-      const f = v.fields;
-      return `- MRN: ${f.MRN_szam||'?'} | Dátum: ${f.Datum||'—'} | Import ÁFA: ${f.Import_afa||0} HUF | Számla érték: ${f.Szamla_ertek||0} ${f.Deviza||'HUF'}`;
-    }).join('\n'));
+  if (isGeneral || has('visszaigazolás','vrv','vevői rendelés')) {
+    try {
+      const data = await atGet('VevRendVisszaig','sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
+      if (data?.length) {
+        const rows = data.map(v => {
+          const f = v.fields;
+          const un = f.Ugyfel ? (ugyfelek.find(u=>u.id===f.Ugyfel[0])?.fields?.Cegnev||'?') : '?';
+          return `- ${f.VRV_szam||'?'} | ${un} | ${f.Statusz||'?'} | ${f.Kiallitas_datum||'—'}`;
+        });
+        const sel = filterRelevant(rows, msgLower);
+        parts.push(`VISSZAIGAZOLÁSOK (${data.length} db, top ${sel.length}):\n${sel.join('\n')}`);
+      }
+    } catch(e) {}
   }
 
-  return parts.join('\n\n');
+  if (isGeneral || has('kimenő számla','számla','számlázás','fizet','bevétel')) {
+    if (typeof kszInvoices !== 'undefined' && kszInvoices?.length) {
+      const rows = kszInvoices.map(i =>
+        `- ${i.invoiceNumber||'?'} | ${i.ugyfelNev||'?'} | ${i.nettoOssz||0} ${i.currency||'HUF'} | ${i.statusz||'?'} | ${i.fizetesiHatarido||'—'}`
+      );
+      const sel = filterRelevant(rows, msgLower);
+      parts.push(`KIMENŐ SZÁMLÁK (${kszInvoices.length} db, top ${sel.length}):\n${sel.join('\n')}`);
+    }
+  }
+
+  if (isGeneral || has('bejövő számla','szállítói számla','kiadás','kötelezettség')) {
+    if (typeof bszInvoices !== 'undefined' && bszInvoices?.length) {
+      const rows = bszInvoices.map(i =>
+        `- ${i.invoiceNumber||'?'} | ${i.supplierName||'?'} | ${i.invoiceNetAmount||0} ${i.currency||'HUF'} | ${i.paymentStatus||'?'} | ${i.paymentDue||'—'}`
+      );
+      const sel = filterRelevant(rows, msgLower);
+      parts.push(`BEJÖVŐ SZÁMLÁK (${bszInvoices.length} db, top ${sel.length}):\n${sel.join('\n')}`);
+    }
+  }
+
+  if (isGeneral || has('vám','vámkezelés','mrn','import áfa')) {
+    if (typeof vamBejegyzesek !== 'undefined' && vamBejegyzesek?.length) {
+      const rows = vamBejegyzesek.map(v => {
+        const f = v.fields;
+        return `- ${f.MRN_szam||'?'} | ${f.Datum||'—'} | ${f.Import_afa||0} HUF | ${f.Szamla_ertek||0} ${f.Deviza||'HUF'}`;
+      });
+      const sel = filterRelevant(rows, msgLower);
+      parts.push(`VÁMKEZELÉS (${vamBejegyzesek.length} db, top ${sel.length}):\n${sel.join('\n')}`);
+    }
+  }
+
+  if (isGeneral || has('beszállító','szállító','vendor','gyártó')) {
+    if (typeof beszallitok !== 'undefined' && beszallitok?.length) {
+      const rows = beszallitok.map(b => {
+        const f = b.fields;
+        return `- ${f.Cegnev||'?'} | ${f.Orszag||'—'} | ${f.Kapcsolattarto||'—'} | ${f.Email||'—'} | ${f.Statusz||'Aktív'}`;
+      });
+      const sel = filterRelevant(rows, msgLower);
+      parts.push(`BESZÁLLÍTÓK (${beszallitok.length} db, top ${sel.length}):\n${sel.join('\n')}`);
+    }
+  }
+
+  return parts.join('\n\n') || '(Nincs betöltött adat)';
 }
 
 // ---- Küldés ----
@@ -11304,8 +12304,10 @@ async function sendAiMessage() {
 
   const systemPrompt = `Te egy belső ERP asszisztens vagy a Zalner cégnél. Hozzáférsz az alábbi valós idejű ERP adatokhoz. Mindig magyarul válaszolj. Legyél tömör és konkrét. Ha számokat kérdeznek, számold ki pontosan. Ha táblázatos formátum segít, használj szöveges táblázatot. Ha valami nem szerepel az adatokban, mondd meg őszintén.
 
+FONTOS: Ha nevet keresel, keresd mind az ügyfelek cégneve, mind a kontaktok VEZETEKNEVE és KERESZTNEVE között is. Egy "mária nevű kontakt" a KONTAKTOK listában lehet, nem az ügyfelek között.
+
 JELENLEGI ERP ADATOK:
-${await buildErpContext()}
+${await buildErpContext(msg)}
 
 Mai dátum: ${new Date().toLocaleDateString('hu-HU')}`;
 

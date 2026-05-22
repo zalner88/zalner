@@ -1651,6 +1651,28 @@ select.form-control{cursor:pointer}
   </div>
 </div>
 
+<!-- ELUTASÍTÁS INDOKLÁS MODAL -->
+<div class="modal-overlay" id="elutasitasModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Elutasítás indoklása</div>
+      <button class="modal-close" onclick="closeElutasitasModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Az ajánlat elutasításának oka kötelezően rögzítésre kerül a naplóban.</p>
+      <div class="form-group">
+        <label class="form-label">Elutasítás oka <span style="color:#ef4444">*</span></label>
+        <textarea class="form-control" id="elutasitasKomment" rows="4" placeholder="pl. Ár nem megfelelő, versenytárs nyerte, projekt elhalasztva..."></textarea>
+        <div id="elutasitasHiba" style="color:#ef4444;font-size:12px;margin-top:4px;display:none">Kérjük, add meg az elutasítás okát!</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeElutasitasModal()">Mégse</button>
+      <button class="btn btn-danger" onclick="confirmElutasitas()">Elutasítás mentése</button>
+    </div>
+  </div>
+</div>
+
 <!-- KONTAKT MODAL -->
 <div class="modal-overlay" id="kontaktModal">
   <div class="modal" style="max-width:600px">
@@ -5293,15 +5315,76 @@ async function rendeltProjekt(ajanlatId) {
   toast('Töltsd ki a projekt adatait és mentsd el!', '');
 }
 
+// Elutasítás modal kezelő
+let _elutasitasPending = null; // { ajanlatId, oldStatus }
+
+function closeElutasitasModal() {
+  document.getElementById('elutasitasModal').classList.remove('open');
+  // Visszaállítjuk a select-et az eredeti értékre
+  if (_elutasitasPending) {
+    const aj = ajanlatok.find(a => a.id === _elutasitasPending.ajanlatId);
+    if (aj) {
+      // Frissítjük a listát, hogy a select visszaálljon
+      renderAjanlatok();
+    }
+    _elutasitasPending = null;
+  }
+}
+
+async function confirmElutasitas() {
+  const komment = document.getElementById('elutasitasKomment').value.trim();
+  const hibaEl = document.getElementById('elutasitasHiba');
+  if (!komment) {
+    hibaEl.style.display = '';
+    document.getElementById('elutasitasKomment').focus();
+    return;
+  }
+  hibaEl.style.display = 'none';
+  if (!_elutasitasPending) return;
+
+  const { ajanlatId } = _elutasitasPending;
+  _elutasitasPending = null;
+  document.getElementById('elutasitasModal').classList.remove('open');
+
+  try {
+    // Státusz mentése
+    await atPatch('Ajanlatok', ajanlatId, { Statusz: 'Elutasitva' });
+    // Komment mentése a naplóba
+    await atPost('Ajanlat_Naplo', {
+      Ajanlat: [ajanlatId],
+      Megjegyzes: `❌ Elutasítva — Indok: ${komment}`,
+      Szerzo: currentUser?.name || 'Rendszer',
+      Datum: new Date().toISOString(),
+    });
+    // Lokális frissítés
+    const aj = ajanlatok.find(a => a.id === ajanlatId);
+    if (aj) aj.fields.Statusz = 'Elutasitva';
+    cacheInvalidate('ajanlatok');
+    renderAjanlatok();
+    toast('Ajánlat elutasítva és indoklás rögzítve.', 'success');
+  } catch(e) {
+    toast('Hiba: ' + e.message, 'error');
+    await loadAjanlatok();
+  }
+}
+
 async function updateAjanlatStatus(ajanlatId, newStatus) {
+  // Elutasítva esetén kötelező komment
+  if (newStatus === 'Elutasitva') {
+    const aj = ajanlatok.find(a => a.id === ajanlatId);
+    _elutasitasPending = { ajanlatId, oldStatus: aj?.fields?.Statusz || 'Tervezet' };
+    document.getElementById('elutasitasKomment').value = '';
+    document.getElementById('elutasitasHiba').style.display = 'none';
+    document.getElementById('elutasitasModal').classList.add('open');
+    setTimeout(() => document.getElementById('elutasitasKomment').focus(), 100);
+    return;
+  }
   try {
     await atPatch('Ajanlatok', ajanlatId, { Statusz: newStatus });
     cacheInvalidate('ajanlatok');
-    // Lokális ajanlatok frissítése
     const aj = ajanlatok.find(a => a.id === ajanlatId);
     if (aj) aj.fields.Statusz = newStatus;
     toast('Státusz frissítve: ' + newStatus, 'success');
-    // Ha Elfogadva státuszra váltott, projekt létrehozása
     if (newStatus === 'Elfogadva') {
       if (!projektek.length) await getProjektek();
       const meglevo = projektek.find(p => p.fields.Ajanlat && p.fields.Ajanlat.includes(ajanlatId));
@@ -5313,7 +5396,6 @@ async function updateAjanlatStatus(ajanlatId, newStatus) {
     }
   } catch(e) {
     toast('Hiba a státusz mentése közben: ' + e.message, 'error');
-    // Visszaállítás listából
     await loadAjanlatok();
   }
 }

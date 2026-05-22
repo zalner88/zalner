@@ -2009,7 +2009,7 @@ select.form-control{cursor:pointer}
               <option value="Wagner Szabolcs">Wágner Szabolcs</option>
               <option value="Zombori Krisztina">Zombori Krisztina</option>
             </select>
-            <div id="fKszKapcsolattartoEmail" style="font-size:12px;color:var(--text-muted);white-space:nowrap;padding:0 4px">jarfas.kitti@zalner.hu</div>
+            <div id="fKszKapcsolattartoEmail" style="font-size:12px;color:var(--text-muted);white-space:nowrap;padding:0 4px">kitti.jarfas@zalner.hu</div>
           </div>
         </div>
         <div class="form-group full" id="kszTetelekWrap">
@@ -6562,31 +6562,63 @@ async function saveNaplo(projektId, btn) {
 
 function sendNaploNotifications(szoveg, szerzo, szabi, kitti, kriszti, linkType, linkId) {
   const EMAILS = {
-    szabi: 'wagner.szabolcs@zalner.hu',
-    kitti: 'jarfas.kitti@zalner.hu',
-    kriszti: 'zombori.krisztina@zalner.hu',
+    szabi: 'szabolcs.wagner@zalner.hu',
+    kitti: 'kitti.jarfas@zalner.hu',
+    kriszti: 'krisztina.zombori@zalner.hu',
   };
   const recipients = [];
   if (kitti) recipients.push(EMAILS.kitti);
   if (kriszti) recipients.push(EMAILS.kriszti);
   if (szabi) recipients.push(EMAILS.szabi);
   if (!recipients.length) return;
-  const deepLink = linkType && linkId
-    ? window.location.href.split('#')[0] + '#' + linkType + '/' + linkId
-    : window.location.href.split('#')[0];
+
   const pageLabel = linkType === 'ajanlat'
     ? (ajanlatok.find(a => a.id === linkId)?.fields?.Ajanlat_szam || linkId)
     : linkType === 'projekt'
     ? (projektek.find(p => p.id === linkId)?.fields?.Projekt_szam || linkId)
     : '';
+
+  // Tárgy mező lekérése ajánlatnál
+  const targy = linkType === 'ajanlat'
+    ? (ajanlatok.find(a => a.id === linkId)?.fields?.Targy || '')
+    : linkType === 'projekt'
+    ? (projektek.find(p => p.id === linkId)?.fields?.Projekt_neve || projektek.find(p => p.id === linkId)?.fields?.Projekt_nev || '')
+    : '';
+
   const spUrl = linkType === 'ajanlat'
     ? SHAREPOINT_BASE + pageLabel
     : SHAREPOINT_PROJEKT_BASE + pageLabel;
+
   const sharepointLink = pageLabel
-    ? `\n\nFeltöltések Megnyitása:\n${spUrl}`
+    ? `\n\n📁 Feltöltések:\n${spUrl}`
     : '';
-  const subject = encodeURIComponent(`ERP: ${linkType === 'projekt' ? 'Projekt ' : ''}${pageLabel}`);
-  const body = encodeURIComponent(`${szerzo} új megjegyzést fűzött:\n\n${szoveg}${sharepointLink}\n\n---\nZalner ERP`);
+
+  // Tárgy: "ERP: AJ-2026-005 – Klingelnberg RFQ"
+  const subjectLabel = [pageLabel, targy].filter(Boolean).join(' – ');
+  const subject = encodeURIComponent(`ERP: ${subjectLabel}`);
+
+  // Ügyfél cégnév lekérése
+  const ugyfelNev = linkType === 'ajanlat'
+    ? (() => { const aj = ajanlatok.find(a => a.id === linkId); return aj?.fields?.Ugyfel ? (ugyfelek.find(u => u.id === aj.fields.Ugyfel[0])?.fields?.Cegnev || '') : ''; })()
+    : linkType === 'projekt'
+    ? (() => { const p = projektek.find(p => p.id === linkId); return p?.fields?.Ugyfel ? (ugyfelek.find(u => u.id === p.fields.Ugyfel[0])?.fields?.Cegnev || '') : ''; })()
+    : '';
+
+  const sep = '─'.repeat(40);
+  const body = encodeURIComponent(
+`${sep}
+📌 ${ugyfelNev ? ugyfelNev + '  |  ' : ''}${pageLabel}${targy ? '  |  ' + targy : ''}
+${sep}
+
+${szerzo} új megjegyzést fűzött:
+
+${szoveg}
+
+${sep}${sharepointLink}
+
+Zalner ERP`
+  );
+
   window.location.href = `mailto:${recipients.join(',')}?subject=${subject}&body=${body}`;
 }
 
@@ -10533,9 +10565,9 @@ const KSZ_TIPUS_INFO = {
 };
 
 const ZALNER_EMAILS = {
-  'Jarfas Kitti':     'jarfas.kitti@zalner.hu',
-  'Wagner Szabolcs':  'wagner.szabolcs@zalner.hu',
-  'Zombori Krisztina':'zombori.krisztina@zalner.hu',
+  'Jarfas Kitti':     'kitti.jarfas@zalner.hu',
+  'Wagner Szabolcs':  'szabolcs.wagner@zalner.hu',
+  'Zombori Krisztina':'krisztina.zombori@zalner.hu',
 };
 
 function onKszKapcsolattartoChange() {

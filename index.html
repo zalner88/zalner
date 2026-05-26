@@ -1,12 +1,53 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v162
+     ZALNER ERP - VERZIÓ: v172
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v172:
+- Ajánlat részlet: "Másolás" gomb hozzáadva
+- masolAjanlat() függvény: minden adatot áthoz, új ajánlatszámot generál, státusz Tervezet
+
+CHANGES v171:
+- Szallitasi_hatarido visszaállítva single line text mezőre (v168 logika)
+- Szallitasi_het külön mező eltávolítva
+
+CHANGES v170:
+- Ajánlat tételek sorrend javítva: Sorszam mező mentése és rendezés lekéréskor
+- Minden AjanlatTetelek fetch után .sort() Sorszam alapján
+
+CHANGES v169:
+- Ajánlat form: szállítási határidő hetek számában tárolva (Szallitasi_het mező)
+- Szallitasi_hatarido date mező érintetlen marad (null az ajánlatoknál)
+- PDF és részlet nézet megjeleníti a hetek számát
+
+CHANGES v168:
+- Ajánlat form: szállítási határidő mező dátumból hetek számává alakítva (rendeléstől számítva)
+
+CHANGES v167:
+- Új ajánlat form: vevői kapcsolattartó dropdown betűrendbe rendezve
+
+CHANGES v166:
+- Ajánlatok lista: SharePoint gomb javítva, openSharepointMappa() hívást használ
+- Lista gomb nem transzformálja tovább az ajánlatszámot
+
+CHANGES v165:
+- SharePoint ajánlat URL újraépítve: Ajánlatok/AJ-YYYY-NNN formátum
+- Ajánlatszám sorszámozás: 3 jegyű (001, 002, ..., 099, 100, ...)
+- SHAREPOINT_BASE konstans frissítve az Ajánlatok almappával
+
+CHANGES v164:
+- Ajánlatok lista: Szállítási határidő oszlop eltávolítva
+- Ajánlatok lista: Tárgy oszlop a Nettó ár elé helyezve
+
+CHANGES v163:
+- Ajánlatok lista: Bruttó oszlop helyett Tárgy oszlop
+- Ajánlatok lista: SharePoint gomb hozzáadva a PDF gomb elé
+- Ajánlatok lista: Törlés gomb hozzáadva a sor végére
 
 CHANGES v162:
 - Árajánlat PDF: céges partnerlogók áthelyezve a tételek elé (fix pozíció)
@@ -15,7 +56,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v162</title>
+<title>Zalner ERP v172</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -207,7 +248,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v162</div>
+    <div class="nav-logo-sub">v172</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -416,8 +457,8 @@ select.form-control{cursor:pointer}
         <span class="pill active" id="ajanlatOsszesPill" onclick="setAjanlatKapcsolattartoFilter('osszes',this)">Összes</span>
       </div>
       <div class="table-wrap">
-        <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th>Nettó</th><th>Bruttó</th><th>Deviza</th><th>Kiállítás</th><th>Érvényesség</th><th>Sz. határidő</th><th>Státusz</th><th></th></tr></thead>
-        <tbody id="ajanlatTable"><tr><td colspan="11"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
+        <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th>Tárgy</th><th>Nettó</th><th>Deviza</th><th>Kiállítás</th><th>Érvényesség</th><th>Státusz</th><th></th></tr></thead>
+        <tbody id="ajanlatTable"><tr><td colspan="9"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
         <div class="pagination" id="ajanlatPagination" style="display:none"><span id="ajanlatPagInfo"></span><div class="page-btns" id="ajanlatPagBtns"></div></div>
       </div>
     </div>
@@ -429,6 +470,7 @@ select.form-control{cursor:pointer}
       <button class="back-btn" onclick="lockRelease();showPage('ajanlatok')" style="margin:0">← Vissza</button>
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" onclick="generatePDF()">📄 PDF</button>
+        <button class="btn btn-secondary" onclick="masolAjanlat()">📋 Másolás</button>
         <button class="btn btn-secondary" onclick="projektbolAjanlat(currentAjanlat.id)">📋 Projekt</button>
         <button class="btn btn-secondary" onclick="editCurrentAjanlat()">✎ Szerkesztés</button>
         <button class="btn btn-danger btn-sm" onclick="deleteCurrentAjanlat()">✕ Törlés</button>
@@ -523,8 +565,8 @@ select.form-control{cursor:pointer}
               <input class="form-control" type="date" id="fErvenyesseg">
             </div>
             <div class="form-group">
-              <label class="form-label">Szállítási határidő</label>
-              <input class="form-control" type="date" id="fSzallitasiHatarido">
+              <label class="form-label">Szállítási idő (hét)</label>
+              <input class="form-control" type="number" id="fSzallitasiHatarido" min="1" max="99" placeholder="pl. 6">
             </div>
             <div class="form-group">
               <label class="form-label">Deviza</label>
@@ -2359,6 +2401,11 @@ async function atGetLinked(table, linkField, recordId, sort) {
   return all.filter(r => r.fields[linkField] && r.fields[linkField].includes(recordId));
 }
 
+// Ajánlat tételek sorrendbe rendezése a Sorszam mező alapján
+function sortTetelek(tetelek) {
+  return tetelek.slice().sort((a, b) => (a.fields.Sorszam || 999) - (b.fields.Sorszam || 999));
+}
+
 // Cache-elt fő táblák betöltése
 async function getUgyfelek(force = false) {
   if (!force) { const c = cacheGet('ugyfelek'); if (c) { ugyfelek = c; return c; } }
@@ -3567,7 +3614,7 @@ function renderDashActions() {
     const f = p.fields;
     if (!isSajatProjekt(p)) return false;
     const nyitott = ['Beerkezett_Folyamatban', 'Beszallitas_alatt'].includes(f.Statusz);
-    return nyitott && f.Szallitasi_hatarido && f.Szallitasi_hatarido < today;
+    return false; // Szallitasi_hatarido mostantól hetek száma, nem dátum
   });
 
   // 4. Számlázható projektek
@@ -4141,7 +4188,7 @@ async function loadAjanlatok() {
     filterAjanlatok();
     document.getElementById('ajanlatCount').textContent = `${ajanlatok.length} ajánlat összesen`;
   } catch (e) {
-    document.getElementById('ajanlatTable').innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
+    document.getElementById('ajanlatTable').innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
   }
 }
 
@@ -4231,7 +4278,7 @@ function renderAjanlatok() {
   const start = (ajanlatCurrentPage - 1) * PAGE_SIZE;
   const items = filteredAjanlatok.slice(start, start + PAGE_SIZE);
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">◫</div><div class="empty-title">Nincs találat</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">◫</div><div class="empty-title">Nincs találat</div></div></td></tr>';
     document.getElementById('ajanlatPagination').style.display = 'none'; return;
   }
   tbody.innerHTML = items.map(a => {
@@ -4244,17 +4291,17 @@ function renderAjanlatok() {
     return `<tr onclick="showAjanlatReszlet('${a.id}')">
       <td class="td-name" style="font-family:'DM Mono',monospace;font-size:13px">${f.Ajanlat_szam || '—'}${f.Van_csatolmany ? ' <span title="Van csatolmány" style="font-size:13px">📎</span>' : ''}</td>
       <td>${un}</td>
+      <td class="td-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(f.Targy||'').replace(/"/g,'&quot;')}">${f.Targy || '—'}</td>
       <td>${f.Netto_osszeg ? Number(f.Netto_osszeg).toLocaleString('hu-HU') : '—'}</td>
-      <td>${f.Brutto_osszeg ? Number(f.Brutto_osszeg).toLocaleString('hu-HU') : '—'}</td>
       <td class="td-muted">${f.Deviza || 'HUF'}</td>
       <td class="td-muted">${f.Kiallitas_datum || '—'}</td>
       <td class="td-muted">${f.Ervenyesseg_datum || '—'}</td>
-      <td class="td-muted">${f.Szallitasi_hatarido || '—'}</td>
       <td>${statusSelect}</td>
       <td style="white-space:nowrap;display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openSharepointMappa('${f.Ajanlat_szam||''}','${a.id}')" title="SharePoint mappa megnyitása" style="font-size:11px;padding:4px 8px">🗂️</button>
         <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();quickPDF('${a.id}')" title="PDF" style="font-size:11px;padding:4px 10px">📄 PDF</button>
-        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();window.open(SHAREPOINT_BASE + encodeURIComponent((f.Ajanlat_szam||'').replace(/^AJ-/,'').replace(/-/g,'_')) + '?csf=1&web=1','_blank')" title="SharePoint mappa megnyitása">📎</button>
         <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editCurrentAjanlatById('${a.id}')">✎</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteAjanlatById('${a.id}','${(f.Ajanlat_szam||'').replace(/'/g,'')}')" title="Ajánlat törlése">✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -4304,7 +4351,7 @@ async function showAjanlatReszlet(id) {
   // tételek betöltése
   let tetelHtml = '';
   try {
-    const tetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', id);
+    const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', id));
     if (tetelek.length) {
       tetelHtml = `<div class="detail-card" style="margin-top:20px">
         <div class="detail-card-header">Tételek</div>
@@ -4357,7 +4404,7 @@ async function showAjanlatReszlet(id) {
         <div class="detail-item"><div class="detail-label">Vevői kapcsolattartó</div><div class="detail-value">${vevoiKapcsolattartoNev}</div></div>
         <div class="detail-item"><div class="detail-label">Kiállítás</div><div class="detail-value">${f.Kiallitas_datum || '—'}</div></div>
         <div class="detail-item"><div class="detail-label">Érvényesség</div><div class="detail-value">${f.Ervenyesseg_datum || '—'}</div></div>
-        <div class="detail-item"><div class="detail-label">Szállítási határidő</div><div class="detail-value">${f.Szallitasi_hatarido || '—'}</div></div>
+        <div class="detail-item"><div class="detail-label">Szállítási idő</div><div class="detail-value">${f.Szallitasi_hatarido || '—'}</div></div>
         <div class="detail-item"><div class="detail-label">Deviza</div><div class="detail-value">${f.Deviza || 'HUF'}</div></div>
         <div class="detail-item"><div class="detail-label">ÁFA</div><div class="detail-value">${f.Afa || '—'}</div></div>
         <div class="detail-item"><div class="detail-label">Tárgy</div><div class="detail-value">${f.Targy || '—'}</div></div>
@@ -4698,12 +4745,12 @@ function deleteVam(id, mrn) {
 }
 
 // ===== AJÁNLAT CSATOLMÁNYOK (SharePoint) =====
-const SHAREPOINT_BASE = 'https://zalner.sharepoint.com/:f:/r/sites/Administration/Shared%20Documents/23_ERP_Projektek/';
+const SHAREPOINT_BASE = 'https://zalner.sharepoint.com/:f:/r/sites/Administration/Shared%20Documents/23_ERP_Projektek/Aj%C3%A1nlatok/';
 const SHAREPOINT_PROJEKT_BASE = 'https://zalner.sharepoint.com/:f:/r/sites/Administration/Shared%20Documents/23_ERP_Projektek/';
 
 async function openSharepointMappa(ajanlatSzam, ajanlatId) {
   if (!ajanlatSzam) { toast('Nincs ajánlatszám!', 'error'); return; }
-  const url = SHAREPOINT_BASE + encodeURIComponent(ajanlatSzam) + '?csf=1&web=1';
+  const url = SHAREPOINT_BASE + encodeURIComponent(ajanlatSzam) + '?csf=1&web=1&e=7xDKQE';
   window.open(url, '_blank');
   if (ajanlatId && currentAjanlat?.fields?.Van_csatolmany !== true) {
     try {
@@ -4755,6 +4802,11 @@ async function loadVevoiKontaktok(ugyfelId, selectedId = null) {
       sel.innerHTML = '<option value="">— Nincs kontakt —</option>';
       return;
     }
+    kontaktok.sort((a, b) => {
+      const nA = ((a.fields.Vezeteknev || '') + ' ' + (a.fields.Keresztnev || '')).trim().toLowerCase();
+      const nB = ((b.fields.Vezeteknev || '') + ' ' + (b.fields.Keresztnev || '')).trim().toLowerCase();
+      return nA.localeCompare(nB, 'hu');
+    });
     sel.innerHTML = '<option value="">— Válassz kontaktat —</option>' + kontaktok.map(k => {
       const kf = k.fields;
       const nev = (kf.Vezeteknev || '') + ' ' + (kf.Keresztnev || '');
@@ -4853,7 +4905,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   sel.value = f.Ugyfel ? f.Ugyfel[0] : '';
   document.getElementById('fKiallitas').value = f.Kiallitas_datum || '';
   document.getElementById('fErvenyesseg').value = f.Ervenyesseg_datum || '';
-  document.getElementById('fSzallitasiHatarido').value = f.Szallitasi_hatarido || '';
+  document.getElementById('fSzallitasiHatarido').value = f.Szallitasi_hatarido ? parseInt(f.Szallitasi_hatarido) || '' : '';
   document.getElementById('fDeviza').value = f.Deviza || 'HUF';
   document.getElementById('fAfa').value = f.Afa || '27%';
   document.getElementById('fAjanlatStatusz').value = f.Statusz || 'Tervezet';
@@ -4876,7 +4928,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   tetelCounter = 0;
   // tételek betöltése
   try {
-    const tetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', id);
+    const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', id));
     tetelek.forEach(t => addTetel(t.fields, t.id));
   } catch(e) { console.error('Tételek betöltési hiba:', e); }
   if (document.getElementById('tetelekBody').children.length === 0) addTetel();
@@ -4892,6 +4944,83 @@ function vissszaProjektbe() {
 
 function editCurrentAjanlat() {
   if (currentAjanlat) editCurrentAjanlatById(currentAjanlat.id, null);
+}
+
+// ===== AJÁNLAT MÁSOLÁSA =====
+async function masolAjanlat() {
+  if (!currentAjanlat) return;
+  const f = currentAjanlat.fields;
+  const forrasId = currentAjanlat.id;
+  const forrasSzam = f.Ajanlat_szam || '?';
+
+  // Új ajánlatszám generálása
+  if (!ajanlatok.length) await loadAjanlatok();
+  const ev = new Date().getFullYear();
+  const maxNum = ajanlatok.reduce((max, a) => {
+    const m = (a.fields.Ajanlat_szam || '').match(/AJ-\d{4}-(\d+)/);
+    return m ? Math.max(max, parseInt(m[1], 10)) : max;
+  }, 0);
+  const ujSzam = `AJ-${ev}-${String(maxNum + 1).padStart(3, '0')}`;
+
+  // Form megnyitása új módban
+  editingAjanlatId = null;
+  visszaProjektId = null;
+  document.getElementById('ajanlatFormCim').textContent = `Másolat – ${forrasSzam}`;
+  const delFormBtn = document.getElementById('deleteAjanlatFormBtn');
+  if (delFormBtn) delFormBtn.style.display = 'none';
+
+  // Ügyfél lista betöltése
+  if (!ugyfelek.length) await getUgyfelek();
+  const sel = document.getElementById('fAjanlatUgyfel');
+  sel.innerHTML = '<option value="">— Válassz ügyfelet —</option>' +
+    ugyfelek.map(u => `<option value="${u.id}">${u.fields.Cegnev}</option>`).join('');
+  sel.onchange = function() {
+    const uid = this.value;
+    const uf = ugyfelek.find(u => u.id === uid)?.fields;
+    if (uf) document.getElementById('fFizetesiHataridoNap').value = uf.Fizetesi_hatarido_nap != null ? uf.Fizetesi_hatarido_nap : 30;
+    loadVevoiKontaktok(uid);
+  };
+
+  // Mai dátum kiállításnak, érvényesség auto
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('fKiallitas').value = today;
+  autoErvenyesseg();
+
+  // Minden egyéb adat átmásolása
+  sel.value = f.Ugyfel ? f.Ugyfel[0] : '';
+  document.getElementById('fErvenyesseg').value = f.Ervenyesseg_datum || '';
+  document.getElementById('fSzallitasiHatarido').value = f.Szallitasi_hatarido ? parseInt(f.Szallitasi_hatarido) || '' : '';
+  document.getElementById('fDeviza').value = f.Deviza || 'HUF';
+  document.getElementById('fAfa').value = f.Afa || '27%';
+  document.getElementById('fAjanlatStatusz').value = 'Tervezet';
+  document.getElementById('fFizetesiMod').value = f.Fizetes_mod || 'Átutalás';
+  document.getElementById('fFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
+  document.getElementById('fNyelv').value = f.Nyelv || 'Magyar';
+  document.getElementById('fBankszamla').value = f.Bankszamla || 'Wise EUR';
+  document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || getCurrentUserAirtableName() || '';
+  document.getElementById('fTargy').value = f.Targy || '';
+  document.getElementById('fAjanlatMegjegyzes').value = '';
+  document.getElementById('fAjanlatPdfMegjegyzes').value = f.Megjegyzes_ajanlatra || '';
+  document.getElementById('fAjanlatJutalek').value = f.Jutalek_osszeg || '';
+
+  // Vevői kapcsolattartó
+  if (f.Ugyfel && f.Ugyfel[0]) {
+    loadVevoiKontaktok(f.Ugyfel[0], f.Vevoi_kapcsolattarto || null);
+  } else {
+    loadVevoiKontaktok('');
+  }
+
+  // Tételek másolása
+  document.getElementById('tetelekBody').innerHTML = '';
+  tetelCounter = 0;
+  try {
+    const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', forrasId));
+    tetelek.forEach(t => addTetel(t.fields, null)); // null = nem létező tétel, új lesz
+  } catch(e) { console.error('Tételek másolási hiba:', e); }
+  if (document.getElementById('tetelekBody').children.length === 0) addTetel();
+  recalcAll();
+  showPage('ajanlat-form');
+  toast(`Másolat készítve: ${ujSzam} (mentés előtt módosítható)`, 'success');
 }
 
 // ===== TÉTELEK =====
@@ -5037,7 +5166,7 @@ async function saveAjanlat() {
       const m = (a.fields.Ajanlat_szam || '').match(/AJ-\d{4}-(\d+)/);
       return m ? Math.max(max, parseInt(m[1], 10)) : max;
     }, 0);
-    ajanlat_szam = `AJ-${ev}-${String(maxNum + 1).padStart(4, '0')}`;
+    ajanlat_szam = `AJ-${ev}-${String(maxNum + 1).padStart(3, '0')}`;
   } else {
     ajanlat_szam = ajanlatok.find(a => a.id === editingAjanlatId)?.fields?.Ajanlat_szam;
   }
@@ -5047,7 +5176,7 @@ async function saveAjanlat() {
     Ugyfel: [uid],
     Kiallitas_datum: document.getElementById('fKiallitas').value,
     Ervenyesseg_datum: document.getElementById('fErvenyesseg').value,
-    Szallitasi_hatarido: document.getElementById('fSzallitasiHatarido').value || null,
+    Szallitasi_hatarido: (() => { const v = document.getElementById('fSzallitasiHatarido').value; return v ? v + ' hét' : null; })(),
     Netto_osszeg: Math.round(netto * 100) / 100,
     Afa: afa,
     Afa_osszeg: afaOssz,
@@ -5077,15 +5206,16 @@ async function saveAjanlat() {
       const result = await atPost('Ajanlatok', ajanlatFields);
       ajanlatId = result.id;
     }
-    // tételek mentése
-    for (const t of tetelekData) {
+    // tételek mentése (sorrend megőrzése Sorszam mezővel)
+    for (let i = 0; i < tetelekData.length; i++) {
+      const t = tetelekData[i];
       await atPost('AjanlatTetelek', {
         Megnevezes: t.Megnevezes,
         Leiras: t.Leiras,
         Mennyiseg: t.Mennyiseg,
         Egyseg: t.Egyseg,
         Egyseg_ar: t.Egyseg_ar,
-        
+        Sorszam: i + 1,
         Ajanlat: [ajanlatId]
       });
     }
@@ -5118,7 +5248,7 @@ function deleteCurrentAjanlat() {
     try {
       // tételek törlése
       try {
-        const tetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId);
+        const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId));
         for (const t of tetelek) await atDelete('AjanlatTetelek', t.id);
       } catch(e2) { console.warn('Tételek törlése sikertelen:', e2); }
       await atDelete('Ajanlatok', ajanlatId);
@@ -5131,7 +5261,26 @@ function deleteCurrentAjanlat() {
   });
 }
 
-// ===== PAGINATION =====
+// ===== AJÁNLAT TÖRLÉSE A LISTÁBÓL (id alapján) =====
+function deleteAjanlatById(ajanlatId, ajanlatSzam) {
+  showConfirm('Ajánlat törlése', `Biztosan törlöd: "${ajanlatSzam}"?`, async () => {
+    try {
+      // Tételek törlése
+      try {
+        const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId));
+        for (const t of tetelek) await atDelete('AjanlatTetelek', t.id);
+      } catch(e2) { console.warn('Tételek törlése sikertelen:', e2); }
+      await atDelete('Ajanlatok', ajanlatId);
+      if (currentAjanlat && currentAjanlat.id === ajanlatId) currentAjanlat = null;
+      cacheInvalidate('ajanlatok');
+      toast('Ajánlat törölve!', 'success');
+      await loadAjanlatok();
+      filterAjanlatok();
+    } catch (e) { toast('Hiba a törléskor: ' + e.message, 'error'); console.error(e); }
+  });
+}
+
+
 function renderPagination(prefix, total, current) {
   const pages = Math.ceil(total / PAGE_SIZE);
   const pag = document.getElementById(`${prefix}Pagination`);
@@ -5262,7 +5411,7 @@ const CEGADATOK = {
 const TRANSLATIONS = {
   Magyar: {
     ajanlat:'ÁRAJÁNLAT',elado:'Eladó',vevo:'Vevő',ajanlatszam:'Ajánlat száma',
-    kiallitas:'Kiállítás dátuma',ervenyesseg:'Érvényesség',szallitasi_hatarido:'Szállítási határidő',
+    kiallitas:'Kiállítás dátuma',ervenyesseg:'Érvényesség',szallitasi_hatarido:'Szállítási idő (rendeléstől)',
     fizetes_mod:'Fizetési mód',targy:'Tárgy',tetelek:'Tételek',megnevezes:'Megnevezés',
     leiras:'Leírás',mennyiseg:'Mennyiség',egyseg:'Egység',egyseg_ar:'Egységár',tetel_osszeg:'Összeg',
     netto:'Nettó összesen',afa:'ÁFA',brutto:'Bruttó összesen',bankszamla:'Bankszámla',
@@ -5270,7 +5419,7 @@ const TRANSLATIONS = {
   },
   English: {
     ajanlat:'QUOTATION',elado:'Seller',vevo:'Buyer',ajanlatszam:'Quotation No.',
-    kiallitas:'Issue Date',ervenyesseg:'Valid Until',szallitasi_hatarido:'Delivery Deadline',
+    kiallitas:'Issue Date',ervenyesseg:'Valid Until',szallitasi_hatarido:'Delivery Time (from order)',
     fizetes_mod:'Payment Method',targy:'Subject',tetelek:'Items',megnevezes:'Description',
     leiras:'Details',mennyiseg:'Qty',egyseg:'Unit',egyseg_ar:'Unit Price',tetel_osszeg:'Amount',
     netto:'Net Total',afa:'VAT',brutto:'Gross Total',bankszamla:'Bank Account',
@@ -5458,7 +5607,7 @@ async function generatePDF() {
 
   let tetelek = [];
   try {
-    tetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', currentAjanlat.id);
+    tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', currentAjanlat.id));
   } catch(e) { console.error('PDF tételek hiba:', e); }
 
   // Vevői kapcsolattartó névfeloldás
@@ -5558,7 +5707,7 @@ async function generatePDF() {
   '<div class="meta">' +
     '<div class="meta-item"><div class="lbl">' + T.kiallitas + '</div><div class="val">' + formatDate(f.Kiallitas_datum, lang) + '</div></div>' +
     '<div class="meta-item"><div class="lbl">' + T.ervenyesseg + '</div><div class="val">' + formatDate(f.Ervenyesseg_datum, lang) + '</div></div>' +
-    '<div class="meta-item"><div class="lbl">' + T.szallitasi_hatarido + '</div><div class="val">' + formatDate(f.Szallitasi_hatarido, lang) + '</div></div>' +
+    '<div class="meta-item"><div class="lbl">' + T.szallitasi_hatarido + '</div><div class="val">' + (f.Szallitasi_hatarido || '—') + '</div></div>' +
     '<div class="meta-item"><div class="lbl">' + T.fizetes_mod + '</div><div class="val">' + translateFizetes(f.Fizetes_mod, lang) + '</div></div>' +
     '<div class="meta-item"><div class="lbl">' + T.targy + '</div><div class="val">' + (f.Targy||'—') + '</div></div>' +
     '<div class="meta-item"><div class="lbl">' + T.kapcsolattarto + '</div><div class="val">' + translateNev(f.Kapcsolattarto, lang) + '</div></div>' +
@@ -6048,7 +6197,7 @@ function openVrvModal(id = null, preselectedProjektId = null, slot = 1) {
       if (p?.fields?.Szallitasi_hatarido) document.getElementById('fVrvHatarido').value = p.fields.Szallitasi_hatarido;
       loadVrvTetelek([]);
       if (p?.fields?.Ajanlat?.length) {
-        atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(tetelek => {
+        atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek);
           if (tetelek.length) {
             const usedNames = new Set();
             for (let i = 1; i < slot; i++) {
@@ -6184,7 +6333,7 @@ async function onVrvProjektChange() {
       const ajanlat = ajanlatok.find(a => a.id === p.fields.Ajanlat[0]);
       const deviza = ajanlat?.fields?.Deviza || 'EUR';
       document.querySelectorAll('.vrv-deviza').forEach(el => el.textContent = deviza);
-      const tetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]);
+      const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]));
       if (tetelek.length) {
         const usedNames = new Set();
         for (let i = 1; i < vrvSlot; i++) {
@@ -7398,7 +7547,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v161 · Belső rendszer
+          Zalner ERP v172 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -9865,7 +10014,7 @@ function openSzlModal(id = null, preselectedProjektId = null, slot = 1) {
       loadSzlTetelek([]);
       // Betöltjük az ajánlat tételeit ha van
       if (p?.fields?.Ajanlat?.length) {
-        atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(tetelek => {
+        atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek);
           if (tetelek.length) {
             // Kizárjuk az előző szállítólevelek tételeit
             const usedNames = new Set();
@@ -9933,7 +10082,7 @@ async function onSzlProjektChange() {
   if (p.fields.Ajanlat && p.fields.Ajanlat.length) {
     try {
       const ajanlatId = p.fields.Ajanlat[0];
-      const tetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId);
+      const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId));
       if (tetelek.length) {
         const usedNames = new Set();
         for (let i = 1; i < szlSlot; i++) {
@@ -10716,6 +10865,11 @@ async function loadKszVevoiKontaktok(ugyfelId, selectedId = null) {
       sel.innerHTML = '<option value="">— Nincs kontakt rögzítve —</option>';
       return;
     }
+    kontaktok.sort((a, b) => {
+      const nA = ((a.fields.Vezeteknev || '') + ' ' + (a.fields.Keresztnev || '')).trim().toLowerCase();
+      const nB = ((b.fields.Vezeteknev || '') + ' ' + (b.fields.Keresztnev || '')).trim().toLowerCase();
+      return nA.localeCompare(nB, 'hu');
+    });
     sel.innerHTML = '<option value="">— Válassz kontaktat —</option>' + kontaktok.map(k => {
       const kf = k.fields;
       const nev = ((kf.Vezeteknev || '') + ' ' + (kf.Keresztnev || '')).trim();
@@ -10767,7 +10921,7 @@ function onKszProjektChange() {
     if (ajanlatRec?.fields?.Vevoi_kapcsolattarto && p.fields.Ugyfel?.length) {
       loadKszVevoiKontaktok(p.fields.Ugyfel[0], ajanlatRec.fields.Vevoi_kapcsolattarto);
     }
-    atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(tetelek => {
+    atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek);
       if (tetelek.length) {
         const ajanlatRec = ajanlatok.find(a => a.id === p.fields.Ajanlat[0]);
         const afa = ajanlatRec?.fields?.Afa || '27%';

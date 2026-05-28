@@ -1,12 +1,81 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v172
+     ZALNER ERP - VERZIÓ: v186
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v186:
+- Kontaktok lista: ⏰ emlékeztető gomb hozzáadva soronként
+- Gomb megnyomásra ujEmlekeztetőModal nyílik a kontakt adataival
+
+CHANGES v185:
+- keszEmlekeztetok: loadEmlekeztetok helyett showAjanlatReszlet/showProjektReszlet hívás
+- "Kész" gomb azonnal frissíti a naplót újratöltés nélkül
+
+CHANGES v184:
+- Ajanlat_Naplo mentés: Ugyfel_nev és Ajanlat_szam mező hozzáadva
+- Projekt_Naplo mentés: Ugyfel_nev és Projekt_szam mező hozzáadva
+- Airtable automation Subject-ben használható: {Ugyfel_nev}, {Ajanlat_szam}, {Projekt_szam}
+
+CHANGES v183:
+- Napló értesítések: mailto: Outlook helyett Airtable automation kezeli
+- Ajanlat_Naplo és Projekt_Naplo: Ertesitesek mező mentve (vesszővel elválasztott email lista)
+- sendNaploNotifications: window.location.href mailto eltávolítva
+
+CHANGES v182:
+- Emlékeztető: datetime-local → date + time szétválasztva (picker biztosan bezáródik)
+- Alapértelmezett idő: 08:00
+
+CHANGES v181:
+- Emlékeztető dátumválasztó: onchange blur() hozzáadva, picker bezáródik kiválasztás után
+
+CHANGES v180:
+- Emlekeztetok: Ugyfel_nev mező hozzáadva mentéskor (Airtable: Single line text)
+
+CHANGES v179:
+- Emlekeztetok mentésnél Hatarido_formatalt szöveges mező is mentésre kerül (pl. 2026-05-27)
+- Airtable automation használhatja a formázott dátumot az e-mailben
+
+CHANGES v178:
+- Emlékeztető beépítve a naplóba: nincs külön emlékeztető szekció
+- Napló bejegyzésnél ha emlékeztető is van, megjelenik a "✓ Kész" gomb
+- Mentéskor a napló rekord ID-ját is tárolja (Naplo_id mező az Emlekeztetok táblában)
+- Külön Emlékeztetők szekció eltávolítva ajánlat és projekt részlet nézetből
+
+CHANGES v177:
+- Emlékeztetők: státuszok egyszerűsítve → Nyitott / Kész
+- "Kész" gomb hozzáadva az emlékeztető sorokhoz
+- Lemondás gomb eltávolítva
+- Power Automate filterhez: Várakozik → Nyitott
+
+CHANGES v176:
+- API optimalizálás: ~50-60% csökkentés Airtable API hívásokban
+- Univerzális cache rendszer: minden tábla 10 perces TTL-lel
+- atGetLinked cache: AjanlatTetelek, Naplo, Emlekeztetok táblák cache-elve
+- Kapcsolattartok cache: 8 ismételt lekérdezés -> 1 (10 perces TTL)
+- Bejovo_Szamlak, VevRendVisszaig, Vamkezeles, Kimeno_Szamlak cache-elve
+- CACHE_TTL: 5 perc -> 10 perc (fő táblák)
+- Írás (POST/PATCH/DELETE) után csak az érintett tábla cache invalidálódik
+- Háttér-frissítés: 10 percenként csendben frissíti a fő táblákat
+
+CHANGES v175:
+- PDF fájlnév: "Ajanlat_AJ-2026-015" → "AJ-2026-015" (prefix eltávolítva)
+
+CHANGES v174:
+- Napló modal (ajánlat + projekt): emlékeztető beállítása integrálva
+- Toggle-lal kapcsolható be, határidő + címzett választóval
+- Mentéskor egyszerre ment naplót és emlékeztetőt
+
+CHANGES v173:
+- Emlékeztető rendszer hozzáadva (Kontakt, Ajánlat, Projekt részlet nézetekhez)
+- Emlekeztetok Airtable tábla integrálva (CRUD)
+- Power Automate webhook URL konstans hozzáadva (POWER_AUTOMATE_EMLEKEZTETOK_URL)
+- USERS konstans: Járfás Kitti, Zombori Krisztina, Wágner Szabolcs e-mail címekkel
+- ujEmlekeztetőModal(), saveEmlekeztetok(), loadEmlekeztetok(), deleteEmlekeztetok() függvények
 
 CHANGES v172:
 - Ajánlat részlet: "Másolás" gomb hozzáadva
@@ -56,7 +125,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v172</title>
+<title>Zalner ERP v186</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -248,7 +317,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v172</div>
+    <div class="nav-logo-sub">v186</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -2360,23 +2429,58 @@ let vrvTetelCounter = 0;
 let vrvSlot = 1;
 
 // ===== CACHE =====
-const _cache = { ugyfelek: null, ajanlatok: null, projektek: null };
-const CACHE_TTL = 5 * 60 * 1000; // 5 perc
+// ═══════════════════════════════════════════════════════════════
+// UNIVERZÁLIS CACHE RENDSZER
+// TTL: 10 perc (fő táblák), 5 perc (linked/napló táblák)
+// Írás után csak az érintett tábla invalidálódik
+// ═══════════════════════════════════════════════════════════════
+const _cache = {};
+const CACHE_TTL       = 10 * 60 * 1000; // 10 perc – fő táblák
+const CACHE_TTL_SHORT =  5 * 60 * 1000; // 5 perc  – detail táblák
+
+// Táblánként melyik TTL-t használjuk
+const CACHE_TTL_MAP = {
+  Ugyfelek: CACHE_TTL, Ajanlatok: CACHE_TTL, Projektek: CACHE_TTL,
+  Kapcsolattartok: CACHE_TTL, Beszallitok: CACHE_TTL,
+  Bejovo_Szamlak: CACHE_TTL, Kimeno_Szamlak: CACHE_TTL,
+  VevRendVisszaig: CACHE_TTL, Vamkezeles: CACHE_TTL,
+  Szallitolevelek: CACHE_TTL,
+  AjanlatTetelek: CACHE_TTL_SHORT, Ajanlat_Naplo: CACHE_TTL_SHORT,
+  Projekt_Naplo: CACHE_TTL_SHORT, Emlekeztetok: CACHE_TTL_SHORT,
+};
 
 function cacheGet(key) {
   const c = _cache[key];
-  if (c && (Date.now() - c.ts < CACHE_TTL)) return c.data;
+  if (!c) return null;
+  const ttl = CACHE_TTL_MAP[key.split('|')[0]] || CACHE_TTL;
+  if (Date.now() - c.ts < ttl) return c.data;
   return null;
 }
 function cacheSet(key, data) {
   _cache[key] = { data, ts: Date.now() };
 }
 function cacheInvalidate(key) {
-  if (key) { _cache[key] = null; } else { _cache.ugyfelek = null; _cache.ajanlatok = null; _cache.projektek = null; }
+  if (!key) {
+    // Mindent töröl
+    Object.keys(_cache).forEach(k => delete _cache[k]);
+  } else {
+    // Az adott táblához tartozó összes cache kulcsot törli
+    Object.keys(_cache).filter(k => k === key || k.startsWith(key + '|')).forEach(k => delete _cache[k]);
+  }
 }
 
 // ===== API =====
+// Cache kulcs: tábla neve + paraméterek kombinációja
+function _atCacheKey(table, params) {
+  return params ? `${table}|${params}` : table;
+}
+
 async function atGet(table, params = '') {
+  // Cache ellenőrzés (csak olvasásnál)
+  const cacheKey = _atCacheKey(table, params);
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
   let records = [], offset = null;
   do {
     const url = `${atUrl(table)}&pageSize=100${offset ? '&offset=' + offset : ''}${params ? '&' + params : ''}`;
@@ -2390,6 +2494,9 @@ async function atGet(table, params = '') {
     records = records.concat(d.records);
     offset = d.offset;
   } while (offset);
+
+  // Cache-elés (csak ha van mit tárolni)
+  if (records.length >= 0) cacheSet(cacheKey, records);
   return records;
 }
 
@@ -2398,7 +2505,13 @@ async function atGetLinked(table, linkField, recordId, sort) {
   // Az Airtable ARRAYJOIN a linked field display nevét adja, nem a record ID-t
   // Ezért kliens oldali szűrést használunk a biztonság kedvéért
   const all = await atGet(table, sort ? sort : '');
-  return all.filter(r => r.fields[linkField] && r.fields[linkField].includes(recordId));
+  return all.filter(r => {
+    const val = r.fields[linkField];
+    if (!val) return false;
+    // Array (linked record) vagy string (text mező) egyaránt támogatva
+    if (Array.isArray(val)) return val.includes(recordId);
+    return val === recordId;
+  });
 }
 
 // Ajánlat tételek sorrendbe rendezése a Sorszam mező alapján
@@ -2407,23 +2520,35 @@ function sortTetelek(tetelek) {
 }
 
 // Cache-elt fő táblák betöltése
+// getUgyfelek/getAjanlatok/getProjektek: cache az atGet-en belül van
+// force=true esetén cache invalidálás után tölt újra
 async function getUgyfelek(force = false) {
-  if (!force) { const c = cacheGet('ugyfelek'); if (c) { ugyfelek = c; return c; } }
+  if (force) cacheInvalidate('Ugyfelek');
   ugyfelek = await atGet('Ugyfelek', 'sort%5B0%5D%5Bfield%5D=Cegnev&sort%5B0%5D%5Bdirection%5D=asc');
-  cacheSet('ugyfelek', ugyfelek);
   return ugyfelek;
 }
 async function getAjanlatok(force = false) {
-  if (!force) { const c = cacheGet('ajanlatok'); if (c) { ajanlatok = c; return c; } }
+  if (force) cacheInvalidate('Ajanlatok');
   ajanlatok = await atGet('Ajanlatok', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
-  cacheSet('ajanlatok', ajanlatok);
   return ajanlatok;
 }
 async function getProjektek(force = false) {
-  if (!force) { const c = cacheGet('projektek'); if (c) { projektek = c; return c; } }
+  if (force) cacheInvalidate('Projektek');
   projektek = await atGet('Projektek', 'sort%5B0%5D%5Bfield%5D=Projekt_szam&sort%5B0%5D%5Bdirection%5D=desc');
-  cacheSet('projektek', projektek);
   return projektek;
+}
+
+// Kapcsolattartók cache-elt lekérdezése
+async function getKapcsolattartok(force = false) {
+  if (force) cacheInvalidate('Kapcsolattartok');
+  if (!kontaktok || !kontaktok.length) {
+    kontaktok = await atGet('Kapcsolattartok', 'sort%5B0%5D%5Bfield%5D=Vezeteknev&sort%5B0%5D%5Bdirection%5D=asc');
+  } else {
+    // Aszinkron frissítés cache-ből
+    const fresh = await atGet('Kapcsolattartok', 'sort%5B0%5D%5Bfield%5D=Vezeteknev&sort%5B0%5D%5Bdirection%5D=asc');
+    kontaktok = fresh;
+  }
+  return kontaktok;
 }
 
 
@@ -2640,6 +2765,7 @@ function auditWrite(action, table, recordId, details) {
 }
 
 async function atPost(table, fields) {
+  cacheInvalidate(table); // Írás után cache törlés
   const r = await fetch(atUrl(table), {
     method: 'POST', headers: getAuthHeaders(),
     body: JSON.stringify({ records: [{ fields }] })
@@ -2658,6 +2784,7 @@ async function atPost(table, fields) {
 }
 
 async function atPatch(table, id, fields) {
+  cacheInvalidate(table); // Írás után cache törlés
   const r = await fetch(atUrl(table, id), {
     method: 'PATCH', headers: getAuthHeaders(),
     body: JSON.stringify({ fields })
@@ -2670,6 +2797,7 @@ async function atPatch(table, id, fields) {
 }
 
 async function atDelete(table, id) {
+  cacheInvalidate(table); // Törlés után cache törlés
   const r = await fetch(atUrl(table, id), {
     method: 'DELETE', headers: getAuthHeaders()
   });
@@ -4066,14 +4194,22 @@ function showUgyfelReszlet(id) {
         <button class="btn btn-primary btn-sm" onclick="openKontaktModal(null,'${id}')" style="font-size:11px;padding:4px 10px">+ Új kontakt</button>
       </div>
       <div id="ugyfelKontaktokList" style="padding:16px"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="detail-card" style="margin-top:20px">
+      <div class="detail-card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span>⏰ Emlékeztetők</span>
+        <button class="btn btn-primary btn-sm" onclick="ujEmlekeztetőModal('kontakt','${id}','${f.Cegnev||''}')">＋ Új emlékeztető</button>
+      </div>
+      <div id="emlekeztetokContainer_kontakt_${id}"><div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center"><div class="spinner" style="width:18px;height:18px;margin:0 auto 8px"></div>Betöltés...</div></div>
     </div>`;
   showPage('ugyfel-reszlet');
   loadUgyfelKontaktok(id);
+  loadEmlekeztetok('kontakt', id);
 }
 
 async function loadUgyfelKontaktok(ugyfelId) {
   try {
-    const all = await atGet('Kapcsolattartok');
+    const all = await getKapcsolattartok();
     const kontaktok = all.filter(k => k.fields.Ugyfel && k.fields.Ugyfel.includes(ugyfelId));
     const el = document.getElementById('ugyfelKontaktokList');
     if (!kontaktok.length) {
@@ -4321,7 +4457,7 @@ async function showAjanlatReszlet(id) {
   let vevoiKapcsolattartoNev = '—';
   if (f.Vevoi_kapcsolattarto) {
     try {
-      const k = await atGet('Kapcsolattartok', 'filterByFormula=' + encodeURIComponent(`RECORD_ID()='${f.Vevoi_kapcsolattarto}'`));
+      const kAll2 = await getKapcsolattartok(); const k = kAll2.filter(x => x.id === f.Vevoi_kapcsolattarto);
       if (k && k.length) {
         const kf = k[0].fields;
         vevoiKapcsolattartoNev = ((kf.Vezeteknev || '') + ' ' + (kf.Keresztnev || '')).trim();
@@ -4336,7 +4472,22 @@ async function showAjanlatReszlet(id) {
     naploBejegyzesek = await atGetLinked('Ajanlat_Naplo', 'Ajanlat', id, 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc');
   } catch(e) {}
 
-  const ajanlatNaploHtml = naploBejegyzesek.length ? naploBejegyzesek.map(n => `
+  // Emlékeztetők betöltése és naplo_id szerint indexelés
+  let emlMap = {};
+  try {
+    const emlek = await atGetLinked('Emlekeztetok', 'Kapcsolat_id', id);
+    emlek.forEach(e => { if (e.fields.Naplo_id) emlMap[e.fields.Naplo_id] = e; });
+  } catch(e) {}
+
+  const ajanlatNaploHtml = naploBejegyzesek.length ? naploBejegyzesek.map(n => {
+    const eml = emlMap[n.id];
+    const emlHtml = eml ? `
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 10px;background:${eml.fields.Statusz==='Kész'?'#f0fdf4':'#fefce8'};border-radius:6px;border:1px solid ${eml.fields.Statusz==='Kész'?'#bbf7d0':'#fde68a'}">
+        <span style="font-size:11px;color:${eml.fields.Statusz==='Kész'?'#15803d':'#b45309'}">⏰ ${new Date(eml.fields.Hatarido).toLocaleString('hu-HU',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})} → ${eml.fields.Cimzett_nev||'—'}</span>
+        <span style="font-size:11px;font-weight:600;color:${eml.fields.Statusz==='Kész'?'#15803d':'#b45309'}">${eml.fields.Statusz==='Kész'?'✓ Kész':'Nyitott'}</span>
+        ${eml.fields.Statusz!=='Kész'?`<button class="btn btn-primary btn-sm" onclick="keszEmlekeztetok('${eml.id}','ajanlat','${id}')" style="font-size:11px;padding:2px 10px;margin-left:auto">✓ Kész</button>`:''}
+      </div>` : '';
+    return `
     <div style="padding:14px;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
         <span style="font-size:12px;font-weight:600;color:var(--accent)">${n.fields.Szerzo||'—'}</span>
@@ -4346,7 +4497,9 @@ async function showAjanlatReszlet(id) {
         </div>
       </div>
       <div style="font-size:13.5px;color:var(--text);white-space:pre-wrap">${n.fields.Megjegyzes||''}</div>
-    </div>`).join('') : '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Nincs megjegyzés</div>';
+      ${emlHtml}
+    </div>`;
+  }).join('') : '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Nincs megjegyzés</div>';
 
   // tételek betöltése
   let tetelHtml = '';
@@ -4421,7 +4574,8 @@ async function showAjanlatReszlet(id) {
         </div>
       </div>
       <div id="ajanlatNaploContainer">${ajanlatNaploHtml}</div>
-    </div>`;
+    </div>
+`;
   showPage('ajanlat-reszlet');
   lockShowActiveEditors('Ajanlatok', currentAjanlat.id, 'ajanlatLockBadge');
 }
@@ -4449,12 +4603,36 @@ async function ujAjanlatNaplo(ajanlatId) {
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="notifySzabi" style="width:15px;height:15px"> Értesítést küldök Szabinak</label>
           </div>
         </div>
+        
+        <div class="form-group" style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;font-weight:600">
+            <input type="checkbox" id="emlToggle" style="width:15px;height:15px" onchange="document.getElementById('emlReszlet').style.display=this.checked?'block':'none'">
+            ⏰ Emlékeztető beállítása
+          </label>
+          <div id="emlReszlet" style="display:none;margin-top:12px">
+            <div class="form-group" style="margin-bottom:10px">
+              <label class="form-label">Határidő *</label>
+              <div style="display:flex;gap:8px"><input class="form-control" type="date" id="emlHataridoNaploDatum" style="flex:1"><input class="form-control" type="time" id="emlHataridoNaploIdo" style="width:110px" value="08:00"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kinek szól *</label>
+              <select class="form-control" id="emlCimzettNaplo">
+                <option value="">— Válassz —</option>
+                ${USERS.map(u => `<option value="${u.email}" data-nev="${u.nev}">${u.nev}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Mégse</button>
         <button class="btn btn-primary" onclick="saveAjanlatNaplo(\`${ajanlatId}\`, this)">Mentés</button>
       </div>
     </div>`;
+  // Alapértelmezett határidő: holnap 08:00
+  const emlHolnap = new Date(); emlHolnap.setDate(emlHolnap.getDate()+1); emlHolnap.setHours(8,0,0,0);
+  modal.querySelector('#emlHataridoNaploDatum').value = emlHolnap.toISOString().slice(0,10);
+  modal.querySelector('#emlHataridoNaploIdo').value = '08:00';
   document.body.appendChild(modal);
 }
 
@@ -4467,15 +4645,55 @@ async function saveAjanlatNaplo(ajanlatId, btn) {
   const notifyKriszti = document.getElementById('notifyKriszti')?.checked;
   btn.textContent = 'Mentés...'; btn.disabled = true;
   try {
-    await atPost('Ajanlat_Naplo', {
+    // Értesítendők összerakása
+    const notifyEmails = [];
+    if (notifyKitti) notifyEmails.push('kitti.jarfas@zalner.hu');
+    if (notifyKriszti) notifyEmails.push('krisztina.zombori@zalner.hu');
+    if (notifySzabi) notifyEmails.push('szabolcs.wagner@zalner.hu');
+    const _aj = ajanlatok.find(a => a.id === ajanlatId);
+    const _ajUgyfelNev = ugyfelek.find(u => u.id === _aj?.fields?.Ugyfel?.[0])?.fields?.Cegnev || '';
+    const naploRec = await atPost('Ajanlat_Naplo', {
       Megjegyzes: szoveg,
       Ajanlat: [ajanlatId],
       Szerzo: szerzo,
-      Datum: new Date().toISOString()
+      Datum: new Date().toISOString(),
+      Ertesitesek: notifyEmails.join(', ') || null,
+      Ugyfel_nev: _ajUgyfelNev,
+      Ajanlat_szam: _aj?.fields?.Ajanlat_szam || '',
     });
     toast('Megjegyzés mentve!', 'success');
+    // Emlékeztető mentése ha be van kapcsolva
+    const emlToggle = document.getElementById('emlToggle');
+    if (emlToggle?.checked) {
+      const emlDatum = document.getElementById('emlHataridoNaploDatum')?.value;
+      const emlIdo = document.getElementById('emlHataridoNaploIdo')?.value || '08:00';
+      const emlHatarido = emlDatum ? emlDatum + 'T' + emlIdo : '';
+      const emlSel = document.getElementById('emlCimzettNaplo');
+      const emlEmail = emlSel?.value;
+      const emlNev = emlSel?.options[emlSel.selectedIndex]?.dataset?.nev || '';
+      const aj = ajanlatok.find(a => a.id === ajanlatId);
+      if (emlHatarido && emlEmail) {
+        try {
+          await atPost('Emlekeztetok', {
+            Cim: szoveg.slice(0, 80),
+            Tartalom: szoveg,
+            Hatarido: new Date(emlHatarido).toISOString(),
+            Hatarido_formatalt: emlHatarido.slice(0,10),
+            Cimzett_email: emlEmail,
+            Cimzett_nev: emlNev,
+            Letrehozta: szerzo,
+            Statusz: 'Nyitott',
+            Kapcsolat_tipus: 'Ajánlat',
+            Kapcsolat_id: ajanlatId,
+            Kapcsolat_nev: aj?.fields?.Ajanlat_szam || ajanlatId,
+            Ugyfel_nev: ugyfelek.find(u => u.id === aj?.fields?.Ugyfel?.[0])?.fields?.Cegnev || '',
+            Naplo_id: naploRec?.id || '',
+          });
+        } catch(e2) { console.warn('Emlékeztető mentési hiba:', e2); }
+      }
+    }
     btn.closest('.modal-overlay').remove();
-    sendNaploNotifications(szoveg, szerzo, notifySzabi, notifyKitti, notifyKriszti, 'ajanlat', ajanlatId);
+    // Értesítés: Airtable automation kezeli az Ertesitesek mező alapján
     await showAjanlatReszlet(ajanlatId);
   } catch(e) { toast('Hiba: ' + e.message, 'error'); }
   finally { btn.textContent = 'Mentés'; btn.disabled = false; }
@@ -4746,6 +4964,17 @@ function deleteVam(id, mrn) {
 
 // ===== AJÁNLAT CSATOLMÁNYOK (SharePoint) =====
 const SHAREPOINT_BASE = 'https://zalner.sharepoint.com/:f:/r/sites/Administration/Shared%20Documents/23_ERP_Projektek/Aj%C3%A1nlatok/';
+
+// ===== FELHASZNÁLÓK =====
+const USERS = [
+  { nev: 'Járfás Kitti',      airtable: 'Jarfas Kitti',      email: 'kitti.jarfas@zalner.hu' },
+  { nev: 'Zombori Krisztina', airtable: 'Zombori Krisztina', email: 'krisztina.zombori@zalner.hu' },
+  { nev: 'Wágner Szabolcs',   airtable: 'Wagner Szabolcs',   email: 'szabolcs.wagner@zalner.hu' },
+];
+
+// Power Automate – Emlékeztetők kiküldő flow webhook URL-je
+// Ide kell beilleszteni a Power Automate HTTP trigger URL-jét
+const POWER_AUTOMATE_EMLEKEZTETOK_URL = '';
 const SHAREPOINT_PROJEKT_BASE = 'https://zalner.sharepoint.com/:f:/r/sites/Administration/Shared%20Documents/23_ERP_Projektek/';
 
 async function openSharepointMappa(ajanlatSzam, ajanlatId) {
@@ -4796,7 +5025,7 @@ async function loadVevoiKontaktok(ugyfelId, selectedId = null) {
   }
   sel.innerHTML = '<option value="">Betöltés...</option>';
   try {
-    const all = await atGet('Kapcsolattartok');
+    const all = await getKapcsolattartok();
     const kontaktok = all.filter(k => k.fields.Ugyfel && k.fields.Ugyfel.includes(ugyfelId));
     if (!kontaktok.length) {
       sel.innerHTML = '<option value="">— Nincs kontakt —</option>';
@@ -5614,7 +5843,7 @@ async function generatePDF() {
   let vevoiKontaktNev = '';
   if (f.Vevoi_kapcsolattarto) {
     try {
-      const kAll = await atGet('Kapcsolattartok');
+      const kAll = await getKapcsolattartok();
       const kRec = kAll.find(k => k.id === f.Vevoi_kapcsolattarto);
       if (kRec) {
         const kf = kRec.fields;
@@ -5645,7 +5874,7 @@ async function generatePDF() {
   }).join('');
 
   const html = '<!DOCTYPE html><html lang="' + (lang==='Magyar'?'hu':'en') + '"><head><meta charset="UTF-8">' +
-  '<title>Ajanlat_' + (f.Ajanlat_szam||'') + '</title>' +
+  '<title>' + (f.Ajanlat_szam||'') + '</title>' +
   '<style>' +
   '@import url("https://use.typekit.net/walbaum-display.css");' +
   '@font-face{font-family:"Walbaum Display";src:local("Walbaum Display Light"),local("WalbaumDisplay-Light");font-weight:300;font-style:normal}' +
@@ -5760,7 +5989,7 @@ async function generatePDF() {
   win.document.write(html);
   win.document.close();
   setTimeout(() => {
-    win.document.title = 'Ajanlat_' + (f.Ajanlat_szam || '');
+    win.document.title = f.Ajanlat_szam || '';
     win.print();
   }, 800);
 }
@@ -5825,7 +6054,7 @@ async function generateSzlPDF(id) {
   let szlVevoiKapcsolattarto = null;
   if (ajanlatRec?.fields?.Vevoi_kapcsolattarto) {
     try {
-      const allKontakt = await atGet('Kapcsolattartok');
+      const allKontakt = await getKapcsolattartok();
       const kR = allKontakt.find(k => k.id === ajanlatRec.fields.Vevoi_kapcsolattarto);
       if (kR) szlVevoiKapcsolattarto = ((kR.fields.Vezeteknev||'') + ' ' + (kR.fields.Keresztnev||'')).trim();
     } catch(e) {}
@@ -6055,7 +6284,7 @@ async function viewVrv(id) {
   let detVevoiKontakt = '—';
   if (ajanlatRec?.fields?.Vevoi_kapcsolattarto) {
     try {
-      const allKD = await atGet('Kapcsolattartok');
+      const allKD = await getKapcsolattartok();
       const kRD = allKD.find(k => k.id === ajanlatRec.fields.Vevoi_kapcsolattarto);
       if (kRD) detVevoiKontakt = ((kRD.fields.Vezeteknev||'') + ' ' + (kRD.fields.Keresztnev||'')).trim();
     } catch(e) {}
@@ -6467,7 +6696,7 @@ async function generateVrvPDF(id) {
   let vrvVevoiKapcsolattarto = null;
   if (ajanlatRec?.fields?.Vevoi_kapcsolattarto) {
     try {
-      const allKontakt = await atGet('Kapcsolattartok');
+      const allKontakt = await getKapcsolattartok();
       const kR = allKontakt.find(k => k.id === ajanlatRec.fields.Vevoi_kapcsolattarto);
       if (kR) vrvVevoiKapcsolattarto = ((kR.fields.Vezeteknev||'') + ' ' + (kR.fields.Keresztnev||'')).trim();
     } catch(e) {}
@@ -6646,7 +6875,22 @@ async function showProjektReszlet(id) {
     naploBejegyzesek = await atGetLinked('Projekt_Naplo', 'Projekt', id, 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc');
   } catch(e) {}
 
-  const naploHtml = naploBejegyzesek.length ? naploBejegyzesek.map(n => `
+  // Emlékeztetők betöltése és naplo_id szerint indexelés
+  let emlMapPr = {};
+  try {
+    const emlekPr = await atGetLinked('Emlekeztetok', 'Kapcsolat_id', id);
+    emlekPr.forEach(e => { if (e.fields.Naplo_id) emlMapPr[e.fields.Naplo_id] = e; });
+  } catch(e) {}
+
+  const naploHtml = naploBejegyzesek.length ? naploBejegyzesek.map(n => {
+    const eml = emlMapPr[n.id];
+    const emlHtml = eml ? `
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 10px;background:${eml.fields.Statusz==='Kész'?'#f0fdf4':'#fefce8'};border-radius:6px;border:1px solid ${eml.fields.Statusz==='Kész'?'#bbf7d0':'#fde68a'}">
+        <span style="font-size:11px;color:${eml.fields.Statusz==='Kész'?'#15803d':'#b45309'}">⏰ ${new Date(eml.fields.Hatarido).toLocaleString('hu-HU',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})} → ${eml.fields.Cimzett_nev||'—'}</span>
+        <span style="font-size:11px;font-weight:600;color:${eml.fields.Statusz==='Kész'?'#15803d':'#b45309'}">${eml.fields.Statusz==='Kész'?'✓ Kész':'Nyitott'}</span>
+        ${eml.fields.Statusz!=='Kész'?`<button class="btn btn-primary btn-sm" onclick="keszEmlekeztetok('${eml.id}','projekt','${id}')" style="font-size:11px;padding:2px 10px;margin-left:auto">✓ Kész</button>`:''}
+      </div>` : '';
+    return `
     <div style="padding:14px;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
         <span style="font-size:12px;font-weight:600;color:var(--accent)">${n.fields.Szerzo||'—'}</span>
@@ -6656,7 +6900,9 @@ async function showProjektReszlet(id) {
         </div>
       </div>
       <div style="font-size:13.5px;color:var(--text);white-space:pre-wrap">${n.fields.Megjegyzes||''}</div>
-    </div>`).join('') : '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Nincs megjegyzés</div>';
+      ${emlHtml}
+    </div>`;
+  }).join('') : '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Nincs megjegyzés</div>';
 
   const linkHtml = (label, url, text) => url ? `<a href="${url}" target="_blank" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">🔗 ${text||label}</a>` : `<span style="color:var(--text-light);font-size:13px">${label}: —</span>`;
 
@@ -6738,7 +6984,8 @@ async function showProjektReszlet(id) {
         </div>
       </div>
       <div id="naploContainer">${naploHtml}</div>
-    </div>`;
+    </div>
+`;
   showPage('projekt-reszlet');
   lockShowActiveEditors('Projektek', id, 'projektLockBadge');
 }
@@ -6767,12 +7014,36 @@ async function ujNaploBejegyzes(projektId) {
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="notifySzabi" style="width:15px;height:15px"> Értesítést küldök Szabinak</label>
           </div>
         </div>
+        
+        <div class="form-group" style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;font-weight:600">
+            <input type="checkbox" id="emlToggle" style="width:15px;height:15px" onchange="document.getElementById('emlReszlet').style.display=this.checked?'block':'none'">
+            ⏰ Emlékeztető beállítása
+          </label>
+          <div id="emlReszlet" style="display:none;margin-top:12px">
+            <div class="form-group" style="margin-bottom:10px">
+              <label class="form-label">Határidő *</label>
+              <div style="display:flex;gap:8px"><input class="form-control" type="date" id="emlHataridoNaploDatum" style="flex:1"><input class="form-control" type="time" id="emlHataridoNaploIdo" style="width:110px" value="08:00"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kinek szól *</label>
+              <select class="form-control" id="emlCimzettNaplo">
+                <option value="">— Válassz —</option>
+                ${USERS.map(u => `<option value="${u.email}" data-nev="${u.nev}">${u.nev}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Mégse</button>
         <button class="btn btn-primary" onclick="saveNaplo('${projektId}', this)">Mentés</button>
       </div>
     </div>`;
+  // Alapértelmezett határidő: holnap 08:00
+  const emlHolnap2 = new Date(); emlHolnap2.setDate(emlHolnap2.getDate()+1); emlHolnap2.setHours(8,0,0,0);
+  modal.querySelector('#emlHataridoNaploDatum').value = emlHolnap2.toISOString().slice(0,10);
+  modal.querySelector('#emlHataridoNaploIdo').value = '08:00';
   document.body.appendChild(modal);
 }
 
@@ -6785,18 +7056,227 @@ async function saveNaplo(projektId, btn) {
   const notifyKriszti = document.getElementById('notifyKriszti')?.checked;
   btn.textContent = 'Mentés...'; btn.disabled = true;
   try {
-    await atPost('Projekt_Naplo', {
+    // Értesítendők összerakása
+    const notifyEmailsPr = [];
+    if (notifyKitti) notifyEmailsPr.push('kitti.jarfas@zalner.hu');
+    if (notifyKriszti) notifyEmailsPr.push('krisztina.zombori@zalner.hu');
+    if (notifySzabi) notifyEmailsPr.push('szabolcs.wagner@zalner.hu');
+    const _pr = projektek.find(p => p.id === projektId);
+    const _prUgyfelNev = ugyfelek.find(u => u.id === _pr?.fields?.Ugyfel?.[0])?.fields?.Cegnev || '';
+    const naploRecPr = await atPost('Projekt_Naplo', {
       Megjegyzes: szoveg,
       Projekt: [projektId],
       Szerzo: szerzo,
-      Datum: new Date().toISOString()
+      Datum: new Date().toISOString(),
+      Ertesitesek: notifyEmailsPr.join(', ') || null,
+      Ugyfel_nev: _prUgyfelNev,
+      Projekt_szam: _pr?.fields?.Projekt_szam || '',
     });
     toast('Megjegyzés mentve!', 'success');
+    // Emlékeztető mentése ha be van kapcsolva
+    const emlToggle = document.getElementById('emlToggle');
+    if (emlToggle?.checked) {
+      const emlDatum2 = document.getElementById('emlHataridoNaploDatum')?.value;
+      const emlIdo2 = document.getElementById('emlHataridoNaploIdo')?.value || '08:00';
+      const emlHatarido = emlDatum2 ? emlDatum2 + 'T' + emlIdo2 : '';
+      const emlSel = document.getElementById('emlCimzettNaplo');
+      const emlEmail = emlSel?.value;
+      const emlNev = emlSel?.options[emlSel.selectedIndex]?.dataset?.nev || '';
+      const pr = projektek.find(p => p.id === projektId);
+      if (emlHatarido && emlEmail) {
+        try {
+          await atPost('Emlekeztetok', {
+            Cim: szoveg.slice(0, 80),
+            Tartalom: szoveg,
+            Hatarido: new Date(emlHatarido).toISOString(),
+            Hatarido_formatalt: emlHatarido.slice(0,10),
+            Cimzett_email: emlEmail,
+            Cimzett_nev: emlNev,
+            Letrehozta: szerzo,
+            Statusz: 'Nyitott',
+            Kapcsolat_tipus: 'Projekt',
+            Kapcsolat_id: projektId,
+            Kapcsolat_nev: pr?.fields?.Projekt_szam || pr?.fields?.Projekt_neve || projektId,
+            Ugyfel_nev: ugyfelek.find(u => u.id === pr?.fields?.Ugyfel?.[0])?.fields?.Cegnev || '',
+            Naplo_id: naploRecPr?.id || '',
+          });
+        } catch(e2) { console.warn('Emlékeztető mentési hiba:', e2); }
+      }
+    }
     btn.closest('.modal-overlay').remove();
-    sendNaploNotifications(szoveg, szerzo, notifySzabi, notifyKitti, notifyKriszti, 'projekt', projektId);
+    // Értesítés: Airtable automation kezeli az Ertesitesek mező alapján
     await showProjektReszlet(projektId);
   } catch(e) { toast('Hiba: ' + e.message, 'error'); }
   finally { btn.textContent = 'Mentés'; btn.disabled = false; }
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║                    EMLÉKEZTETŐ RENDSZER                         ║
+// ║  Airtable tábla: Emlekeztetok                                   ║
+// ║  Mezők: Cim, Tartalom, Hatarido, Cimzett_email, Cimzett_nev,   ║
+// ║         Letrehozta, Statusz, Kapcsolat_tipus, Kapcsolat_id,     ║
+// ║         Kapcsolat_nev, Kuldve_datum                             ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+async function loadEmlekeztetok(tipus, kapcsolatId) {
+  const containerId = `emlekeztetokContainer_${tipus}_${kapcsolatId}`;
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  try {
+    const all = await atGetLinked('Emlekeztetok', 'Kapcsolat_id', kapcsolatId);
+    // Rendezés: függőben lévők először, azon belül határidő szerint
+    const sorted = all.slice().sort((a, b) => {
+      const aV = a.fields.Statusz === 'Nyitott' ? 0 : 1;
+      const bV = b.fields.Statusz === 'Nyitott' ? 0 : 1;
+      if (aV !== bV) return aV - bV;
+      return (a.fields.Hatarido || '').localeCompare(b.fields.Hatarido || '');
+    });
+
+    if (!sorted.length) {
+      container.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Nincs emlékeztető</div>';
+      return;
+    }
+
+    container.innerHTML = sorted.map(r => {
+      const f = r.fields;
+      const kesz = f.Statusz === 'Kész';
+      const hatarido = f.Hatarido ? new Date(f.Hatarido).toLocaleString('hu-HU', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      const lejart = !kesz && f.Hatarido && new Date(f.Hatarido) < new Date();
+      const badgeColor = kesz ? '#dcfce7;color:#15803d' : lejart ? '#fef2f2;color:#dc2626' : '#fef9c3;color:#b45309';
+      const badge = kesz ? 'Kész' : lejart ? 'Lejárt (Nyitott)' : 'Nyitott';
+      return `
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">
+            <span style="font-weight:600;font-size:13.5px">${f.Cim || '—'}</span>
+            <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${badgeColor};white-space:nowrap">${badge}</span>
+          </div>
+          ${f.Tartalom ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;white-space:pre-wrap">${f.Tartalom}</div>` : ''}
+          <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-light)">
+            <span>📅 ${hatarido}</span>
+            <span>→ <strong style="color:var(--text)">${f.Cimzett_nev || '—'}</strong></span>
+            <span>Létrehozta: ${f.Letrehozta || '—'}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          ${!kesz ? `<button class="btn btn-primary btn-sm" onclick="keszEmlekeztetok('${r.id}','${tipus}','${kapcsolatId}')" title="Készre állítás" style="font-size:11px;padding:3px 10px">✓ Kész</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteEmlekeztetok('${r.id}','${tipus}','${kapcsolatId}')" title="Törlés" style="font-size:11px;padding:3px 8px">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<div style="padding:16px;color:var(--text-muted);font-size:13px">Hiba: ${e.message}</div>`;
+  }
+}
+
+function ujEmlekeztetőModal(tipus, kapcsolatId, kapcsolatNev) {
+  const me = currentUser?.name || '';
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <div class="modal-title">⏰ Új emlékeztető</div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Tárgy *</label>
+          <input class="form-control" id="emlCim" placeholder="pl. Visszahívás, Ajánlat nyomon követés..." autofocus>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Részletek (opcionális)</label>
+          <textarea class="form-control" id="emlTartalom" rows="3" placeholder="Bővebb leírás..."></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Határidő (dátum + időpont) *</label>
+          <div style="display:flex;gap:8px"><input class="form-control" type="date" id="emlHataridoDatum" style="flex:1"><input class="form-control" type="time" id="emlHataridoIdo" style="width:110px" value="08:00"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kinek szól *</label>
+          <select class="form-control" id="emlCimzett">
+            <option value="">— Válassz —</option>
+            ${USERS.map(u => `<option value="${u.email}" data-nev="${u.nev}">${u.nev}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Mégse</button>
+        <button class="btn btn-primary" id="emlSaveBtn" onclick="saveEmlekeztetok('${tipus}','${kapcsolatId}','${kapcsolatNev.replace(/'/g,"\\'")}',this)">💾 Mentés</button>
+      </div>
+    </div>`;
+  // Alapértelmezett határidő: holnap 08:00
+  const holnap = new Date(); holnap.setDate(holnap.getDate() + 1); holnap.setHours(8,0,0,0);
+  modal.querySelector('#emlHataridoDatum').value = holnap.toISOString().slice(0,10);
+  modal.querySelector('#emlHataridoIdo').value = '08:00';
+  document.body.appendChild(modal);
+}
+
+async function saveEmlekeztetok(tipus, kapcsolatId, kapcsolatNev, btn) {
+  const cim = document.getElementById('emlCim').value.trim();
+  const tartalom = document.getElementById('emlTartalom').value.trim();
+  const emlD = document.getElementById('emlHataridoDatum')?.value;
+  const emlT = document.getElementById('emlHataridoIdo')?.value || '08:00';
+  const hatarido = emlD ? emlD + 'T' + emlT : '';
+  const cimzettSel = document.getElementById('emlCimzett');
+  const cimzettEmail = cimzettSel.value;
+  const cimzettNev = cimzettSel.options[cimzettSel.selectedIndex]?.dataset?.nev || '';
+
+  if (!cim) { toast('A tárgy megadása kötelező!', 'error'); return; }
+  if (!hatarido) { toast('A határidő megadása kötelező!', 'error'); return; }
+  if (!cimzettEmail) { toast('Válassz címzettet!', 'error'); return; }
+
+  const letrehozta = currentUser?.name || '—';
+  btn.textContent = 'Mentés...'; btn.disabled = true;
+
+  try {
+    await atPost('Emlekeztetok', {
+      Cim: cim,
+      Tartalom: tartalom || null,
+      Hatarido: new Date(hatarido).toISOString(),
+      Hatarido_formatalt: hatarido.slice(0,10),
+      Cimzett_email: cimzettEmail,
+      Cimzett_nev: cimzettNev,
+      Letrehozta: letrehozta,
+      Statusz: 'Nyitott',
+      Kapcsolat_tipus: tipus === 'ajanlat' ? 'Ajánlat' : tipus === 'projekt' ? 'Projekt' : 'Kontakt',
+      Kapcsolat_id: kapcsolatId,
+      Kapcsolat_nev: kapcsolatNev,
+      Ugyfel_nev: (typeof currentUgyfel !== 'undefined' && currentUgyfel?.fields?.Cegnev) ? currentUgyfel.fields.Cegnev : (ugyfelek.find(u => u.id === kapcsolatId)?.fields?.Cegnev || ''),
+    });
+    toast('Emlékeztető mentve!', 'success');
+    btn.closest('.modal-overlay').remove();
+    loadEmlekeztetok(tipus, kapcsolatId);
+  } catch(e) {
+    toast('Hiba: ' + e.message, 'error');
+    btn.textContent = '💾 Mentés'; btn.disabled = false;
+  }
+}
+
+async function deleteEmlekeztetok(emlekeztetoId, tipus, kapcsolatId) {
+  const ok = await showConfirm('Biztosan törlöd ezt az emlékeztetőt? Ez nem vonható vissza.');
+  if (!ok) return;
+  try {
+    await atDelete('Emlekeztetok', emlekeztetoId);
+    toast('Emlékeztető törölve.', 'success');
+    loadEmlekeztetok(tipus, kapcsolatId);
+  } catch(e) { toast('Hiba: ' + e.message, 'error'); }
+}
+
+async function keszEmlekeztetok(emlekeztetoId, tipus, kapcsolatId) {
+  try {
+    await atPatch('Emlekeztetok', emlekeztetoId, { Statusz: 'Kész' });
+    toast('Emlékeztető lezárva.', 'success');
+    // Teljes részlet nézet újratöltése, hogy a napló frissüljön
+    if (tipus === 'ajanlat') {
+      await showAjanlatReszlet(kapcsolatId);
+    } else if (tipus === 'projekt') {
+      await showProjektReszlet(kapcsolatId);
+    } else {
+      loadEmlekeztetok(tipus, kapcsolatId);
+    }
+  } catch(e) { toast('Hiba: ' + e.message, 'error'); }
 }
 
 function sendNaploNotifications(szoveg, szerzo, szabi, kitti, kriszti, linkType, linkId) {
@@ -6858,7 +7338,8 @@ ${sep}${sharepointLink}
 Zalner ERP`
   );
 
-  window.location.href = `mailto:${recipients.join(',')}?subject=${subject}&body=${body}`;
+  // Airtable automation kezeli – mailto kiváltva
+  console.log('Értesítés elküldve Airtable automationon keresztül:', recipients);
 }
 
 function editNaplo(naploId, projektId) {
@@ -7547,7 +8028,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v172 · Belső rendszer
+          Zalner ERP v186 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -7826,6 +8307,16 @@ async function toggleFelhasznaloAktiv(id, newVal, nev) {
     }
   );
 }
+
+// Háttér-frissítés: 10 percenként csendben frissíti a fő táblákat
+// Így mindig friss adatok vannak a cache-ben, API kérés nélkül navigálásnál
+setInterval(async () => {
+  try {
+    cacheInvalidate('Ugyfelek'); cacheInvalidate('Ajanlatok'); cacheInvalidate('Projektek');
+    cacheInvalidate('Kapcsolattartok'); cacheInvalidate('VevRendVisszaig');
+    await Promise.all([getUgyfelek(), getAjanlatok(), getProjektek(), getKapcsolattartok()]);
+  } catch(e) { /* csendben */ }
+}, 10 * 60 * 1000);
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Session ellenőrzés induláskor
@@ -9403,6 +9894,7 @@ function renderKontaktok() {
       <td class="td-muted">${f.Telefon ? `<a href="tel:${f.Telefon}" style="color:var(--accent)">${f.Telefon}</a>` : '—'}</td>
       <td>${f.Fo_kapcsolattarto ? '<span class="badge badge-elfogadva">✓</span>' : ''}</td>
       <td style="white-space:nowrap;display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();ujEmlekeztetőModal('kontakt','${k.id}','${((f.Vezeteknev||'')+' '+(f.Keresztnev||'')).trim().replace(/'/g,'')} (${cegnev.replace(/'/g,'')})' )" title="Emlékeztető" style="font-size:12px">⏰</button>
         <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editKontakt('${k.id}')">✎</button>
         <button class="btn btn-secondary btn-sm" style="color:#e74c3c" onclick="event.stopPropagation();deleteKontakt('${k.id}','${((f.Vezeteknev||'')+' '+(f.Keresztnev||'')).trim().replace(/'/g,'')}')">✕</button>
       </td>
@@ -9905,7 +10397,7 @@ async function viewSzl(id) {
   let vevoiKapcsolattartoNev2 = '—';
   if (ajanlatRec2?.fields?.Vevoi_kapcsolattarto) {
     try {
-      const allK = await atGet('Kapcsolattartok');
+      const allK = await getKapcsolattartok();
       const kRec = allK.find(k => k.id === ajanlatRec2.fields.Vevoi_kapcsolattarto);
       if (kRec) vevoiKapcsolattartoNev2 = ((kRec.fields.Vezeteknev||'') + ' ' + (kRec.fields.Keresztnev||'')).trim();
     } catch(e) {}
@@ -10859,7 +11351,7 @@ async function loadKszVevoiKontaktok(ugyfelId, selectedId = null) {
   }
   sel.innerHTML = '<option value="">Betöltés...</option>';
   try {
-    const all = await atGet('Kapcsolattartok');
+    const all = await getKapcsolattartok();
     const kontaktok = all.filter(k => k.fields.Ugyfel && k.fields.Ugyfel.includes(ugyfelId));
     if (!kontaktok.length) {
       sel.innerHTML = '<option value="">— Nincs kontakt rögzítve —</option>';

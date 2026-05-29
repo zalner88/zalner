@@ -1,12 +1,70 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v204
+     ZALNER ERP - VERZIÓ: v220
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v220:
+- Kontakt beosztás: "Számlázás" opció hozzáadva
+- Számla e-mail TO prioritás: Számlázás → Pénzügy → Fő kapcsolattartó → Vevői kapcsolattartó
+
+CHANGES v219:
+- Kimeno_Szamlak: Vevoi_kontakt_id mező visszaadva a mentésbe
+
+CHANGES v218:
+- Számla e-mail modal: TO mező prioritás: Pénzügy beosztású kontakt → fő kapcsolattartó → vevői kapcsolattartó
+
+CHANGES v217:
+- Ügyfél modal: Beszallitoi_azonosito mező hozzáadva
+- Számla kiállítás: beszállítói azonosító megjelenik Billingo megjegyzésben ha ki van töltve
+
+CHANGES v216:
+- Kimeno_Szamlak mentés: PO_szam mező visszaadva (Airtable: Single line text szükséges)
+
+CHANGES v215:
+- Számla e-mail sablon: tárgy (subject) is szerkeszthető és sablonnal formázható
+- Változók bővítve: {po_szam} hozzáadva
+- Standard tárgy sablon localStorage-ban tárolva
+
+CHANGES v214:
+- Rendszer beállítások: standard számla e-mail sablon szerkesztő (localStorage)
+- Ügyfél modal: egyedi e-mail sablon mező (Szamla_email_sablon Airtable mező)
+- Számla e-mail modal: ügyfél egyedi → standard sablon prioritás
+
+CHANGES v213:
+- Billingo comment: szállítólevél azonosítók hozzáadva ha projekt van kiválasztva
+
+CHANGES v212:
+- Piszkozat szerkesztés: meglévő Billingo dokumentum frissítése PUT-tal, nem új POST
+- editingKszId esetén a régi Billingo ID-t használja
+
+CHANGES v211:
+- Billingo comment: vevői kapcsolattartó névből ★ csillag eltávolítva
+
+CHANGES v210:
+- Billingo comment: "Kapcsolattartó" → "ZALNER kapcsolattartó"
+- Megjegyzés csak akkor kerül a comment-be ha nem üres
+
+CHANGES v209:
+- Kimeno_Szamlak: mezők szinkronizálva a valós Airtable táblával
+- Eltávolítva: PO_szam, Sajat_kapcsolattarto, Sajat_kapcsolattarto_email, Vevoi_kontakt_id, Tipus
+- Billingo comment: PO szám, vevői és zalneres kapcsolattartó megmarad
+
+CHANGES v208:
+- Kimeno_Szamlak mentés: PO_szam mező eltávolítva (nincs az Airtable táblában)
+
+CHANGES v207:
+- Kimenő számlák: Szerkesztés gomb piszkozatokhoz (openKszModal(id) + draft típus visszaállítás)
+
+CHANGES v206:
+- deleteKszDraft: showConfirm callback alapú hívásra javítva
+
+CHANGES v205:
+- Törlés gomb: inv.tipus === Piszkozat helyett inv.statusz === Piszkozat feltétel
 
 CHANGES v204:
 - Kimenő számlák: Törlés gomb piszkozatokhoz (Billingo + Airtable törlés)
@@ -192,7 +250,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v204</title>
+<title>Zalner ERP v220</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -384,7 +442,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v204</div>
+    <div class="nav-logo-sub">v220</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1332,6 +1390,27 @@ select.form-control{cursor:pointer}
       </table>
     </div>
 
+    <!-- Számla e-mail sablon -->
+    <div class="form-section" style="margin-top:28px;max-width:600px">
+      <div class="form-section-title">✉️ Standard számla e-mail sablon</div>
+      <div class="form-section-body">
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">Tárgy sablon</label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Változók: <code>{cegnev}</code> <code>{szamlaszam}</code> <code>{osszeg}</code> <code>{deviza}</code> <code>{po_szam}</code> <code>{tipus}</code></div>
+          <input class="form-control" id="szamlaEmailTargySablonInput" placeholder="pl. {tipus}: {szamlaszam} – {cegnev}" style="font-family:monospace;font-size:12px">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">Üzenet sablon</label>
+          <textarea class="form-control" id="szamlaEmailSablonInput" rows="8" style="font-family:monospace;font-size:12px"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="saveStandardEmailSablon()">💾 Mentés</button>
+          <button class="btn btn-secondary" onclick="resetStandardEmailSablon()">↺ Alapértelmezett visszaállítása</button>
+          <span id="szamlaEmailSablonStatus" style="font-size:13px"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- Billingo API beállítás -->
     <div class="form-section" style="margin-top:28px;max-width:520px">
       <div class="form-section-title">🔗 Billingo API beállítás</div>
@@ -1654,8 +1733,14 @@ select.form-control{cursor:pointer}
         <div class="form-group full"><label class="form-label">Székhely cím</label><input class="form-control" id="fSzekhely"></div>
         <div class="form-group full"><label class="form-label">Telephely cím</label><input class="form-control" id="fTelephely"></div>
         <div class="form-group"><label class="form-label">Fizetési határidő (nap)</label><input class="form-control" type="number" id="fUgyfelFizetesiHataridoNap" min="0" max="365" placeholder="30"></div>
-        <div class="form-group"></div>
+        <div class="form-group"><label class="form-label">Beszállítói azonosító <span style="font-size:11px;color:var(--text-muted);font-weight:400">(megjelenik a számlán)</span></label><input class="form-control" id="fBeszallIazonosito" placeholder="pl. SUP-00123"></div>
         <div class="form-group full"><label class="form-label">Megjegyzés</label><textarea class="form-control" id="fMegjegyzes" rows="3"></textarea></div>
+        <div class="form-group full">
+          <label class="form-label">Egyedi számla e-mail sablon <span style="font-size:11px;color:var(--text-muted);font-weight:400">(opcionális — ha üres, a standard sablon érvényes)</span></label>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Változók: <code>{cegnev}</code> <code>{szamlaszam}</code> <code>{osszeg}</code> <code>{deviza}</code> <code>{po_szam}</code> <code>{tipus}</code></div>
+          <input class="form-control" id="fSzamlaEmailTargySablon" style="font-family:monospace;font-size:12px;margin-bottom:8px" placeholder="Tárgy sablon (ha üres, a standard tárgy sablon érvényes)">
+          <textarea class="form-control" id="fSzamlaEmailSablon" rows="7" style="font-family:monospace;font-size:12px" placeholder="Ha üresen hagyod, a standard sablon kerül kiküldésre..."></textarea>
+        </div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeUgyfelModal()">Mégse</button><button class="btn btn-primary" onclick="saveUgyfel()" id="saveUgyfelBtn">Mentés</button></div>
@@ -1881,6 +1966,7 @@ select.form-control{cursor:pointer}
             <option value="Mernok">Mérnök</option>
             <option value="Beszerzo">Beszerző</option>
             <option value="Penzugy">Pénzügy</option>
+            <option value="Szamlazas">Számlázás</option>
             <option value="Egyeb">Egyéb</option>
           </select>
         </div>
@@ -4286,7 +4372,7 @@ async function loadUgyfelKontaktok(ugyfelId) {
       const kf = k.fields;
       const beosztasLabel = {
         'Ugyvezeto': 'Ügyvezető', 'Dontehozo': 'Döntéshozó', 'Mernok': 'Mérnök',
-        'Beszerzo': 'Beszerző', 'Penzugy': 'Pénzügy', 'Egyeb': 'Egyéb'
+        'Beszerzo': 'Beszerző', 'Penzugy': 'Pénzügy', 'Szamlazas': 'Számlázás', 'Egyeb': 'Egyéb'
       };
       return `<tr>
         <td class="td-name">${kf.Vezeteknev || '—'}</td>
@@ -4332,11 +4418,15 @@ async function openUgyfelModal(id = null) {
     document.getElementById('fSzekhely').value = f.Szekhely_cim || '';
     document.getElementById('fTelephely').value = f.Telephely_cim || '';
     document.getElementById('fUgyfelFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
+    document.getElementById('fBeszallIazonosito').value = f.Beszallitoi_azonosito || '';
     document.getElementById('fMegjegyzes').value = f.Megjegyzes || '';
+    document.getElementById('fSzamlaEmailSablon').value = f.Szamla_email_sablon || '';
+    document.getElementById('fSzamlaEmailTargySablon').value = f.Szamla_email_targy_sablon || '';
   } else {
-    ['fCegnev', 'fAdoszam', 'fSzekhely', 'fTelephely', 'fMegjegyzes'].forEach(i => document.getElementById(i).value = '');
+    ['fCegnev', 'fAdoszam', 'fSzekhely', 'fTelephely', 'fMegjegyzes', 'fSzamlaEmailSablon', 'fSzamlaEmailTargySablon', 'fBeszallIazonosito'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('fStatusz').value = 'Aktiv';
     document.getElementById('fUgyfelFizetesiHataridoNap').value = 30;
+    document.getElementById('fBeszallIazonosito').value = '';
   }
   document.getElementById('ugyfelModal').classList.add('open');
 }
@@ -4356,7 +4446,10 @@ async function saveUgyfel() {
     Szekhely_cim: document.getElementById('fSzekhely').value.trim(),
     Telephely_cim: document.getElementById('fTelephely').value.trim(),
     Fizetesi_hatarido_nap: (() => { const v = parseInt(document.getElementById('fUgyfelFizetesiHataridoNap').value); return isNaN(v) ? 30 : v; })(),
-    Megjegyzes: document.getElementById('fMegjegyzes').value.trim()
+    Megjegyzes: document.getElementById('fMegjegyzes').value.trim(),
+    Szamla_email_sablon: document.getElementById('fSzamlaEmailSablon').value.trim() || null,
+    Szamla_email_targy_sablon: document.getElementById('fSzamlaEmailTargySablon').value.trim() || null,
+    Beszallitoi_azonosito: document.getElementById('fBeszallIazonosito').value.trim() || null
   };
   try {
     if (editingUgyfelId) { await atPatch('Ugyfelek', editingUgyfelId, fields); toast('Ügyfél frissítve!', 'success'); }
@@ -8094,7 +8187,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v204 · Belső rendszer
+          Zalner ERP v220 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -9674,7 +9767,7 @@ async function downloadImportTemplate() {
     ['Kapcsolattartok_import','Vezeteknev *','Kötelező.'],
     ['Kapcsolattartok_import','Keresztnev *','Kötelező.'],
     ['Kapcsolattartok_import','Cegnev_kapcsolat *','Kötelező. Pontosan egyezzen az Ugyfelek lap Cegnev oszlopával!'],
-    ['Kapcsolattartok_import','Beosztas','Ugyvezeto | Dontehozo | Mernok | Beszerzo | Penzugy | Egyeb'],
+    ['Kapcsolattartok_import','Beosztas','Ugyvezeto | Dontehozo | Mernok | Beszerzo | Penzugy | Szamlazas | Egyeb'],
     ['Kapcsolattartok_import','Fo_kapcsolattarto','igen  (vagy hagyja üresen = nem)'],
     [''],
     ['FONTOS','','Az első 2 sor (fejléc) nem módosítható. Az adatok a 3. sortól kezdődnek.'],
@@ -9837,14 +9930,14 @@ async function startImport() {
       continue;
     }
     try {
-      const VALID_BEOSZTAS = ['Ugyvezeto','Dontehozo','Mernok','Beszerzo','Penzugy','Egyeb'];
+      const VALID_BEOSZTAS = ['Ugyvezeto','Dontehozo','Mernok','Beszerzo','Penzugy','Szamlazas','Egyeb'];
       const beosztas_map = {
         'ügyvezető': 'Ugyvezeto', 'ugyvezető': 'Ugyvezeto',
         'tulajdonos / cégvezető': 'Ugyvezeto', 'tulajdonos/cégvezető': 'Ugyvezeto',
         'döntéshozó vezető': 'Dontehozo', 'döntéshozó': 'Dontehozo',
         'mérnök': 'Mernok', 'technikus': 'Mernok',
         'beszerző': 'Beszerzo', 'logisztika': 'Beszerzo',
-        'pénzügy': 'Penzugy', 'adminisztráció': 'Penzugy',
+        'pénzügy': 'Penzugy', 'adminisztráció': 'Penzugy', 'számlázás': 'Szamlazas', 'szamlazas': 'Szamlazas',
         'értékesítés': 'Egyeb', 'projektes': 'Egyeb', 'egyéb': 'Egyeb',
       };
       const rawBeosztas = (row.Beosztas || '').trim().toLowerCase();
@@ -9950,7 +10043,7 @@ function renderKontaktok() {
     const cegnev = f.Ugyfel ? (ugyfelek.find(u => u.id === f.Ugyfel[0])?.fields?.Cegnev || '—') : '—';
     const beosztasLabel = {
       'Ugyvezeto': 'Ügyvezető', 'Dontehozo': 'Döntéshozó', 'Mernok': 'Mérnök',
-      'Beszerzo': 'Beszerző', 'Penzugy': 'Pénzügy', 'Egyeb': 'Egyéb'
+      'Beszerzo': 'Beszerző', 'Penzugy': 'Pénzügy', 'Szamlazas': 'Számlázás', 'Egyeb': 'Egyéb'
     };
     return `<tr>
       <td class="td-name">${f.Vezeteknev || '—'}</td>
@@ -10765,6 +10858,13 @@ function getBillingoApiKey() {
   return _billingoApiKeyCache || localStorage.getItem('billingoApiKey') || '';
 }
 
+function loadSzamlaEmailSablonSettings() {
+  const inp = document.getElementById('szamlaEmailSablonInput');
+  if (inp) inp.value = getStandardEmailSablon();
+  const tinp = document.getElementById('szamlaEmailTargySablonInput');
+  if (tinp) tinp.value = getStandardEmailTargySablon();
+}
+
 async function loadBillingoApiKey() {
   // Lekéri az Airtable-ből a megosztott API kulcsot
   try {
@@ -10935,7 +11035,10 @@ function renderKimenoSzamlak() {
         ${inv.statusz !== 'Fizetett' && inv.statusz !== 'Storno' ? `<button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;color:#16a34a" onclick="markKszFizetett('${inv._id}','${inv._billingoId||''}')">✓ Fizetve</button>` : ''}
         ${inv.pdfUrl ? `<a href="${inv.pdfUrl}" target="_blank" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px">📄 PDF</a>` : (inv._billingoId ? `<button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px" onclick="downloadKszPdf('${inv._id}','${inv._billingoId}')">📥 PDF</button>` : '')}
         <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;color:#4f7fff" title="E-mail küldése az ügyfélnek" onclick="openKszEmailModal('${inv._id}')">✉ E-mail</button>
-        ${inv.tipus === 'Piszkozat' ? `<button class="btn btn-danger btn-sm" style="font-size:11px;padding:3px 8px" onclick="deleteKszDraft('${inv._id}','${inv._billingoId||''}')" title="Piszkozat törlése">🗑 Törlés</button>` : ''}
+        ${(inv.statusz === 'Piszkozat' || inv.tipus === 'Piszkozat') ? `
+          <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px" onclick="editKszDraft('${inv._id}')" title="Piszkozat szerkesztése">✎ Szerkesztés</button>
+          <button class="btn btn-danger btn-sm" style="font-size:11px;padding:3px 8px" onclick="deleteKszDraft('${inv._id}','${inv._billingoId||''}')" title="Piszkozat törlése">🗑 Törlés</button>
+        ` : ''}
         ${kszSzarmaztatottGomb(inv)}
       </td>
     </tr>`;
@@ -10968,6 +11071,63 @@ function kszSzarmaztatottGomb(inv) {
 // ---- KIMENŐ SZÁMLA E-MAIL KÜLDÉS ----
 let kszEmailInvId = null;
 
+
+// ===== SZÁMLA E-MAIL SABLON =====
+const SZAMLA_EMAIL_SABLON_DEFAULT =
+`Tisztelt {cegnev}!
+
+Ezúton küldjük a {szamlaszam} számú, bruttó {osszeg} {deviza} számlánkat.
+
+A dokumentum PDF formátumban, mellékletként érhető el.
+
+Kérdés esetén állunk rendelkezésére.
+
+Üdvözlettel,
+
+ZALNER Engineering Kft.`;
+
+const SZAMLA_EMAIL_TARGY_DEFAULT = '{tipus}: {szamlaszam} – {cegnev}';
+
+function getStandardEmailSablon() {
+  return localStorage.getItem('szamlaEmailSablon') || SZAMLA_EMAIL_SABLON_DEFAULT;
+}
+
+function getStandardEmailTargySablon() {
+  return localStorage.getItem('szamlaEmailTargySablon') || SZAMLA_EMAIL_TARGY_DEFAULT;
+}
+
+function saveStandardEmailSablon() {
+  const val = document.getElementById('szamlaEmailSablonInput')?.value || '';
+  const targy = document.getElementById('szamlaEmailTargySablonInput')?.value || '';
+  localStorage.setItem('szamlaEmailSablon', val);
+  localStorage.setItem('szamlaEmailTargySablon', targy);
+  const s = document.getElementById('szamlaEmailSablonStatus');
+  if (s) s.textContent = '✓ Elmentve';
+  toast('Standard e-mail sablon elmentve!', 'success');
+}
+
+function resetStandardEmailSablon() {
+  localStorage.removeItem('szamlaEmailSablon');
+  localStorage.removeItem('szamlaEmailTargySablon');
+  const inp = document.getElementById('szamlaEmailSablonInput');
+  if (inp) inp.value = SZAMLA_EMAIL_SABLON_DEFAULT;
+  const tinp = document.getElementById('szamlaEmailTargySablonInput');
+  if (tinp) tinp.value = SZAMLA_EMAIL_TARGY_DEFAULT;
+  const s = document.getElementById('szamlaEmailSablonStatus');
+  if (s) s.textContent = '✓ Visszaállítva';
+  toast('Standard sablon visszaállítva az alapértelmezetthez.', 'success');
+}
+
+function applySzamlaEmailSablon(sablon, params) {
+  return sablon
+    .replace(/{cegnev}/g, params.cegnev || '')
+    .replace(/{szamlaszam}/g, params.szamlaszam || '')
+    .replace(/{osszeg}/g, params.osszeg || '')
+    .replace(/{deviza}/g, params.deviza || '')
+    .replace(/{po_szam}/g, params.po_szam || '')
+    .replace(/{tipus}/g, params.tipus || '');
+}
+
 function openKszEmailModal(airtableId) {
   kszEmailInvId = airtableId;
   const inv = kszInvoices.find(i => i._id === airtableId);
@@ -10979,10 +11139,51 @@ function openKszEmailModal(airtableId) {
     infoEl.innerHTML = `<strong>Számlaszám:</strong> ${inv.invoiceNumber || '—'} &nbsp;|&nbsp; <strong>Ügyfél:</strong> ${inv.ugyfelNev || '—'} &nbsp;|&nbsp; <strong>Bruttó:</strong> ${(inv.bruttoOssz||0).toLocaleString('hu-HU')} ${inv.currency || 'HUF'}`;
   }
 
-  // Vevői kapcsolattartó e-mail előtöltése
+  // TO e-mail prioritás:
+  // 1. Pénzügy beosztású kontakt az ügyfélnél
+  // 2. Fő kapcsolattartó az ügyfélnél
+  // 3. Vevői kapcsolattartó (számlán kiválasztott)
   let toEmail = '';
   let toHint = '';
-  if (inv.vevoiKontaktId) {
+
+  const ugyfelKontaktok = kontaktok?.filter(k =>
+    k.fields.Ugyfel && k.fields.Ugyfel.includes(inv.ugyfelId)
+  ) || [];
+
+  // 1. Számlázás beosztású kontakt
+  const szamlazasKontakt = ugyfelKontaktok.find(k =>
+    k.fields.Beosztas === 'Szamlazas' && k.fields.Email
+  );
+  if (szamlazasKontakt) {
+    toEmail = szamlazasKontakt.fields.Email;
+    const nev = ((szamlazasKontakt.fields.Vezeteknev||'') + ' ' + (szamlazasKontakt.fields.Keresztnev||'')).trim();
+    toHint = `Automatikusan kitöltve: ${nev} (Számlázás)`;
+  }
+
+  // 2. Pénzügy beosztású kontakt (ha nincs számlázás)
+  if (!toEmail) {
+    const penzugyKontakt = ugyfelKontaktok.find(k =>
+      k.fields.Beosztas === 'Penzugy' && k.fields.Email
+    );
+    if (penzugyKontakt) {
+      toEmail = penzugyKontakt.fields.Email;
+      const nev = ((penzugyKontakt.fields.Vezeteknev||'') + ' ' + (penzugyKontakt.fields.Keresztnev||'')).trim();
+      toHint = `Automatikusan kitöltve: ${nev} (Pénzügy)`;
+    }
+  }
+
+  // 3. Fő kapcsolattartó (ha nincs számlázás/pénzügyes)
+  if (!toEmail) {
+    const foKontakt = ugyfelKontaktok.find(k => k.fields.Fo_kapcsolattarto && k.fields.Email);
+    if (foKontakt) {
+      toEmail = foKontakt.fields.Email;
+      const nev = ((foKontakt.fields.Vezeteknev||'') + ' ' + (foKontakt.fields.Keresztnev||'')).trim();
+      toHint = `Automatikusan kitöltve: ${nev} (fő kapcsolattartó)`;
+    }
+  }
+
+  // 3. Vevői kapcsolattartó (ha nincs sem pénzügyes, sem fő)
+  if (!toEmail && inv.vevoiKontaktId) {
     const kontakt = kontaktok?.find(k => k.id === inv.vevoiKontaktId);
     if (kontakt?.fields?.Email) {
       toEmail = kontakt.fields.Email;
@@ -10990,32 +11191,33 @@ function openKszEmailModal(airtableId) {
       toHint = `Automatikusan kitöltve: ${nev} (vevői kapcsolattartó)`;
     }
   }
+
   document.getElementById('kszEmailTo').value = toEmail;
   document.getElementById('kszEmailToHint').textContent = toHint;
 
   // CC: alapértelmezetten szabolcs.wagner@zalner.hu
   document.getElementById('kszEmailCc').value = 'szabolcs.wagner@zalner.hu';
 
-  // Tárgy
-  const tipusNev = inv.tipus || 'Számla';
-  document.getElementById('kszEmailSubject').value = `${tipusNev}: ${inv.invoiceNumber || ''} – ${inv.ugyfelNev || ''}`;
-
-  // Törzsszöveg
+  // Tárgy + törzsszöveg sablonból (ügyfél egyedi → standard)
   const cegnev = inv.ugyfelNev || 'Partnerünk';
-  const ossz = (inv.bruttoOssz||0).toLocaleString('hu-HU') + ' ' + (inv.currency||'HUF');
+  const ossz = (inv.bruttoOssz||0).toLocaleString('hu-HU');
+  const params = { cegnev, szamlaszam: inv.invoiceNumber || '', osszeg: ossz, deviza: inv.currency || 'HUF' };
 
-  document.getElementById('kszEmailBody').value =
-`Tisztelt ${cegnev}!
+  const ugyfel = ugyfelek.find(u => u.id === inv.ugyfelId);
 
-Ezúton küldjük a ${inv.invoiceNumber || ''} számú, bruttó ${ossz} számlánkat.
+  // Params bővítése po_szam és tipus változókkal
+  params.po_szam = inv.poSzam || '';
+  params.tipus = inv.tipus || 'Számla';
 
-A dokumentum PDF formátumban, mellékletként érhető el.
+  // Tárgy sablon: ügyfél egyedi → standard
+  const egyediTargySablon = ugyfel?.fields?.Szamla_email_targy_sablon || '';
+  const aktivTargySablon = egyediTargySablon.trim() ? egyediTargySablon : getStandardEmailTargySablon();
+  document.getElementById('kszEmailSubject').value = applySzamlaEmailSablon(aktivTargySablon, params);
 
-Kérdés esetén állunk rendelkezésére.
-
-Üdvözlettel,
-
-ZALNER Engineering Kft.`;
+  // Üzenet sablon: ügyfél egyedi → standard
+  const egyediSablon = ugyfel?.fields?.Szamla_email_sablon || '';
+  const aktivSablon = egyediSablon.trim() ? egyediSablon : getStandardEmailSablon();
+  document.getElementById('kszEmailBody').value = applySzamlaEmailSablon(aktivSablon, params);
 
   document.getElementById('kszEmailModal').classList.add('open');
 }
@@ -11670,19 +11872,29 @@ async function saveKimenoSzamla() {
 
       const billingoType = tipus === 'final' ? 'invoice' : tipus;
 
-      // Strukturált comment: PO szám + kapcsolattartók + felhasználói megjegyzés
+      // Strukturált comment: PO szám + kapcsolattartók + szállítólevelek + felhasználói megjegyzés
       const commentParts = [];
       if (poSzam) commentParts.push(`PO: ${poSzam}`);
       if (vevoiKontaktId) {
         const vevoiSel = document.getElementById('fKszVevoiKontakt');
-        const vevoiNev = vevoiSel?.options[vevoiSel?.selectedIndex]?.text?.replace(/ · .+$/, '') || '';
+        const vevoiNev = (vevoiSel?.options[vevoiSel?.selectedIndex]?.text || '').replace(/ · .+$/, '').replace(/★/g, '').trim();
         if (vevoiNev) commentParts.push(`Vevői kapcsolattartó: ${vevoiNev}`);
       }
       if (sajatKapcs) {
         const sajatNev = { 'Jarfas Kitti':'Járfás Kitti','Wagner Szabolcs':'Wágner Szabolcs','Zombori Krisztina':'Zombori Krisztina' }[sajatKapcs] || sajatKapcs;
-        commentParts.push(`Kapcsolattartó: ${sajatNev}${sajatKapcsEmail ? ` (${sajatKapcsEmail})` : ''}`);
+        commentParts.push(`ZALNER kapcsolattartó: ${sajatNev}${sajatKapcsEmail ? ` (${sajatKapcsEmail})` : ''}`);
       }
-      if (megjegyzes) commentParts.push(megjegyzes);
+      // Szállítólevelek a projekthez
+      if (projektId && szallitolevelek.length) {
+        const szallIds = szallitolevelek
+          .filter(s => s.fields.Projekt && s.fields.Projekt.includes(projektId) && s.fields.Szallitolevel_szam)
+          .map(s => s.fields.Szallitolevel_szam);
+        if (szallIds.length) commentParts.push(`Szállítólevél: ${szallIds.join(', ')}`);
+      }
+      // Beszállítói azonosító ha van
+      const beszallAzon = ugyfel?.fields?.Beszallitoi_azonosito || '';
+      if (beszallAzon) commentParts.push(`Beszállítói azonosítónk: ${beszallAzon}`);
+      if (megjegyzes && megjegyzes.trim()) commentParts.push(megjegyzes.trim());
       const billingoComment = commentParts.length ? commentParts.join('\n') : undefined;
 
       const szamlaAdat = {
@@ -11700,8 +11912,21 @@ async function saveKimenoSzamla() {
         comment: billingoComment,
       };
 
-      const response = await billingoApiDirect('POST', 'documents', szamlaAdat, apiKey);
-      billingoId = response.id;
+      // Szerkesztésnél: meglévő Billingo piszkozat frissítése PUT-tal
+      const existingBillingoId = editingKszId
+        ? (kszInvoices.find(i => i._id === editingKszId)?._billingoId || null)
+        : null;
+
+      let response;
+      if (existingBillingoId && tipus === 'draft') {
+        // Meglévő piszkozat frissítése
+        response = await billingoApiDirect('PUT', `documents/${existingBillingoId}`, szamlaAdat, apiKey);
+        billingoId = existingBillingoId;
+      } else {
+        // Új dokumentum létrehozása
+        response = await billingoApiDirect('POST', 'documents', szamlaAdat, apiKey);
+        billingoId = response.id;
+      }
       invoiceNumber = response.invoice_number || response.invoice_no || '';
 
       tetelek.forEach(t => {
@@ -11722,27 +11947,33 @@ async function saveKimenoSzamla() {
 
     // Airtable mentés
     const tipusLabelMap = { invoice:'Számla', proforma:'Díjbekérő', advance:'Előlegszámla', final:'Végszámla', draft:'Piszkozat', storno:'Sztornó' };
+    // Csak az Airtable Kimeno_Szamlak táblában ténylegesen létező mezők
     const fields = {
-      Szamlaszam: invoiceNumber,
+      Szamlaszam: invoiceNumber || '',
       Billingo_id: String(billingoId || ''),
       Ugyfel: [ugyfelId],
       Ugyfel_nev: ugyfel?.fields?.Cegnev || '',
       Teljesites_datum: teljesites || null,
       Fizetesi_hatarido: hatarido || null,
+      Kiallitas_datum: new Date().toISOString().split('T')[0],
       Deviza: deviza,
       Fizetes_mod: fizetesMod,
       Netto_osszeg: Math.round(nettoOssz * 100) / 100 || null,
       Brutto_osszeg: Math.round(bruttoOssz * 100) / 100 || null,
       Statusz: airtableStatusz,
       Megjegyzes: megjegyzes || null,
-      Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,
       PDF_url: pdfUrl || null,
-      Kiallitas_datum: new Date().toISOString().split('T')[0],
+      Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,
       PO_szam: poSzam || null,
+      Vevoi_kontakt_id: vevoiKontaktId || null,
     };
     if (projektId) fields.Projekt = [projektId];
     Object.keys(fields).forEach(k => (fields[k] === null || fields[k] === undefined) && delete fields[k]);
-    await atPost('Kimeno_Szamlak', fields);
+    if (editingKszId) {
+      await atPatch('Kimeno_Szamlak', editingKszId, fields);
+    } else {
+      await atPost('Kimeno_Szamlak', fields);
+    }
 
     const tipusLabel = tipusLabelMap[tipus] || 'Bizonylat';
     toast('✅ ' + tipusLabel + ' kiállítva: ' + invoiceNumber, 'success');
@@ -11881,27 +12112,36 @@ async function markKszFizetett(airtableId, billingoId) {
   }
 }
 
+function editKszDraft(airtableId) {
+  openKszModal(airtableId);
+  // Piszkozat típus visszaállítása
+  setTimeout(() => {
+    const draftRadio = document.querySelector('input[name="kszTipus"][value="draft"]');
+    if (draftRadio) { draftRadio.checked = true; onKszTipusChange(); }
+  }, 100);
+}
+
 async function deleteKszDraft(airtableId, billingoId) {
-  const ok = await showConfirm('Biztosan törlöd ezt a piszkozatot? A Billingóból és az Airtable-ből is törlődik.');
-  if (!ok) return;
-  try {
-    // Billingo törlés (ha van Billingo ID)
-    if (billingoId) {
-      const apiKey = getBillingoApiKey();
-      if (apiKey) {
-        try {
-          await billingoApiDirect('DELETE', `documents/${billingoId}`, null, apiKey);
-        } catch(e) { console.warn('Billingo törlési hiba (folytatjuk):', e.message); }
+  showConfirm('Piszkozat törlése', 'Biztosan törlöd ezt a piszkozatot? A Billingóból és az Airtable-ből is törlődik.', async () => {
+    try {
+      // Billingo törlés (ha van Billingo ID)
+      if (billingoId) {
+        const apiKey = getBillingoApiKey();
+        if (apiKey) {
+          try {
+            await billingoApiDirect('DELETE', `documents/${billingoId}`, null, apiKey);
+          } catch(e) { console.warn('Billingo törlési hiba (folytatjuk):', e.message); }
+        }
       }
+      // Airtable törlés
+      await atDelete('Kimeno_Szamlak', airtableId);
+      kszInvoices = kszInvoices.filter(i => i._id !== airtableId);
+      filterKimenoSzamlak();
+      toast('Piszkozat törölve.', 'success');
+    } catch(e) {
+      toast('Törlési hiba: ' + e.message, 'error');
     }
-    // Airtable törlés
-    await atDelete('Kimeno_Szamlak', airtableId);
-    kszInvoices = kszInvoices.filter(i => i._id !== airtableId);
-    filterKimenoSzamlak();
-    toast('Piszkozat törölve.', 'success');
-  } catch(e) {
-    toast('Törlési hiba: ' + e.message, 'error');
-  }
+  });
 }
 
 async function downloadKszPdf(airtableId, billingoId) {

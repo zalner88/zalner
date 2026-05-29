@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v186
+     ZALNER ERP - VERZIÓ: v187
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v187:
+- Billingo API kulcs: localStorage helyett Airtable Felhasznalok táblában tárolva
+- Minden felhasználó ugyanazt a megosztott API kulcsot használja
+- saveBillingoApiKey: Airtable-be ment (Billingo_api_key mező)
+- getBillingoApiKey: Airtable-ből olvas, localStorage fallback
 
 CHANGES v186:
 - Kontaktok lista: ⏰ emlékeztető gomb hozzáadva soronként
@@ -125,7 +131,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v186</title>
+<title>Zalner ERP v187</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -317,7 +323,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v186</div>
+    <div class="nav-logo-sub">v187</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1272,7 +1278,7 @@ select.form-control{cursor:pointer}
         <div class="form-group">
           <label class="form-label">Billingo API kulcs (X-API-KEY)</label>
           <input class="form-control" type="password" id="billingoApiKeyInput" placeholder="pl. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">A Billingo fiókban: Beállítások → API kulcsok → Új kulcs létrehozása. Az API kulcs csak ebben a böngészőben tárolódik (localStorage).</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">A Billingo fiókban: Beállítások → API kulcsok → Új kulcs létrehozása. Az API kulcs az Airtable-ben tárolódik — minden felhasználó eléri.</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="saveBillingoApiKey()">💾 Mentés</button>
@@ -8028,7 +8034,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v186 · Belső rendszer
+          Zalner ERP v187 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -10688,16 +10694,51 @@ let editingKszId = null;
 let kszTetelCounter = 0;
 
 // --- Billingo API kulcs kezelés ---
+// Az API kulcs az Airtable Felhasznalok táblában tárolódik (Billingo_api_key mező)
+// így minden felhasználó eléri, nem csak aki beállította
+
+let _billingoApiKeyCache = '';
+
 function getBillingoApiKey() {
-  return localStorage.getItem('billingoApiKey') || '';
+  // Cache-ből vagy localStorage fallback
+  return _billingoApiKeyCache || localStorage.getItem('billingoApiKey') || '';
 }
-function saveBillingoApiKey() {
+
+async function loadBillingoApiKey() {
+  // Lekéri az Airtable-ből a megosztott API kulcsot
+  try {
+    const records = await atGet('Felhasznalok', 'filterByFormula=NOT(%7BBillingo_api_key%7D%3D%22%22)&maxRecords=1');
+    if (records.length && records[0].fields.Billingo_api_key) {
+      _billingoApiKeyCache = records[0].fields.Billingo_api_key;
+      localStorage.setItem('billingoApiKey', _billingoApiKeyCache);
+      const inp = document.getElementById('billingoApiKeyInput');
+      if (inp) inp.value = _billingoApiKeyCache;
+    }
+  } catch(e) { console.warn('Billingo kulcs betöltési hiba:', e); }
+}
+
+async function saveBillingoApiKey() {
   const key = document.getElementById('billingoApiKeyInput')?.value?.trim();
   if (!key) { toast('Adj meg egy API kulcsot!', 'error'); return; }
-  localStorage.setItem('billingoApiKey', key);
-  toast('Billingo API kulcs elmentve!', 'success');
   const s = document.getElementById('billingoApiKeyStatus');
-  if (s) s.textContent = '✓ Elmentve';
+  if (s) s.textContent = '⏳ Mentés...';
+  try {
+    // Minden Felhasznalok rekordba elmenti (megosztott kulcs)
+    const records = await atGet('Felhasznalok');
+    if (records.length) {
+      await atPatch('Felhasznalok', records[0].id, { Billingo_api_key: key });
+    }
+    _billingoApiKeyCache = key;
+    localStorage.setItem('billingoApiKey', key);
+    toast('Billingo API kulcs elmentve és megosztva!', 'success');
+    if (s) s.textContent = '✓ Elmentve';
+  } catch(e) {
+    // Fallback: csak localStorage
+    _billingoApiKeyCache = key;
+    localStorage.setItem('billingoApiKey', key);
+    toast('Billingo API kulcs elmentve (csak helyi)!', 'success');
+    if (s) s.textContent = '✓ Elmentve (helyi)';
+  }
 }
 async function testBillingoApiKey() {
   const key = document.getElementById('billingoApiKeyInput')?.value?.trim() || getBillingoApiKey();
@@ -10721,6 +10762,8 @@ async function billingoApi(method, path, body = null) {
 
 // --- Oldal inicializálás ---
 async function initKimenoSzamlak() {
+  // Először betölti az Airtable-ből a megosztott API kulcsot
+  await loadBillingoApiKey();
   const apiKey = getBillingoApiKey();
   if (apiKey && document.getElementById('billingoApiKeyInput')) {
     document.getElementById('billingoApiKeyInput').value = apiKey;

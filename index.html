@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v220
+     ZALNER ERP - VERZIÓ: v221
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v221:
+- Cache TTL optimalizálás: Ugyfelek/Kapcsolattartok 60 perc, Bejovo_Szamlak/Kimeno_Szamlak 24 óra
+- Háttér-frissítés: 10 perc → 60 perc, csak Ajanlatok és Projektek frissül
+- Ugyfelek és Kapcsolattartok nem frissül automatikusan (manuális Frissítés gombbal)
+- Dashboard betöltés: Bejovo_Szamlak csak ha nincs napi cache
 
 CHANGES v220:
 - Kontakt beosztás: "Számlázás" opció hozzáadva
@@ -250,7 +256,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v220</title>
+<title>Zalner ERP v221</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -442,7 +448,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v220</div>
+    <div class="nav-logo-sub">v221</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -2582,21 +2588,32 @@ let vrvSlot = 1;
 
 // ===== CACHE =====
 // ═══════════════════════════════════════════════════════════════
-// UNIVERZÁLIS CACHE RENDSZER
-// TTL: 10 perc (fő táblák), 5 perc (linked/napló táblák)
+// UNIVERZÁLIS CACHE RENDSZER – OPTIMALIZÁLT
 // Írás után csak az érintett tábla invalidálódik
 // ═══════════════════════════════════════════════════════════════
 const _cache = {};
-const CACHE_TTL       = 10 * 60 * 1000; // 10 perc – fő táblák
-const CACHE_TTL_SHORT =  5 * 60 * 1000; // 5 perc  – detail táblák
+const CACHE_TTL_10M   =  10 * 60 * 1000; // 10 perc  – aktívan változó
+const CACHE_TTL_60M   =  60 * 60 * 1000; // 60 perc  – ritkán változó
+const CACHE_TTL_24H   =  24 * 60 * 60 * 1000; // 24 óra – naponta elég
+const CACHE_TTL_SHORT =   5 * 60 * 1000; // 5 perc   – detail táblák
+const CACHE_TTL       = CACHE_TTL_10M;   // default
 
 // Táblánként melyik TTL-t használjuk
 const CACHE_TTL_MAP = {
-  Ugyfelek: CACHE_TTL, Ajanlatok: CACHE_TTL, Projektek: CACHE_TTL,
-  Kapcsolattartok: CACHE_TTL, Beszallitok: CACHE_TTL,
-  Bejovo_Szamlak: CACHE_TTL, Kimeno_Szamlak: CACHE_TTL,
-  VevRendVisszaig: CACHE_TTL, Vamkezeles: CACHE_TTL,
-  Szallitolevelek: CACHE_TTL,
+  // Naponta elegendő – számlák ritkán változnak
+  Bejovo_Szamlak: CACHE_TTL_24H,
+  Kimeno_Szamlak: CACHE_TTL_24H,
+  // Ritkán változik – ügyfelek, kontaktok, szállítók
+  Ugyfelek: CACHE_TTL_60M,
+  Kapcsolattartok: CACHE_TTL_60M,
+  Beszallitok: CACHE_TTL_60M,
+  Szallitolevelek: CACHE_TTL_60M,
+  VevRendVisszaig: CACHE_TTL_60M,
+  Vamkezeles: CACHE_TTL_60M,
+  // Aktívan változó
+  Ajanlatok: CACHE_TTL_10M,
+  Projektek: CACHE_TTL_10M,
+  // Detail táblák
   AjanlatTetelek: CACHE_TTL_SHORT, Ajanlat_Naplo: CACHE_TTL_SHORT,
   Projekt_Naplo: CACHE_TTL_SHORT, Emlekeztetok: CACHE_TTL_SHORT,
 };
@@ -3836,15 +3853,14 @@ async function loadDashboard() {
     const [u, a, p] = await Promise.all([getUgyfelek(), getAjanlatok(), getProjektek()]);
     ugyfelek = u; ajanlatok = a; projektek = p;
 
-    // Kiegészítő adatok (bejövő számlák, vámkezelés, naplók) — csendben, hiba esetén üres
+    // Kiegészítő adatok — Bejovo_Szamlak 24h cache-ből jön, napló max 30 sor
     try {
       const [bszek, vamok, projNaplok, ajNaplok] = await Promise.all([
-        atGet('Bejovo_Szamlak').catch(() => []),
-        atGet('Vamkezeles').catch(() => []),
+        atGet('Bejovo_Szamlak').catch(() => []),   // 24h cache
+        atGet('Vamkezeles').catch(() => []),         // 60 perces cache
         atGet('Projekt_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => []),
         atGet('Ajanlat_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => [])
       ]);
-      // Csak az utolsó 30-30-at tartjuk meg (rendezve van, dashboardhoz elég)
       _dashCache = { bszek, vamok, projNaplok: projNaplok.slice(0, 30), ajNaplok: ajNaplok.slice(0, 30) };
     } catch (e) { _dashCache = { bszek: [], vamok: [], projNaplok: [], ajNaplok: [] }; }
 
@@ -8187,7 +8203,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v220 · Belső rendszer
+          Zalner ERP v221 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -8469,13 +8485,15 @@ async function toggleFelhasznaloAktiv(id, newVal, nev) {
 
 // Háttér-frissítés: 10 percenként csendben frissíti a fő táblákat
 // Így mindig friss adatok vannak a cache-ben, API kérés nélkül navigálásnál
+// Háttér-frissítés: 60 percenként csak az aktívan változó táblák
+// Ugyfelek/Kapcsolattartok cache-je 60 perc, ezért nem kell külön frissíteni
 setInterval(async () => {
   try {
-    cacheInvalidate('Ugyfelek'); cacheInvalidate('Ajanlatok'); cacheInvalidate('Projektek');
-    cacheInvalidate('Kapcsolattartok'); cacheInvalidate('VevRendVisszaig');
-    await Promise.all([getUgyfelek(), getAjanlatok(), getProjektek(), getKapcsolattartok()]);
+    cacheInvalidate('Ajanlatok');
+    cacheInvalidate('Projektek');
+    await Promise.all([getAjanlatok(), getProjektek()]);
   } catch(e) { /* csendben */ }
-}, 10 * 60 * 1000);
+}, 60 * 60 * 1000);
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Session ellenőrzés induláskor

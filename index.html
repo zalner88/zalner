@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v222
+     ZALNER ERP - VERZIÓ: v223
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v223:
+- Fizetési feltétel: "70% előleg, 30% teljesítés + 30 nap" opció hozzáadva
 
 CHANGES v222:
 - Ajánlat form: fizetési feltétel legördülő + szabad szöveges mező
@@ -261,7 +264,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v222</title>
+<title>Zalner ERP v223</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -453,7 +456,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v222</div>
+    <div class="nav-logo-sub">v223</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -735,6 +738,7 @@ select.form-control{cursor:pointer}
                 <option value="">— Egyedi / nincs —</option>
                 <option value="30% előleg rendeléskor, 70% teljesítés + 30 nap">30% előleg, 70% teljesítés + 30 nap</option>
                 <option value="50% előleg rendeléskor, 50% teljesítés + 30 nap">50% előleg, 50% teljesítés + 30 nap</option>
+                <option value="70% előleg rendeléskor, 30% teljesítés + 30 nap">70% előleg, 30% teljesítés + 30 nap</option>
                 <option value="100% előre utalás">100% előre utalás</option>
               </select>
               <input class="form-control" type="text" id="fFizetesFeltetel" placeholder="vagy írj egyedi feltételt..." style="font-size:12px">
@@ -5338,7 +5342,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   document.getElementById('fFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
   const savedFeltetel = f.Fizetes_feltetel || '';
   document.getElementById('fFizetesFeltetel').value = savedFeltetel;
-  const predefined = ['30% előleg rendeléskor, 70% teljesítés + 30 nap','50% előleg rendeléskor, 50% teljesítés + 30 nap','100% előre utalás'];
+  const predefined = ['30% előleg rendeléskor, 70% teljesítés + 30 nap','50% előleg rendeléskor, 50% teljesítés + 30 nap','70% előleg rendeléskor, 30% teljesítés + 30 nap','100% előre utalás'];
   document.getElementById('fFizetesFeltetelSelector').value = predefined.includes(savedFeltetel) ? savedFeltetel : '';
   document.getElementById('fNyelv').value = f.Nyelv || 'Magyar';
   document.getElementById('fBankszamla').value = f.Bankszamla || 'Wise EUR';
@@ -8230,7 +8234,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v222 · Belső rendszer
+          Zalner ERP v223 · Belső rendszer
         </div>
       </div>
     </div>`;

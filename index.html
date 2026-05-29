@@ -1,12 +1,69 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v187
+     ZALNER ERP - VERZIÓ: v203
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v203:
+- PDF megnyitás: window.open helyett <a> tag kattintás (file:// blokkolás megkerülése)
+- buildKategoriaOpts hiba javítva
+
+CHANGES v202:
+- Billingo PDF: retry logika hozzáadva (5x próbálkozás 2s várakozással)
+- "Document PDF has not generated yet" esetén automatikusan újrapróbál
+
+CHANGES v201:
+- Billingo PDF: debug log hozzáadva a válasz megtekintéséhez
+
+CHANGES v200:
+- Billingo PDF: "documents/ID/download-url" → "documents/ID/download" endpoint javítva
+
+CHANGES v199:
+- Billingo PDF letöltés: piszkozatnál (draft) nem próbál PDF-et letölteni
+- 404 hiba javítva: csak végleges számláknál kér le download-url-t
+
+CHANGES v198:
+- Kimeno_Szamlak mentés: Sajat_kapcsolattarto_email és Vevoi_kontakt_id eltávolítva
+
+CHANGES v197:
+- Kimeno_Szamlak mentés: Sajat_kapcsolattarto mező eltávolítva (nincs az Airtable táblában)
+
+CHANGES v196:
+- Kimeno_Szamlak mentés: Tipus mező eltávolítva (nincs az Airtable táblában)
+- Billingo debug console.log eltávolítva
+
+CHANGES v195:
+- Billingo vat: "27" → "27%" formátum (% jellel)
+- unit_price: parseFloat biztosítja a szám típust
+
+CHANGES v194:
+- Billingo vat: tesztelés "27" helyett float 0.27 formátummal is + debug log
+
+CHANGES v193:
+- Billingo vat: visszaállítva stringre ("27","5","0","AAM"), de entitlement mező hozzáadva
+
+CHANGES v192:
+- Billingo items vat: string → szám (27, 5, 0) kivéve AAM/TAM (marad string)
+
+CHANGES v191:
+- Billingo partner létrehozás: cím parsing javítva, fallback értékekkel
+- city és address mezők mindig ki vannak töltve
+
+CHANGES v190:
+- Billingo items mezőnevek javítva: description→name, net_unit_price→unit_price
+- unit_price_type: "net" hozzáadva (kötelező Billingo v3-ban)
+- vat formátum javítva: "27" → "27%", "5" → "5%", "0" → "0%", AAM → "AAM"
+
+CHANGES v189:
+- Billingo hibaüzenet: tömb típusú errors kibontása (field + message mezők)
+
+CHANGES v188:
+- Billingo hibaüzenet részletesebb: validation errors mezőnként listázva
+- billingoApiDirect: errors objektum részletes kiírása
 
 CHANGES v187:
 - Billingo API kulcs: localStorage helyett Airtable Felhasznalok táblában tárolva
@@ -131,7 +188,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v187</title>
+<title>Zalner ERP v203</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -323,7 +380,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v187</div>
+    <div class="nav-logo-sub">v203</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1567,7 +1624,6 @@ select.form-control{cursor:pointer}
           <select class="form-control" id="fBszKategoria" onmouseover="showKatTipFromSelect(this)" onmouseout="hideKatTip()">
             <!-- feltöltve JS-ből: buildKategoriaOpts() -->
           </select>
-          <script>document.getElementById('fBszKategoria').innerHTML = buildKategoriaOpts('');</script>
         </div>
       </div>
     </div>
@@ -8034,7 +8090,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v187 · Belső rendszer
+          Zalner ERP v203 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -8853,6 +8909,7 @@ function showBszManualForm() {
   document.getElementById('fBszAfa').value = '';
   document.getElementById('fBszDeviza').value = 'HUF';
   document.getElementById('fBszStatusz').value = 'Fizetesre_var';
+  document.getElementById('fBszKategoria').innerHTML = buildKategoriaOpts('');
   document.getElementById('fBszKategoria').value = '';
   populateBszBeszallitoSelect();
   document.getElementById('fBszBeszallito').value = '';
@@ -11588,8 +11645,22 @@ async function saveKimenoSzamla() {
       const billingoPartnerId = await getOrCreateBillingoPartner(ugyfel, apiKey);
 
       const billingoItems = tetelek.map(t => {
-        const vatStr = t.afa === 'AAM' ? 'AAM' : t.afa === '27%' ? '27' : t.afa === '5%' ? '5' : '0';
-        return { description: t.megnevezes, vat: vatStr, quantity: t.mennyiseg, unit: t.egyseg, net_unit_price: t.egyseg_ar };
+        // Billingo v3 vat: "27%","5%","0%","AAM","TAM","KBAET"
+        const vatVal = t.afa === 'AAM' ? 'AAM' :
+                       t.afa === 'TAM' ? 'TAM' :
+                       t.afa === 'KBAET' ? 'KBAET' :
+                       t.afa === '27%' ? '27%' :
+                       t.afa === '5%' ? '5%' :
+                       t.afa === '0%' ? '0%' : '27%';
+        return {
+          name: t.megnevezes,
+          unit_price: parseFloat(t.egyseg_ar) || 0,
+          unit_price_type: 'net',
+          quantity: parseFloat(t.mennyiseg) || 1,
+          unit: t.egyseg || 'db',
+          vat: vatVal,
+          comment: t.leiras || undefined,
+        };
       });
 
       const billingoType = tipus === 'final' ? 'invoice' : tipus;
@@ -11635,10 +11706,13 @@ async function saveKimenoSzamla() {
         bruttoOssz += n * (1 + afaSzorzo);
       });
 
-      try {
-        const pdfResp = await billingoApiDirect('GET', 'documents/' + billingoId + '/download-url', null, apiKey);
-        pdfUrl = pdfResp?.url || null;
-      } catch(e) {}
+      // Piszkozatnál (draft) nincs PDF — csak végleges számláknál kérjük le
+      if (tipus !== 'draft' && billingoId) {
+        try {
+          const pdfResp = await billingoApiDirect('GET', 'documents/' + billingoId + '/download', null, apiKey);
+          pdfUrl = pdfResp?.data || pdfResp?.url || (typeof pdfResp === 'string' ? pdfResp : null);
+        } catch(e) { console.warn('PDF letöltési hiba:', e.message); }
+      }
     }
 
     // Airtable mentés
@@ -11655,15 +11729,11 @@ async function saveKimenoSzamla() {
       Netto_osszeg: Math.round(nettoOssz * 100) / 100 || null,
       Brutto_osszeg: Math.round(bruttoOssz * 100) / 100 || null,
       Statusz: airtableStatusz,
-      Tipus: tipusLabelMap[tipus] || tipus,
       Megjegyzes: megjegyzes || null,
       Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,
       PDF_url: pdfUrl || null,
       Kiallitas_datum: new Date().toISOString().split('T')[0],
       PO_szam: poSzam || null,
-      Vevoi_kontakt_id: vevoiKontaktId || null,
-      Sajat_kapcsolattarto: sajatKapcs || null,
-      Sajat_kapcsolattarto_email: sajatKapcsEmail || null,
     };
     if (projektId) fields.Projekt = [projektId];
     Object.keys(fields).forEach(k => (fields[k] === null || fields[k] === undefined) && delete fields[k]);
@@ -11704,8 +11774,30 @@ async function billingoApiDirect(method, path, body, apiKey) {
   const r = await fetch(proxyUrl, opts);
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const errMsg = (v => typeof v === 'string' ? v : v ? JSON.stringify(v) : null);
-    throw new Error(errMsg(data?.message) || errMsg(data?.error) || errMsg(data?.errors) || `Billingo HTTP ${r.status}`);
+    // Részletes hibaüzenet összerakása Billingo validation errors alapján
+    let errDetail = '';
+    if (data?.errors) {
+      const parts = [];
+      if (Array.isArray(data.errors)) {
+        // Billingo v3: errors = [{field, message}, ...]
+        data.errors.forEach(e => {
+          if (e?.field && e?.message) parts.push(`${e.field}: ${e.message}`);
+          else if (e?.message) parts.push(e.message);
+          else if (typeof e === 'string') parts.push(e);
+          else parts.push(JSON.stringify(e));
+        });
+      } else if (typeof data.errors === 'object') {
+        // Billingo v2: errors = { field: ["message"] }
+        for (const [field, msgs] of Object.entries(data.errors)) {
+          const msgStr = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+          parts.push(`${field}: ${msgStr}`);
+        }
+      }
+      if (parts.length) errDetail = parts.join(' | ');
+    }
+    const mainMsg = typeof data?.message === 'string' ? data.message :
+                    typeof data?.error === 'string' ? data.error : `Billingo HTTP ${r.status}`;
+    throw new Error(errDetail ? `${mainMsg} → ${errDetail}` : mainMsg);
   }
   return data;
 }
@@ -11724,15 +11816,36 @@ async function getOrCreateBillingoPartner(ugyfel, apiKey) {
 
   // Létrehozás ha nem találtuk
   const adoszam = f.Adoszam || '';
+
+  // Cím feldolgozás: "1234 Budapest, Példa utca 5." formátumból
+  const cimRaw = f.Szekhely_cim || f.Szamlazasi_cim || '';
+  const irszamMatch = cimRaw.match(/^(\d{4})\s+(.+)/);
+  let irszam = '1000', varos = 'Budapest', utca = '-';
+  if (irszamMatch) {
+    irszam = irszamMatch[1];
+    const maradek = irszamMatch[2]; // "Budapest, Példa utca 5."
+    const vesszoPoz = maradek.indexOf(',');
+    if (vesszoPoz > -1) {
+      varos = maradek.slice(0, vesszoPoz).trim() || 'Budapest';
+      utca = maradek.slice(vesszoPoz + 1).trim() || '-';
+    } else {
+      varos = maradek.trim() || 'Budapest';
+      utca = '-';
+    }
+  } else if (cimRaw) {
+    // Nincs irszám prefix - egészet utcaként kezeljük
+    utca = cimRaw.trim();
+  }
+
   const partnerData = {
     name: f.Cegnev,
     address: {
       country_code: 'HU',
-      post_code: (f.Szekhely_cim || '').match(/^\d{4}/)?.[0] || '1000',
-      city: (f.Szekhely_cim || '').replace(/^\d{4}\s*/, '').split(',')[0]?.trim() || '',
-      address: (f.Szekhely_cim || '').split(',').slice(1).join(',').trim() || f.Szekhely_cim || '',
+      post_code: irszam,
+      city: varos,
+      address: utca,
     },
-    taxcode: adoszam,
+    taxcode: adoszam || undefined,
     emails: f.Kapcsolattarto_email ? [f.Kapcsolattarto_email] : [],
   };
   const created = await billingoApiDirect('POST', 'partners', partnerData, apiKey);
@@ -11765,19 +11878,37 @@ async function markKszFizetett(airtableId, billingoId) {
 
 async function downloadKszPdf(airtableId, billingoId) {
   if (!billingoId) { toast('Nincs Billingo ID!', 'error'); return; }
-  try {
-    const apiKey = getBillingoApiKey();
-    const resp = await billingoApiDirect('GET', `documents/${billingoId}/download-url`, null, apiKey);
-    const url = resp?.url;
-    if (!url) throw new Error('Nem sikerült a PDF URL lekérése');
-    // Mentsük Airtable-be is
-    await atPatch('Kimeno_Szamlak', airtableId, { PDF_url: url });
-    const inv = kszInvoices.find(i => i._id === airtableId);
-    if (inv) inv.pdfUrl = url;
-    window.open(url, '_blank');
-    filterKimenoSzamlak();
-  } catch(e) {
-    toast('PDF letöltési hiba: ' + e.message, 'error');
+  const apiKey = getBillingoApiKey();
+  toast('⏳ PDF generálás folyamatban...', 'success');
+  // Retry: Billingo aszinkron generálja a PDF-et, max 5x próbálkozunk 3s várakozással
+  const maxTry = 5;
+  for (let i = 0; i < maxTry; i++) {
+    try {
+      if (i > 0) await new Promise(r => setTimeout(r, 3000)); // 3s várakozás
+      const resp = await billingoApiDirect('GET', `documents/${billingoId}/download`, null, apiKey);
+      // Ha még nem kész, próbáljuk újra
+      if (resp?.error?.message?.includes('not generated')) {
+        if (i < maxTry - 1) continue;
+        throw new Error('A PDF generálás túl sokáig tart. Próbáld újra pár másodperc múlva.');
+      }
+      const url = resp?.data || resp?.url || resp?.download_url || resp?.pdf_url ||
+                  (typeof resp === 'string' ? resp : null);
+      if (!url) {
+        if (i < maxTry - 1) continue;
+        throw new Error('PDF URL nem található.');
+      }
+      // Siker
+      await atPatch('Kimeno_Szamlak', airtableId, { PDF_url: url });
+      const inv = kszInvoices.find(i => i._id === airtableId);
+      if (inv) inv.pdfUrl = url;
+      const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 100);
+      filterKimenoSzamlak();
+      return;
+    } catch(e) {
+      if (e.message?.includes('not generated') && i < maxTry - 1) continue;
+      toast('PDF letöltési hiba: ' + e.message, 'error');
+      return;
+    }
   }
 }
 

@@ -1,12 +1,37 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v223
+     ZALNER ERP - VERZIÓ: v231
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v231:
+- Kimenő számlák: Piszkozat szűrő gomb hozzáadva
+
+CHANGES v230:
+- Kimenő számla: összegek 2 tizedesjeggyel jelennek meg (nem kerekítve egészre)
+
+CHANGES v229:
+- Mennyiség mezők: step="1" - nyíllal egész számokkal lép, kézzel tizedes is írható
+
+CHANGES v228:
+- Járfás Kitti: csak saját ajánlatait és projektjeit látja (csak_sajat: true)
+- initOwnerFilters: csak_sajat flag alapján kényszerített szűrő + Összes gomb rejtve
+
+CHANGES v227:
+- Státusz szín: azonnal vált változtatáskor (onchange inline stílus frissítés)
+
+CHANGES v226:
+- Lejárt státusz: erősebb lila szín (#ede9fe / #5b21b6)
+
+CHANGES v225:
+- Ajánlatok lista: státusz dropdown diszkrét háttérszínnel (zöld/piros/szürke/lila)
+
+CHANGES v224:
+- Ajánlat form: fizetési feltétel layout javítva - selector és szövegmező egy form-group-ban
 
 CHANGES v223:
 - Fizetési feltétel: "70% előleg, 30% teljesítés + 30 nap" opció hozzáadva
@@ -264,7 +289,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v223</title>
+<title>Zalner ERP v231</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -456,7 +481,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v223</div>
+    <div class="nav-logo-sub">v231</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -732,16 +757,18 @@ select.form-control{cursor:pointer}
               <label class="form-label">Fizetési határidő (nap)</label>
               <input class="form-control" type="number" id="fFizetesiHataridoNap" min="0" max="365" value="30">
             </div>
-            <div class="form-group">
+            <div class="form-group" style="grid-column:1/-1">
               <label class="form-label">Fizetési feltétel</label>
-              <select class="form-control" id="fFizetesFeltetelSelector" onchange="onFizetesFeltetelChange(this.value)" style="margin-bottom:6px">
-                <option value="">— Egyedi / nincs —</option>
-                <option value="30% előleg rendeléskor, 70% teljesítés + 30 nap">30% előleg, 70% teljesítés + 30 nap</option>
-                <option value="50% előleg rendeléskor, 50% teljesítés + 30 nap">50% előleg, 50% teljesítés + 30 nap</option>
-                <option value="70% előleg rendeléskor, 30% teljesítés + 30 nap">70% előleg, 30% teljesítés + 30 nap</option>
-                <option value="100% előre utalás">100% előre utalás</option>
-              </select>
-              <input class="form-control" type="text" id="fFizetesFeltetel" placeholder="vagy írj egyedi feltételt..." style="font-size:12px">
+              <div style="display:flex;gap:8px">
+                <select class="form-control" id="fFizetesFeltetelSelector" onchange="onFizetesFeltetelChange(this.value)" style="flex:0 0 auto;width:auto;min-width:260px">
+                  <option value="">— Egyedi / nincs —</option>
+                  <option value="30% előleg rendeléskor, 70% teljesítés + 30 nap">30% előleg, 70% teljesítés + 30 nap</option>
+                  <option value="50% előleg rendeléskor, 50% teljesítés + 30 nap">50% előleg, 50% teljesítés + 30 nap</option>
+                  <option value="70% előleg rendeléskor, 30% teljesítés + 30 nap">70% előleg, 30% teljesítés + 30 nap</option>
+                  <option value="100% előre utalás">100% előre utalás</option>
+                </select>
+                <input class="form-control" type="text" id="fFizetesFeltetel" placeholder="egyedi feltétel szövege..." style="flex:1;font-size:12px">
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Ajánlat nyelve</label>
@@ -1136,6 +1163,7 @@ select.form-control{cursor:pointer}
           <button class="pill active" onclick="setKszFilter('mind',this)">Összes</button>
           <button class="pill" onclick="setKszFilter('fizetesre_var',this)">Fizetésre vár</button>
           <button class="pill" onclick="setKszFilter('fizetett',this)">Fizetett</button>
+          <button class="pill" onclick="setKszFilter('piszkozat',this)">Piszkozat</button>
         </div>
         <div style="flex:1"></div>
         <input class="search-input" type="text" placeholder="Ügyfél, számlaszám..." id="kszSearch" oninput="filterKimenoSzamlak()" style="width:240px">
@@ -4553,6 +4581,8 @@ function onFizetesFeltetelChange(val) {
 }
 
 function setAjanlatKapcsolattartoFilter(val, el) {
+  const userConfig = USERS.find(u => u.nev === currentUser?.name || u.airtable === currentUser?.name);
+  if (userConfig?.csak_sajat && val === 'osszes') return; // Tiltott
   ajanlatKapcsolattartoFilter = val;
   document.querySelectorAll('#ajanlatKapcsolattartoFilter .pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
@@ -4560,6 +4590,8 @@ function setAjanlatKapcsolattartoFilter(val, el) {
 }
 
 function setProjektFelelosFilter(val, el) {
+  const userConfig = USERS.find(u => u.nev === currentUser?.name || u.airtable === currentUser?.name);
+  if (userConfig?.csak_sajat && val === 'osszes') return; // Tiltott
   projektFelelosFilter = val;
   document.querySelectorAll('#projektFelelosFilter .pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
@@ -4568,8 +4600,11 @@ function setProjektFelelosFilter(val, el) {
 
 // Alapértelmezett szűrő beállítása bejelentkezés után
 function initOwnerFilters() {
-  const defaultFilter = 'osszes';
+  // Csak_sajat flag: az adott user csak saját rekordjait láthatja
+  const userConfig = USERS.find(u => u.nev === currentUser?.name || u.airtable === currentUser?.name);
+  const csakSajat = userConfig?.csak_sajat === true;
 
+  const defaultFilter = csakSajat ? 'sajat' : 'osszes';
   ajanlatKapcsolattartoFilter = defaultFilter;
   projektFelelosFilter = defaultFilter;
 
@@ -4579,10 +4614,22 @@ function initOwnerFilters() {
   const projektSajat = document.getElementById('projektSajatPill');
   const projektOsszes = document.getElementById('projektOsszesPill');
 
-  ajanlatOsszes?.classList.add('active');
-  ajanlatSajat?.classList.remove('active');
-  projektOsszes?.classList.add('active');
-  projektSajat?.classList.remove('active');
+  if (csakSajat) {
+    // Saját aktív, Összes elrejtve
+    ajanlatSajat?.classList.add('active');
+    ajanlatOsszes?.classList.remove('active');
+    if (ajanlatOsszes) ajanlatOsszes.style.display = 'none';
+    projektSajat?.classList.add('active');
+    projektOsszes?.classList.remove('active');
+    if (projektOsszes) projektOsszes.style.display = 'none';
+  } else {
+    ajanlatOsszes?.classList.add('active');
+    ajanlatSajat?.classList.remove('active');
+    if (ajanlatOsszes) ajanlatOsszes.style.display = '';
+    projektOsszes?.classList.add('active');
+    projektSajat?.classList.remove('active');
+    if (projektOsszes) projektOsszes.style.display = '';
+  }
 }
 
 function filterAjanlatok() {
@@ -4621,7 +4668,15 @@ function renderAjanlatok() {
     const statusOptions = ['Tervezet','Elkuldve','Elfogadva','Elutasitva','Lejart'];
     const statusLabels = { 'Tervezet':'Tervezet','Elkuldve':'Elküldve','Elfogadva':'Elfogadva','Elutasitva':'Elutasítva','Lejart':'Lejárt' };
     const currentStatus = f.Statusz || 'Tervezet';
-    const statusSelect = `<select class="form-control" style="padding:4px 8px;font-size:12px;height:auto;min-width:100px" onclick="event.stopPropagation()" onchange="event.stopPropagation();updateAjanlatStatus('${a.id}',this.value)">${statusOptions.map(s=>`<option value="${s}" ${currentStatus===s?'selected':''}>${statusLabels[s]}</option>`).join('')}</select>`;
+    const statusColors = {
+      'Tervezet':   'background:#f3f4f6;color:#6b7280',
+      'Elkuldve':   'background:#f1f5f9;color:#64748b',
+      'Elfogadva':  'background:#f0fdf4;color:#15803d',
+      'Elutasitva': 'background:#fff1f2;color:#be123c',
+      'Lejart':     'background:#ede9fe;color:#5b21b6',
+    };
+    const statusStyle = statusColors[currentStatus] || statusColors['Tervezet'];
+    const statusSelect = `<select class="form-control" style="padding:4px 8px;font-size:12px;height:auto;min-width:110px;border:none;${statusStyle};border-radius:6px;font-weight:500" onclick="event.stopPropagation()" onchange="event.stopPropagation();updateAjanlatStatus('${a.id}',this.value);(function(sel){const c={'Tervezet':'background:#f3f4f6;color:#6b7280','Elkuldve':'background:#f1f5f9;color:#64748b','Elfogadva':'background:#f0fdf4;color:#15803d','Elutasitva':'background:#fff1f2;color:#be123c','Lejart':'background:#ede9fe;color:#5b21b6'};const s=c[sel.value]||c['Tervezet'];sel.style.cssText='padding:4px 8px;font-size:12px;height:auto;min-width:110px;border:none;border-radius:6px;font-weight:500;'+s;})(this)">${statusOptions.map(s=>`<option value="${s}" ${currentStatus===s?'selected':''}>${statusLabels[s]}</option>`).join('')}</select>`;
     return `<tr onclick="showAjanlatReszlet('${a.id}')">
       <td class="td-name" style="font-family:'DM Mono',monospace;font-size:13px">${f.Ajanlat_szam || '—'}${f.Van_csatolmany ? ' <span title="Van csatolmány" style="font-size:13px">📎</span>' : ''}</td>
       <td>${un}</td>
@@ -5165,7 +5220,7 @@ const SHAREPOINT_BASE = 'https://zalner.sharepoint.com/:f:/r/sites/Administratio
 
 // ===== FELHASZNÁLÓK =====
 const USERS = [
-  { nev: 'Járfás Kitti',      airtable: 'Jarfas Kitti',      email: 'kitti.jarfas@zalner.hu' },
+  { nev: 'Járfás Kitti',      airtable: 'Jarfas Kitti',      email: 'kitti.jarfas@zalner.hu',      csak_sajat: true },
   { nev: 'Zombori Krisztina', airtable: 'Zombori Krisztina', email: 'krisztina.zombori@zalner.hu' },
   { nev: 'Wágner Szabolcs',   airtable: 'Wagner Szabolcs',   email: 'szabolcs.wagner@zalner.hu' },
 ];
@@ -5465,7 +5520,7 @@ function addTetel(data = null, atId = null) {
   tr.innerHTML = `
     <td class="col-megnevezes"><input type="text" name="megnevezes" placeholder="Megnevezés..." value="${data?.Megnevezes||''}" oninput="calcTetel(${id})"></td>
     <td class="col-leiras"><input type="text" name="leiras" placeholder="Leírás..." value="${data?.Leiras||''}"></td>
-    <td class="col-menny"><input type="number" name="mennyiseg" placeholder="1" value="${data?.Mennyiseg!==undefined&&data?.Mennyiseg!==null?data.Mennyiseg:1}" min="0" step="0.01" oninput="calcTetel(${id})"></td>
+    <td class="col-menny"><input type="number" name="mennyiseg" placeholder="1" value="${data?.Mennyiseg!==undefined&&data?.Mennyiseg!==null?data.Mennyiseg:1}" min="0" step="1" oninput="calcTetel(${id})"></td>
     <td class="col-egyseg">
       <select name="egyseg" oninput="calcTetel(${id})">
         <option ${!data||data?.Egyseg===undefined||data?.Egyseg==='db'?'selected':''}>db</option>
@@ -5989,6 +6044,17 @@ async function confirmElutasitas() {
     toast('Hiba: ' + e.message, 'error');
     await loadAjanlatok();
   }
+}
+
+function getAjanlatStatusStyle(status) {
+  const statusColors = {
+    'Tervezet':   'background:#f3f4f6;color:#6b7280',
+    'Elkuldve':   'background:#f1f5f9;color:#64748b',
+    'Elfogadva':  'background:#f0fdf4;color:#15803d',
+    'Elutasitva': 'background:#fff1f2;color:#be123c',
+    'Lejart':     'background:#ede9fe;color:#5b21b6',
+  };
+  return statusColors[status] || statusColors['Tervezet'];
 }
 
 async function updateAjanlatStatus(ajanlatId, newStatus) {
@@ -6688,7 +6754,7 @@ function addVrvTetel(data = {}) {
   const menny = data.menny !== undefined && data.menny !== '' ? data.menny : '1';
   tr.innerHTML = `
     <td class="col-megnevezes"><input class="vrv-nev" placeholder="Termék neve" value="${data.nev||''}" oninput="recalcVrv()"></td>
-    <td style="width:65px"><input class="vrv-menny" type="number" min="0" step="any" placeholder="0" value="${menny}" oninput="recalcVrv()" style="width:58px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
+    <td style="width:65px"><input class="vrv-menny" type="number" min="0" step="1" placeholder="0" value="${menny}" oninput="recalcVrv()" style="width:58px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
     <td style="width:52px"><input class="vrv-egyseg" placeholder="db" value="${data.egyseg||'db'}" style="width:46px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
     <td style="white-space:nowrap;width:115px"><input class="vrv-ar" type="number" min="0" step="any" placeholder="0" value="${ar}" style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif" oninput="recalcVrv()"> <span class="vrv-deviza" style="font-size:11px;color:var(--text-muted)"></span></td>
     <td class="readonly-cell vrv-bruttoar" style="text-align:right;white-space:nowrap;width:110px;font-size:12px;padding:6px 8px">—</td>
@@ -8234,7 +8300,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v223 · Belső rendszer
+          Zalner ERP v231 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -10820,7 +10886,7 @@ function addSzlTetel(data = {}) {
   tr.dataset.tid = id;
   tr.innerHTML = `
     <td class="col-megnevezes"><input class="szl-nev" placeholder="Termék neve" value="${data.nev||''}"></td>
-    <td class="col-menny"><input class="szl-menny" type="number" min="0" step="any" placeholder="0" value="${data.menny!==undefined && data.menny!=='' ? data.menny : '1'}"></td>
+    <td class="col-menny"><input class="szl-menny" type="number" min="0" step="1" placeholder="0" value="${data.menny!==undefined && data.menny!=='' ? data.menny : '1'}"></td>
     <td class="col-egyseg"><input class="szl-egyseg" placeholder="db" value="${data.egyseg||'db'}"></td>
     <td class="col-del"><button type="button" onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:16px;padding:4px">✕</button></td>`;
   document.getElementById('szlTetelek').appendChild(tr);
@@ -11031,6 +11097,7 @@ function filterKimenoSzamlak() {
   kszFiltered = kszInvoices.filter(inv => {
     if (kszFilter === 'fizetesre_var' && inv.statusz !== 'Fizetesre_var') return false;
     if (kszFilter === 'fizetett' && inv.statusz !== 'Fizetett') return false;
+    if (kszFilter === 'piszkozat' && inv.statusz !== 'Piszkozat') return false;
     if (search) return (inv.invoiceNumber || '').toLowerCase().includes(search) || (inv.ugyfelNev || '').toLowerCase().includes(search);
     return true;
   });
@@ -11553,12 +11620,12 @@ function previewKimenoSzamla() {
       <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0">${t.megnevezes}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:center">${t.mennyiseg} ${t.egyseg}</td>
       <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:center">${t.afa}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:right;font-family:'DM Mono',monospace">${Number(t.egyseg_ar).toLocaleString('hu-HU')}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:right;font-family:'DM Mono',monospace;font-weight:600">${netto.toLocaleString('hu-HU')}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:right;font-family:'DM Mono',monospace">${Number(t.egyseg_ar).toLocaleString('hu-HU', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid #e8eaf0;text-align:right;font-family:'DM Mono',monospace;font-weight:600">${netto.toLocaleString('hu-HU', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
     </tr>`;
   }).join('');
   const bruttoOssz = nettoOssz + afaOssz;
-  const fmt = n => Math.round(n).toLocaleString('hu-HU') + ' ' + deviza;
+  const fmt = n => n.toLocaleString('hu-HU', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + deviza;
 
   const bankAdat = CEGADATOK.bankszamlak[deviza === 'EUR' ? 'Wise EUR' : 'Wise HUF'] || CEGADATOK.bankszamlak['Wise HUF'];
 
@@ -11803,7 +11870,7 @@ function addKszTetel(data = null) {
   const afaOpts = ['27%','5%','0%','AAM'].map(v => `<option value="${v}" ${(data?.afa||'27%')===v?'selected':''}>${v}</option>`).join('');
   tr.innerHTML = `
     <td class="col-megnevezes"><input type="text" name="megnevezes" placeholder="Megnevezés..." value="${data?.megnevezes||''}" oninput="calcKszOssz()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
-    <td class="col-menny"><input type="number" name="mennyiseg" value="${data?.mennyiseg??1}" min="0" step="0.01" oninput="calcKszTetel(${id});calcKszOssz()" style="width:60px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
+    <td class="col-menny"><input type="number" name="mennyiseg" value="${data?.mennyiseg??1}" min="0" step="1" oninput="calcKszTetel(${id});calcKszOssz()" style="width:60px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
     <td><input type="text" name="egyseg" value="${data?.egyseg||'db'}" oninput="calcKszOssz()" style="width:56px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
     <td><select name="afa" onchange="calcKszTetel(${id});calcKszOssz()" style="padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:70px">${afaOpts}</select></td>
     <td class="col-ar"><input type="number" name="egyseg_ar" value="${data?.egyseg_ar||''}" min="0" step="1" oninput="calcKszTetel(${id});calcKszOssz()" style="width:100px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
@@ -11844,9 +11911,10 @@ function calcKszOssz() {
     afa += Math.round(n * afaSzorzo * 100) / 100;
   });
   const brutto = netto + afa;
-  document.getElementById('kszNettoOssz').textContent = netto.toLocaleString('hu-HU');
-  document.getElementById('kszAfaOssz').textContent = Math.round(afa).toLocaleString('hu-HU');
-  document.getElementById('kszBruttoOssz').textContent = Math.round(brutto).toLocaleString('hu-HU');
+  const fmt2 = n => n.toLocaleString('hu-HU', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('kszNettoOssz').textContent = fmt2(netto);
+  document.getElementById('kszAfaOssz').textContent = fmt2(afa);
+  document.getElementById('kszBruttoOssz').textContent = fmt2(brutto);
 }
 
 // --- Számla kiállítása ---

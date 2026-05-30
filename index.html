@@ -1,12 +1,43 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v231
+     ZALNER ERP - VERZIÓ: v240
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v240:
+- Debug log visszahelyezve partner frissítésnél
+
+CHANGES v239:
+- Billingo partner: meglévő partner frissítése ha adószám hiányzik (PUT /partners/id)
+- Debug log eltávolítva
+
+CHANGES v238:
+- Billingo partner: debug log + taxpayer érték javítás kísérlet
+
+CHANGES v237:
+- Billingo partner: adószám kötőjelekkel küldve (XXXXXXXX-Y-ZZ formátum)
+- Billingo partner: taxpayer mező hozzáadva (adószám alapján auto detektálva)
+
+CHANGES v236:
+- Billingo partner: cím parser javítva - utca-első formátum kezelése (pl. "Füzesi út 15., 9970, Szentgotthárd, Vas")
+- Billingo partner: adószám küldése javítva
+
+CHANGES v235:
+- Kimenő számla árfolyam: saját API hívás frankfurter.dev-re, nem függőség loadMnbArfolyam-tól
+
+CHANGES v234:
+- Kimenő számla: deviza váltáskor automatikusan lekéri az árfolyamot
+
+CHANGES v233:
+- Árfolyam gomb: frankfurter.app helyett meglévő loadMnbArfolyam() használata
+
+CHANGES v232:
+- Kimenő számla: EUR/USD devizánál árfolyam mező megjelenik (Billingo megköveteli)
+- conversion_rate hozzáadva a Billingo API híváshoz ha deviza nem HUF
 
 CHANGES v231:
 - Kimenő számlák: Piszkozat szűrő gomb hozzáadva
@@ -289,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v231</title>
+<title>Zalner ERP v240</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -481,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v231</div>
+    <div class="nav-logo-sub">v240</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1245,7 +1276,7 @@ select.form-control{cursor:pointer}
         </div>
         <div>
           <label class="form-label">Fizetés dátuma</label>
-          <input class="form-control" type="date" id="wiseManualDate" value="${new Date().toISOString().split('T')[0]}">
+          <input class="form-control" type="date" id="wiseManualDate">
         </div>
         <button class="btn btn-primary" onclick="wiseMarkPaid()">✓ Fizetett</button>
       </div>
@@ -2306,10 +2337,18 @@ select.form-control{cursor:pointer}
         </div>
         <div class="form-group">
           <label class="form-label">Deviza</label>
-          <select class="form-control" id="fKszDeviza">
+          <select class="form-control" id="fKszDeviza" onchange="onKszDevizaChange(this.value)">
             <option value="HUF">HUF</option>
             <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
           </select>
+        </div>
+        <div class="form-group" id="kszArfolyamWrap" style="display:none">
+          <label class="form-label">Árfolyam (1 EUR = ? HUF) <span style="font-size:11px;color:var(--text-muted)">Billingo megköveteli</span></label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-control" type="number" id="fKszArfolyam" min="0" step="0.01" placeholder="pl. 395.50" style="flex:1">
+            <button class="btn btn-secondary btn-sm" onclick="autoKszArfolyam()" title="Aktuális EKB árfolyam betöltése" style="white-space:nowrap">⟳ EKB</button>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Fizetési mód</label>
@@ -8300,7 +8339,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v231 · Belső rendszer
+          Zalner ERP v240 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -8662,6 +8701,7 @@ async function initBevoSzamlak() {
       invoiceNetAmountHUF: r.fields.Netto_osszeg || 0,
       invoiceVatAmountHUF: r.fields.Afa_osszeg || 0,
       currency: r.fields.Deviza || 'HUF',
+      arfolyam: r.fields.Arfolyam || null,
       paymentMethod: r.fields.Fizetes_mod || '',
       invoiceOperation: r.fields.Tipus || 'CREATE',
       _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
@@ -9023,6 +9063,7 @@ async function reloadBszFromAirtable() {
       invoiceNetAmountHUF: r.fields.Netto_osszeg || 0,
       invoiceVatAmountHUF: r.fields.Afa_osszeg || 0,
       currency: r.fields.Deviza || 'HUF',
+      arfolyam: r.fields.Arfolyam || null,
       paymentMethod: r.fields.Fizetes_mod || '',
       invoiceOperation: r.fields.Tipus || 'CREATE',
       _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
@@ -11062,6 +11103,7 @@ async function syncKimenoSzamlak() {
       nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
       bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
       currency: r.fields.Deviza || 'HUF',
+      arfolyam: r.fields.Arfolyam || null,
       teljesitesDatum: r.fields.Teljesites_datum || '',
       fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
       statusz: r.fields.Statusz || 'Fizetesre_var',
@@ -11081,6 +11123,53 @@ async function syncKimenoSzamlak() {
     document.getElementById('kszTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">${e.message}</td></tr>`;
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+async function fetchKszArfolyam(deviza) {
+  try {
+    const resp = await fetch(`https://api.frankfurter.dev/v2/rate/${deviza}/HUF`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const rate = Math.round(data.rate * 100) / 100;
+    if (!rate || isNaN(rate)) throw new Error('Érvénytelen árfolyam');
+    return rate;
+  } catch(e) {
+    console.warn('Árfolyam lekérési hiba:', e.message);
+    return null;
+  }
+}
+
+async function onKszDevizaChange(val) {
+  const wrap = document.getElementById('kszArfolyamWrap');
+  if (wrap) wrap.style.display = (val !== 'HUF') ? '' : 'none';
+  if (val !== 'HUF') {
+    const inp = document.getElementById('fKszArfolyam');
+    if (inp) inp.placeholder = '⏳ Betöltés...';
+    const rate = await fetchKszArfolyam(val);
+    if (rate && inp) {
+      inp.value = rate;
+      inp.placeholder = 'pl. 395.50';
+      toast(`Árfolyam: 1 ${val} = ${rate} HUF (EKB)`, 'success');
+    } else if (inp) {
+      inp.placeholder = 'pl. 395.50';
+      toast('Árfolyam nem elérhető, add meg kézzel', 'error');
+    }
+  }
+}
+
+async function autoKszArfolyam() {
+  const deviza = document.getElementById('fKszDeviza')?.value || 'EUR';
+  const inp = document.getElementById('fKszArfolyam');
+  if (inp) inp.placeholder = '⏳ Betöltés...';
+  const rate = await fetchKszArfolyam(deviza);
+  if (rate && inp) {
+    inp.value = rate;
+    inp.placeholder = 'pl. 395.50';
+    toast(`Árfolyam: 1 ${deviza} = ${rate} HUF (EKB)`, 'success');
+  } else {
+    if (inp) inp.placeholder = 'pl. 395.50';
+    toast('Árfolyam nem elérhető, add meg kézzel', 'error');
   }
 }
 
@@ -11553,6 +11642,8 @@ function openKszModal(id = null) {
     document.getElementById('fKszTeljesites').value = today;
     document.getElementById('fKszHatarido').value = dueStr;
     document.getElementById('fKszDeviza').value = 'HUF';
+  document.getElementById('fKszArfolyam').value = '';
+  if (document.getElementById('kszArfolyamWrap')) document.getElementById('kszArfolyamWrap').style.display = 'none';
     document.getElementById('fKszMegjegyzes').value = '';
     document.getElementById('fKszPoSzam').value = '';
     document.getElementById('fKszSajatKapcsolattarto').value = getCurrentUserAirtableName() || 'Jarfas Kitti';
@@ -11658,7 +11749,7 @@ function previewKimenoSzamla() {
         <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Vevő</div>
         <div style="font-weight:600;font-size:14px">${uf.Cegnev || '—'}</div>
         <div style="color:#6b7280;font-size:12px;margin-top:4px;line-height:1.7">
-          ${uf.Szekhely_cim || ''}${uf.Adoszam ? '<br>Adószám: ' + uf.Adoszam : ''}${uf.EU_adoszam ? '<br>EU adószám: ' + uf.EU_adoszam : ''}
+          ${uf.Szekhely_cim || ''}${uf.Ceg_adoszama ? '<br>Adószám: ' + uf.Ceg_adoszama : ''}${uf.EU_adoszam ? '<br>EU adószám: ' + uf.EU_adoszam : ''}
           ${vevoiKontaktNev ? `<br><strong>Kapcsolattartó:</strong> ${vevoiKontaktNev}` : ''}
         </div>
       </div>
@@ -12014,6 +12105,7 @@ async function saveKimenoSzamla() {
       if (megjegyzes && megjegyzes.trim()) commentParts.push(megjegyzes.trim());
       const billingoComment = commentParts.length ? commentParts.join('\n') : undefined;
 
+      const arfolyamVal = parseFloat(document.getElementById('fKszArfolyam')?.value) || null;
       const szamlaAdat = {
         partner_id: billingoPartnerId,
         block_id: 0,
@@ -12027,6 +12119,7 @@ async function saveKimenoSzamla() {
         paid: false,
         items: billingoItems,
         comment: billingoComment,
+        ...(deviza !== 'HUF' && arfolyamVal ? { conversion_rate: arfolyamVal } : {}),
       };
 
       // Szerkesztésnél: meglévő Billingo piszkozat frissítése PUT-tal
@@ -12164,31 +12257,88 @@ async function getOrCreateBillingoPartner(ugyfel, apiKey) {
     const existing = await billingoApiDirect('GET', `partners?query=${encodeURIComponent(f.Cegnev)}&per_page=5`, null, apiKey);
     const partners = existing?.data || [];
     const found = partners.find(p => p.name?.trim().toLowerCase() === f.Cegnev?.trim().toLowerCase());
-    if (found) return found.id;
-  } catch(e) {}
+    if (found) {
+      // Ha a meglévő partnernek hiányzik az adószáma, frissítjük
+      const erpAdoszam = f.Ceg_adoszama || '';
+      console.log('Found partner taxcode:', found.taxcode, '| ERP adoszam:', erpAdoszam, '| Feltétel:', erpAdoszam && !found.taxcode);
+      if (erpAdoszam && !found.taxcode) {
+        try {
+          const euAdoszam = f.EU_adoszam || '';
+          const updateData = {
+            name: found.name,
+            address: found.address,
+            taxcode: erpAdoszam,
+            taxcode_eu: euAdoszam || undefined,
+            // taxpayer mezőt NEM küldjük – Billingo auto-detektálja taxcode meglétéből
+            emails: found.emails || [],
+          };
+          console.log('Partner frissítés küldés:', JSON.stringify(updateData));
+          const updated = await billingoApiDirect('PUT', `partners/${found.id}`, updateData, apiKey);
+          console.log('Partner frissítés válasz:', JSON.stringify(updated));
+          toast('Billingo partner frissítve (adószám: ' + erpAdoszam + ')', 'info');
+        } catch(e) {
+          console.warn('Partner frissítési hiba:', e.message);
+          toast('Billingo partner adószám frissítés sikertelen: ' + e.message, 'warning');
+        }
+      } else if (!erpAdoszam) {
+        toast('Figyelem: az ügyfélnek nincs adószáma az Airtable-ben!', 'warning');
+      }
+      return found.id;
+    }
+  } catch(e) { console.warn('Billingo partner keresés hiba:', e.message); }
 
   // Létrehozás ha nem találtuk
-  const adoszam = f.Adoszam || '';
+  const adoszam = f.Ceg_adoszama || '';
 
-  // Cím feldolgozás: "1234 Budapest, Példa utca 5." formátumból
+  // Cím feldolgozás - többféle formátum kezelése:
+  // 1. "1234 Budapest, Példa utca 5."  (irszám elöl)
+  // 2. "Füzesi út 15., 9970, Szentgotthárd, Vas"  (utca elöl)
   const cimRaw = f.Szekhely_cim || f.Szamlazasi_cim || '';
-  const irszamMatch = cimRaw.match(/^(\d{4})\s+(.+)/);
   let irszam = '1000', varos = 'Budapest', utca = '-';
-  if (irszamMatch) {
-    irszam = irszamMatch[1];
-    const maradek = irszamMatch[2]; // "Budapest, Példa utca 5."
-    const vesszoPoz = maradek.indexOf(',');
-    if (vesszoPoz > -1) {
-      varos = maradek.slice(0, vesszoPoz).trim() || 'Budapest';
-      utca = maradek.slice(vesszoPoz + 1).trim() || '-';
+
+  // Keresünk 4 jegyű számot bárhol a cím szövegben
+  const irszamAnyMatch = cimRaw.match(/(\d{4})/);
+
+  if (irszamAnyMatch) {
+    irszam = irszamAnyMatch[1];
+    const irszamIdx = cimRaw.indexOf(irszam);
+    const elotte = cimRaw.slice(0, irszamIdx).replace(/,\s*$/, '').trim(); // utca rész
+    const utana = cimRaw.slice(irszamIdx + 4).replace(/^[,\s]+/, '').trim(); // város rész
+
+    if (elotte && !elotte.match(/^\d{4}$/)) {
+      // Utca-első formátum: "Füzesi út 15., [9970], Szentgotthárd, Vas"
+      utca = elotte;
+      // Városnév: utana első vesszőig
+      const vesszoPoz = utana.indexOf(',');
+      varos = vesszoPoz > -1 ? utana.slice(0, vesszoPoz).trim() : utana.trim();
+      if (!varos) varos = 'Budapest';
     } else {
-      varos = maradek.trim() || 'Budapest';
-      utca = '-';
+      // Irszám-első formátum: "[1234] Budapest, Példa utca 5."
+      const vesszoPoz = utana.indexOf(',');
+      if (vesszoPoz > -1) {
+        varos = utana.slice(0, vesszoPoz).trim() || 'Budapest';
+        utca = utana.slice(vesszoPoz + 1).trim() || '-';
+      } else {
+        varos = utana.trim() || 'Budapest';
+        utca = '-';
+      }
     }
   } else if (cimRaw) {
-    // Nincs irszám prefix - egészet utcaként kezeljük
     utca = cimRaw.trim();
   }
+
+  // Billingo taxpayer típus az adószám alapján:
+  // - Ha van adószám → belföldi ÁFA alany
+  // - Ha van EU adószám de nincs HU adószám → EU-s partner
+  // - Ha egyik sincs → természetes személy
+  const euAdoszam = f.EU_adoszam || '';
+  // Billingo v3 taxpayer értékek:
+  // 'taxpayer' = Adószámmal rendelkezik (Belföldi ÁFA alany)
+  // 'private_person' = Természetes személy
+  // 'foreign' = Külföldi, egyéb
+  let taxpayer = 'private_person';
+  if (adoszam) taxpayer = 'taxpayer';
+  else if (euAdoszam) taxpayer = 'foreign';
 
   const partnerData = {
     name: f.Cegnev,
@@ -12198,10 +12348,15 @@ async function getOrCreateBillingoPartner(ugyfel, apiKey) {
       city: varos,
       address: utca,
     },
-    taxcode: adoszam || undefined,
+    taxcode: adoszam || undefined,           // Magyar adószám kötőjelekkel: XXXXXXXX-Y-ZZ
+    taxcode_eu: euAdoszam || undefined,      // EU adószám ha van
+    // taxpayer mezőt NEM küldjük – Billingo auto-detektálja taxcode meglétéből
     emails: f.Kapcsolattarto_email ? [f.Kapcsolattarto_email] : [],
   };
+  console.log('Billingo partner létrehozás küldés:', JSON.stringify(partnerData));
   const created = await billingoApiDirect('POST', 'partners', partnerData, apiKey);
+  console.log('Billingo partner létrehozás válasz:', JSON.stringify(created));
+  toast('Billingo partner létrehozva: ' + f.Cegnev + (adoszam ? ' (adószám: ' + adoszam + ')' : ' ⚠️ adószám nélkül'), adoszam ? 'info' : 'warning');
   return created.id;
 }
 
@@ -12310,6 +12465,8 @@ let wiseManualSelected = null;
 
 function showWiseSync() {
   showPage('wise-sync');
+  const el = document.getElementById('wiseManualDate');
+  if (el) el.value = new Date().toISOString().split('T')[0];
   loadWiseSyncData();
 }
 
@@ -12493,6 +12650,7 @@ function initAfaBevallas() {
             invoiceNetAmount: r.fields.Netto_osszeg || 0,
             invoiceVatAmount: r.fields.Afa_osszeg || 0,
             currency: r.fields.Deviza || 'HUF',
+      arfolyam: r.fields.Arfolyam || null,
             paymentMethod: r.fields.Fizetes_mod || '',
             invoiceOperation: r.fields.Tipus || 'CREATE',
             _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
@@ -12517,6 +12675,7 @@ function initAfaBevallas() {
             nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
             bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
             currency: r.fields.Deviza || 'HUF',
+      arfolyam: r.fields.Arfolyam || null,
             teljesitesDatum: r.fields.Teljesites_datum || '',
             fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
             kiallitasDatum: r.fields.Kiallitas_datum || '',
@@ -12606,6 +12765,7 @@ async function renderAfaBevallas() {
         nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
         bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
         currency: r.fields.Deviza || 'HUF',
+      arfolyam: r.fields.Arfolyam || null,
         teljesitesDatum: r.fields.Teljesites_datum || '',
         fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
         kiallitasDatum: r.fields.Kiallitas_datum || '',
@@ -12902,6 +13062,7 @@ async function exportAfaExcel() {
         invoiceNetAmount: r.fields.Netto_osszeg || 0,
         invoiceVatAmount: r.fields.Afa_osszeg || 0,
         currency: r.fields.Deviza || 'HUF',
+      arfolyam: r.fields.Arfolyam || null,
         paymentMethod: r.fields.Fizetes_mod || '',
         invoiceOperation: r.fields.Tipus || 'CREATE',
         _airtableStatus: r.fields.Statusz || 'Fizetesre_var',

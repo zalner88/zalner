@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v245
+     ZALNER ERP - VERZIÓ: v246
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
@@ -320,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v245</title>
+<title>Zalner ERP v246</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -512,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v245</div>
+    <div class="nav-logo-sub">v246</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -8339,7 +8339,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v245 · Belső rendszer
+          Zalner ERP v246 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -8849,17 +8849,16 @@ async function saveBszToAirtable(invoices) {
   let existing = [];
   try { existing = await atGet('Bejovo_Szamlak'); } catch(e) {}
 
-  // Meglévő rekordok map: számlaszám -> { id, netto }
   const existingMap = new Map(existing.map(r => [r.fields.Szamlaszam, { id: r.id, netto: parseFloat(r.fields.Netto_osszeg) || 0 }]));
 
   const newInvoices = invoices.filter(inv => !existingMap.has(inv.invoiceNumber));
-  // Frissítendők: meglévő rekord ahol az összeg 0 volt, most van érték
+  // Frissítendők: 0-ás meglévő rekord ahol most van érték (pozitív vagy negatív)
   const toUpdate = invoices.filter(inv => {
     const ex = existingMap.get(inv.invoiceNumber);
-    return ex && ex.netto === 0 && (parseFloat(inv.invoiceNetAmount) || 0) > 0;
+    return ex && ex.netto === 0 && (parseFloat(inv.invoiceNetAmount) || 0) !== 0;
   });
 
-  // Új rekordok mentése (10-esével, Airtable limit)
+  // Új rekordok mentése
   for (let i = 0; i < newInvoices.length; i += 10) {
     const batch = newInvoices.slice(i, i + 10);
     const records = batch.map(inv => ({
@@ -8881,7 +8880,6 @@ async function saveBszToAirtable(invoices) {
         NAV_tranzakcio_id: inv.transactionId || '',
       }
     }));
-
     try {
       const r = await fetch(atUrl('Bejovo_Szamlak'), {
         method: 'POST', headers: getAuthHeaders(),
@@ -8893,7 +8891,7 @@ async function saveBszToAirtable(invoices) {
     }
   }
 
-  // 0-ás összegű meglévő rekordok frissítése egyenként
+  // 0-ás összegű meglévő rekordok frissítése
   for (const inv of toUpdate) {
     const ex = existingMap.get(inv.invoiceNumber);
     const netto = parseFloat(inv.invoiceNetAmount) || 0;
@@ -8907,9 +8905,9 @@ async function saveBszToAirtable(invoices) {
           Brutto_osszeg: netto + afa,
         }})
       });
-      if (!r.ok) console.warn('Airtable összeg frissítés hiba:', inv.invoiceNumber, await r.text());
+      if (!r.ok) console.warn('Összeg frissítés hiba:', inv.invoiceNumber, await r.text());
     } catch(e) {
-      console.warn('Airtable frissítés hiba:', inv.invoiceNumber, e);
+      console.warn('Frissítés hiba:', inv.invoiceNumber, e);
     }
   }
 }

@@ -8908,7 +8908,6 @@ async function saveBszToAirtable(invoices) {
         }})
       });
       if (!r.ok) console.warn('Airtable összeg frissítés hiba:', inv.invoiceNumber, await r.text());
-      else console.log('Összeg frissítve:', inv.invoiceNumber, netto, afa);
     } catch(e) {
       console.warn('Airtable frissítés hiba:', inv.invoiceNumber, e);
     }

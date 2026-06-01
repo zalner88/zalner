@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v243
+     ZALNER ERP - VERZIÓ: v244
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
@@ -320,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v243</title>
+<title>Zalner ERP v244</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -512,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v243</div>
+    <div class="nav-logo-sub">v244</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -8339,7 +8339,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v243 · Belső rendszer
+          Zalner ERP v244 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -8689,7 +8689,14 @@ async function initBevoSzamlak() {
   // Auto-betöltés: utolsó 25 számla az Airtable-ből
   try {
     const records = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
-    bszInvoices = records.map(r => ({
+    const seenNums = new Set();
+    const uniqueRecords = records.filter(r => {
+      const num = r.fields.Szamlaszam || '';
+      if (seenNums.has(num)) return false;
+      seenNums.add(num);
+      return true;
+    });
+    bszInvoices = uniqueRecords.map(r => ({
       invoiceNumber: r.fields.Szamlaszam || '',
       supplierName: r.fields.Szallito_nev || '',
       supplierTaxNumber: r.fields.Szallito_adoszam || '',
@@ -8838,7 +8845,7 @@ async function wiseMatchPending() {
 }
 
 async function saveBszToAirtable(invoices) {
-  // Meglévő rekordok lekérdezése
+  cacheInvalidate('Bejovo_Szamlak');
   let existing = [];
   try { existing = await atGet('Bejovo_Szamlak'); } catch(e) {}
 
@@ -9050,8 +9057,16 @@ function bszGoToPage(page) {
 
 async function reloadBszFromAirtable() {
   try {
+    cacheInvalidate('Bejovo_Szamlak');
     const records = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
-    bszInvoices = records.map(r => ({
+    const seenNums = new Set();
+    const uniqueRecords = records.filter(r => {
+      const num = r.fields.Szamlaszam || '';
+      if (seenNums.has(num)) return false;
+      seenNums.add(num);
+      return true;
+    });
+    bszInvoices = uniqueRecords.map(r => ({
       invoiceNumber: r.fields.Szamlaszam || '',
       supplierName: r.fields.Szallito_nev || '',
       supplierTaxNumber: r.fields.Szallito_adoszam || '',
@@ -12653,7 +12668,14 @@ function initAfaBevallas() {
     loadPromises.push(
       atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc')
         .then(records => {
-          bszInvoices = records.map(r => ({
+          const seenNums = new Set();
+    const uniqueRecords = records.filter(r => {
+      const num = r.fields.Szamlaszam || '';
+      if (seenNums.has(num)) return false;
+      seenNums.add(num);
+      return true;
+    });
+    bszInvoices = uniqueRecords.map(r => ({
             invoiceNumber: r.fields.Szamlaszam || '',
             supplierName: r.fields.Szallito_nev || '',
             supplierTaxNumber: r.fields.Szallito_adoszam || '',
@@ -13065,7 +13087,14 @@ async function exportAfaExcel() {
     toast('⏳ Bejövő számlák betöltése...', '');
     try {
       const records = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
-      bszInvoices = records.map(r => ({
+      const seenNums = new Set();
+    const uniqueRecords = records.filter(r => {
+      const num = r.fields.Szamlaszam || '';
+      if (seenNums.has(num)) return false;
+      seenNums.add(num);
+      return true;
+    });
+    bszInvoices = uniqueRecords.map(r => ({
         invoiceNumber: r.fields.Szamlaszam || '',
         supplierName: r.fields.Szallito_nev || '',
         supplierTaxNumber: r.fields.Szallito_adoszam || '',

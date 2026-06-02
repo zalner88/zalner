@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v252
+     ZALNER ERP - VERZIÓ: v253
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
@@ -320,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v252</title>
+<title>Zalner ERP v253</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -512,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v252</div>
+    <div class="nav-logo-sub">v253</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1561,6 +1561,11 @@ select.form-control{cursor:pointer}
           <label class="form-label">Havi járulékok összesen (HUF)</label>
           <input class="form-control" type="number" id="jarulekInput" placeholder="pl. 450000" autocomplete="off">
           <div style="font-size:12px;color:var(--text-muted);margin-top:4px">SZOCHO, SZJA, TB stb. — amit a NAV felé fizetsz a bérek után.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Havi banki hitel törlesztés (HUF)</label>
+          <input class="form-control" type="number" id="hitelInput" placeholder="pl. 300000" autocomplete="off">
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">A banknak havonta utalt hiteltörlesztés összege.</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="saveBerJarulek()">💾 Mentés</button>
@@ -8400,7 +8405,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v252 · Belső rendszer
+          Zalner ERP v253 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -12551,7 +12556,7 @@ function loadFelhasznalokWithBillingo() {
 }
 
 // ── Havi bér + járulék beállítás (cashflow-hoz) ──
-let _berJarulekCache = { ber: 0, jarulek: 0 };
+let _berJarulekCache = { ber: 0, jarulek: 0, hitel: 0 };
 
 async function loadBerJarulek() {
   try {
@@ -12561,20 +12566,24 @@ async function loadBerJarulek() {
       _berJarulekCache = {
         ber: parseFloat(f.Havi_ber) || 0,
         jarulek: parseFloat(f.Havi_jarulek) || 0,
+        hitel: parseFloat(f.Havi_hitel) || 0,
       };
       const berInp = document.getElementById('berInput');
       const jarInp = document.getElementById('jarulekInput');
+      const hitelInp = document.getElementById('hitelInput');
       if (berInp && _berJarulekCache.ber) berInp.value = _berJarulekCache.ber;
       if (jarInp && _berJarulekCache.jarulek) jarInp.value = _berJarulekCache.jarulek;
+      if (hitelInp && _berJarulekCache.hitel) hitelInp.value = _berJarulekCache.hitel;
     }
   } catch(e) { console.warn('Bér/járulék betöltési hiba:', e); }
   // localStorage fallback
   try {
     const ls = JSON.parse(localStorage.getItem('berJarulek') || 'null');
-    if (ls && !_berJarulekCache.ber && !_berJarulekCache.jarulek) {
+    if (ls && !_berJarulekCache.ber && !_berJarulekCache.jarulek && !_berJarulekCache.hitel) {
       _berJarulekCache = ls;
       if (document.getElementById('berInput')) document.getElementById('berInput').value = ls.ber || '';
       if (document.getElementById('jarulekInput')) document.getElementById('jarulekInput').value = ls.jarulek || '';
+      if (document.getElementById('hitelInput')) document.getElementById('hitelInput').value = ls.hitel || '';
     }
   } catch(e) {}
 }
@@ -12582,14 +12591,15 @@ async function loadBerJarulek() {
 async function saveBerJarulek() {
   const ber = parseFloat(document.getElementById('berInput')?.value) || 0;
   const jarulek = parseFloat(document.getElementById('jarulekInput')?.value) || 0;
+  const hitel = parseFloat(document.getElementById('hitelInput')?.value) || 0;
   const s = document.getElementById('berJarulekStatus');
   if (s) s.textContent = '⏳ Mentés...';
-  _berJarulekCache = { ber, jarulek };
+  _berJarulekCache = { ber, jarulek, hitel };
   localStorage.setItem('berJarulek', JSON.stringify(_berJarulekCache));
   try {
     const records = await atGet('Felhasznalok', 'maxRecords=1');
     if (records.length) {
-      await atPatch('Felhasznalok', records[0].id, { Havi_ber: ber, Havi_jarulek: jarulek });
+      await atPatch('Felhasznalok', records[0].id, { Havi_ber: ber, Havi_jarulek: jarulek, Havi_hitel: hitel });
     }
     cacheInvalidate('Felhasznalok');
     toast('Bér és járulék elmentve!', 'success');
@@ -12602,12 +12612,12 @@ async function saveBerJarulek() {
 
 // A cashflow számára: visszaadja a havi bér+járulék tételeket
 function getBerJarulekCache() {
-  if (_berJarulekCache.ber || _berJarulekCache.jarulek) return _berJarulekCache;
+  if (_berJarulekCache.ber || _berJarulekCache.jarulek || _berJarulekCache.hitel) return _berJarulekCache;
   try {
     const ls = JSON.parse(localStorage.getItem('berJarulek') || 'null');
     if (ls) return ls;
   } catch(e) {}
-  return { ber: 0, jarulek: 0 };
+  return { ber: 0, jarulek: 0, hitel: 0 };
 }
 
 // ===== ÁFA BEVALLÁS =====
@@ -13055,6 +13065,13 @@ async function renderPenzugyiKimutatas() {
               nap: n, tipus: 'kiadas', osszeg: -Math.abs(bj.jarulek),
               nev: 'Járulékok (SZOCHO, SZJA, TB)', szamlaszam: 'Havi járulék',
               eredetiOsszeg: bj.jarulek, deviza: 'HUF', lejart: false, eredetiHatarido: n, fix: true,
+            });
+          }
+          if (bj.hitel > 0) {
+            tetelek.push({
+              nap: n, tipus: 'kiadas', osszeg: -Math.abs(bj.hitel),
+              nev: 'Banki hitel törlesztés', szamlaszam: 'Havi hitel',
+              eredetiOsszeg: bj.hitel, deviza: 'HUF', lejart: false, eredetiHatarido: n, fix: true,
             });
           }
         }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v249
+     ZALNER ERP - VERZIÓ: v250
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
@@ -320,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v249</title>
+<title>Zalner ERP v250</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -512,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v249</div>
+    <div class="nav-logo-sub">v250</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -526,6 +526,7 @@ select.form-control{cursor:pointer}
   <button class="nav-item" id="navItem-szallitolevelek" onclick="showPage('szallitolevelek')"><span>◧</span> Szállítólevelek</button>
   <button class="nav-item" id="navItem-bejovo-szamlak" onclick="showPage('bejovo-szamlak')"><span>↓</span> Bejövő számlák</button>
   <button class="nav-item" id="navItem-kimeno-szamlak" onclick="showPage('kimeno-szamlak')"><span>↑</span> Kimenő számlák</button>
+  <button class="nav-item" id="navItem-penzugyi-kimutatas" onclick="showPage('penzugyi-kimutatas')"><span>📈</span> Pénzügyi kimutatás</button>
   <button class="nav-item" id="navItem-afa-bevallas" onclick="showPage('afa-bevallas')"><span>📊</span> ÁFA bevallás</button>
   <button class="nav-item" id="navItem-vamkezeles" onclick="showPage('vamkezeles')"><span>🛃</span> Vámkezelés</button>
   <button class="nav-item" id="navItem-beszallitok" onclick="showPage('beszallitok')"><span>🏭</span> Beszállítók</button>
@@ -1304,6 +1305,41 @@ select.form-control{cursor:pointer}
     </div>
   </div>
 </div>
+
+<!-- PÉNZÜGYI KIMUTATÁS -->
+<div class="page" id="page-penzugyi-kimutatas">
+    <div class="page-header">
+      <div><div class="page-title">📈 Pénzügyi kimutatás</div>
+      <div class="page-subtitle">Következő 30 nap cashflow előrejelzés · minden összeg HUF-ban</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="renderPenzugyiKimutatas()" id="pkFrissitBtn">🔄 Frissítés</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <!-- KPI kártyák -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px" id="pkKpiBox">
+        <div class="stat-card"><div class="stat-label">Jelenlegi egyenleg (Wise)</div><div class="stat-value" id="pkEgyenleg">—</div><div class="stat-sub" id="pkEgyenlegSub">betöltés…</div></div>
+        <div class="stat-card"><div class="stat-label">Várható bevétel (30 nap)</div><div class="stat-value" style="color:#16a34a" id="pkBevetel">—</div><div class="stat-sub">nyitott kimenő számlák</div></div>
+        <div class="stat-card"><div class="stat-label">Várható kiadás (30 nap)</div><div class="stat-value" style="color:#dc2626" id="pkKiadas">—</div><div class="stat-sub">nyitott bejövő számlák</div></div>
+        <div class="stat-card"><div class="stat-label">Egyenleg 30 nap múlva</div><div class="stat-value" id="pkVegEgyenleg">—</div><div class="stat-sub" id="pkVegEgyenlegSub">előrejelzett</div></div>
+      </div>
+
+      <!-- Figyelmeztetés ha negatívba fordul -->
+      <div id="pkFigyelmeztetes" style="display:none"></div>
+
+      <!-- Diagram -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px">
+        <div style="font-weight:600;margin-bottom:14px;font-size:15px">30 napos cashflow előrejelzés</div>
+        <div style="position:relative;height:380px"><canvas id="pkChart"></canvas></div>
+      </div>
+
+      <!-- Részletes táblázat -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <div style="font-weight:600;margin-bottom:14px;font-size:15px">Várható tételek (30 nap)</div>
+        <div id="pkTetelekTabla" style="overflow-x:auto"></div>
+      </div>
+    </div>
+  </div>
 
 <div class="page" id="page-afa-bevallas">
     <div class="page-header">
@@ -3812,6 +3848,7 @@ function showPage(name) {
     'szallitolevelek': 'szallitolevelek',
     'bejovo-szamlak': 'bejovo-szamlak', 'wise-sync': 'bejovo-szamlak',
     'afa-bevallas': 'afa-bevallas',
+    'penzugyi-kimutatas': 'penzugyi-kimutatas',
     'kimeno-szamlak': 'kimeno-szamlak',
     'vamkezeles': 'vamkezeles',
     'beszallitok': 'beszallitok',
@@ -3839,6 +3876,7 @@ function showPage(name) {
     szallitolevelek: 'page-szallitolevelek', vrv: 'page-vrv',
     'bejovo-szamlak': 'page-bejovo-szamlak',
     'afa-bevallas': 'page-afa-bevallas',
+    'penzugyi-kimutatas': 'page-penzugyi-kimutatas',
     'kimeno-szamlak': 'page-kimeno-szamlak', 'vamkezeles': 'page-vamkezeles',
     'wise-sync': 'page-wise-sync', beszallitok: 'page-beszallitok',
     'audit-log': 'page-audit-log', felhasznalok: 'page-felhasznalok'
@@ -3852,6 +3890,7 @@ function showPage(name) {
     vrv: 'navItem-vrv', szallitolevelek: 'navItem-szallitolevelek',
     'bejovo-szamlak': 'navItem-bejovo-szamlak', 'wise-sync': 'navItem-bejovo-szamlak',
     'afa-bevallas': 'navItem-afa-bevallas',
+    'penzugyi-kimutatas': 'navItem-penzugyi-kimutatas',
     'kimeno-szamlak': 'navItem-kimeno-szamlak', vamkezeles: 'navItem-vamkezeles',
     beszallitok: 'navItem-beszallitok', 'audit-log': 'navItem-audit-log', felhasznalok: 'navItem-felhasznalok',
   };
@@ -3868,6 +3907,7 @@ function showPage(name) {
     if (name === 'vrv') loadVrv();
     if (name === 'bejovo-szamlak') initBevoSzamlak();
     if (name === 'afa-bevallas') initAfaBevallas();
+    if (name === 'penzugyi-kimutatas') initPenzugyiKimutatas();
     if (name === 'kimeno-szamlak') initKimenoSzamlak();
     if (name === 'vamkezeles') loadVamkezeles();
     if (name === 'beszallitok') loadBeszallitok();
@@ -8339,7 +8379,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v249 · Belső rendszer
+          Zalner ERP v250 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -8817,7 +8857,7 @@ async function wiseMatchPending() {
       if (!matchedInvoiceNum && amount && currency) {
         const tol = currency === 'HUF' ? 1 : 0.02;
         const inv = bszInvoices.find(i =>
-          Math.abs((parseFloat(i.bruttoOssz) || 0) - parseFloat(amount)) <= tol &&
+          Math.abs(((parseFloat(i.invoiceNetAmount)||0)+(parseFloat(i.invoiceVatAmount)||0)) - parseFloat(amount)) <= tol &&
           (i.currency || 'HUF') === currency &&
           i._airtableStatus !== 'Fizetett'
         );
@@ -12759,6 +12799,304 @@ async function loadMnbArfolyam() {
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+// ===== PÉNZÜGYI KIMUTATÁS (CASHFLOW) =====
+let _pkChart = null;
+let _pkEurHuf = 400; // fallback árfolyam, betöltéskor frissül
+
+async function initPenzugyiKimutatas() {
+  await renderPenzugyiKimutatas();
+}
+
+async function pkFetchEurHuf() {
+  try {
+    const resp = await fetch('https://api.frankfurter.dev/v2/rate/EUR/HUF');
+    if (resp.ok) {
+      const d = await resp.json();
+      if (d.rate) return Math.round(d.rate * 100) / 100;
+    }
+  } catch(e) { console.warn('EUR/HUF árfolyam hiba:', e); }
+  return _pkEurHuf;
+}
+
+async function pkFetchWiseEgyenleg() {
+  try {
+    const r = await fetch(NAV_PROXY + '/api/wise-balance', {
+      headers: { 'X-Session-Token': getToken() },
+    });
+    const d = await r.json();
+    if (!r.ok) return { error: d.error || ('HTTP ' + r.status), balances: [] };
+    return { balances: d.balances || [], fetchedAt: d.fetchedAt };
+  } catch(e) {
+    return { error: e.message, balances: [] };
+  }
+}
+
+// Összeg HUF-ra váltása
+function pkToHuf(amount, currency) {
+  const a = parseFloat(amount) || 0;
+  if (!currency || currency === 'HUF') return a;
+  if (currency === 'EUR') return a * _pkEurHuf;
+  if (currency === 'USD') return a * (_pkEurHuf / 1.08); // durva közelítés USD-re EUR-on át
+  return a; // ismeretlen deviza: változatlan
+}
+
+async function renderPenzugyiKimutatas() {
+  const btn = document.getElementById('pkFrissitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Betöltés...'; }
+
+  try {
+    // 1. Árfolyam
+    _pkEurHuf = await pkFetchEurHuf();
+
+    // 2. Wise egyenleg
+    const wise = await pkFetchWiseEgyenleg();
+    let kezdoEgyenleg = 0;
+    let egyenlegSub = '';
+    if (wise.error) {
+      egyenlegSub = '⚠ Wise nem elérhető';
+      document.getElementById('pkEgyenleg').textContent = '— Ft';
+      document.getElementById('pkEgyenlegSub').innerHTML = `<span style="color:#dc2626">${wise.error}</span>`;
+    } else {
+      const reszek = [];
+      for (const b of wise.balances) {
+        const huf = pkToHuf(b.amount, b.currency);
+        kezdoEgyenleg += huf;
+        reszek.push(`${Math.round(b.amount).toLocaleString('hu-HU')} ${b.currency}`);
+      }
+      document.getElementById('pkEgyenleg').textContent = Math.round(kezdoEgyenleg).toLocaleString('hu-HU') + ' Ft';
+      egyenlegSub = reszek.join(' · ') || 'nincs egyenleg adat';
+      document.getElementById('pkEgyenlegSub').textContent = egyenlegSub;
+    }
+
+    // 3. Számlák betöltése (ha még nincs betöltve)
+    if (!bszInvoices.length) {
+      try {
+        const recs = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
+        bszInvoices = recs.map(r => ({
+          invoiceNumber: r.fields.Szamlaszam || '',
+          supplierName: r.fields.Szallito_nev || '',
+          paymentDate: r.fields.Fizetesi_hatarido || '',
+          invoiceNetAmount: r.fields.Netto_osszeg || 0,
+          invoiceVatAmount: r.fields.Afa_osszeg || 0,
+          currency: r.fields.Deviza || 'HUF',
+          _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
+        }));
+      } catch(e) { console.warn('Bejövő számlák betöltési hiba:', e); }
+    }
+    let kszData = kszInvoices;
+    if (!kszData.length) {
+      try {
+        const recs = await atGet('Kimeno_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
+        kszData = recs.map(r => ({
+          invoiceNumber: r.fields.Szamlaszam || '',
+          ugyfelNev: r.fields.Ugyfel_nev || '',
+          fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
+          bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
+          currency: r.fields.Deviza || 'HUF',
+          statusz: r.fields.Statusz || 'Fizetesre_var',
+          tipus: r.fields.Tipus || 'Számla',
+        }));
+        kszInvoices = kszData;
+      } catch(e) { console.warn('Kimenő számlák betöltési hiba:', e); }
+    }
+
+    // 4. Időtartomány: ma .. ma+30
+    const ma = new Date(); ma.setHours(0,0,0,0);
+    const napok = [];
+    for (let i = 0; i <= 30; i++) {
+      const d = new Date(ma); d.setDate(d.getDate() + i);
+      napok.push(d.toISOString().split('T')[0]);
+    }
+    const vegDatum = napok[napok.length - 1];
+    const maStr = napok[0];
+
+    // 5. Tételek gyűjtése — minden nyitott (nem Fizetett/Storno) számla
+    // Bejövő = kiadás (negatív), Kimenő = bevétel (pozitív)
+    // Lejárt számlák (határidő < ma) az ELSŐ napra kerülnek
+    const tetelek = [];
+
+    for (const inv of bszInvoices) {
+      if (inv._airtableStatus === 'Fizetett' || inv._airtableStatus === 'Storno') continue;
+      const hatarido = inv.paymentDate;
+      if (!hatarido) continue;
+      const brutto = (parseFloat(inv.invoiceNetAmount)||0) + (parseFloat(inv.invoiceVatAmount)||0);
+      const hufOssz = pkToHuf(brutto, inv.currency);
+      if (hufOssz === 0) continue;
+      let nap = hatarido;
+      if (hatarido < maStr) nap = maStr; // lejárt -> ma
+      if (nap > vegDatum) continue; // 30 napon túli -> kihagyjuk
+      tetelek.push({
+        nap, tipus: 'kiadas', osszeg: -Math.abs(hufOssz),
+        nev: inv.supplierName || inv.invoiceNumber,
+        szamlaszam: inv.invoiceNumber,
+        eredetiOsszeg: brutto, deviza: inv.currency,
+        lejart: hatarido < maStr, eredetiHatarido: hatarido,
+      });
+    }
+
+    for (const inv of kszData) {
+      if (inv.statusz === 'Fizetett' || inv.statusz === 'Storno') continue;
+      if (inv.tipus === 'Piszkozat' || inv.tipus === 'Díjbekérő') continue;
+      const hatarido = inv.fizetesiHatarido;
+      if (!hatarido) continue;
+      const hufOssz = pkToHuf(inv.bruttoOssz, inv.currency);
+      if (hufOssz === 0) continue;
+      let nap = hatarido;
+      if (hatarido < maStr) nap = maStr;
+      if (nap > vegDatum) continue;
+      tetelek.push({
+        nap, tipus: 'bevetel', osszeg: Math.abs(hufOssz),
+        nev: inv.ugyfelNev || inv.invoiceNumber,
+        szamlaszam: inv.invoiceNumber,
+        eredetiOsszeg: inv.bruttoOssz, deviza: inv.currency,
+        lejart: hatarido < maStr, eredetiHatarido: hatarido,
+      });
+    }
+
+    // 6. Napi aggregálás + futó egyenleg
+    const napiBevetel = {}, napiKiadas = {};
+    for (const n of napok) { napiBevetel[n] = 0; napiKiadas[n] = 0; }
+    let osszBevetel = 0, osszKiadas = 0;
+    for (const t of tetelek) {
+      if (t.tipus === 'bevetel') { napiBevetel[t.nap] += t.osszeg; osszBevetel += t.osszeg; }
+      else { napiKiadas[t.nap] += Math.abs(t.osszeg); osszKiadas += Math.abs(t.osszeg); }
+    }
+
+    let futo = kezdoEgyenleg;
+    const egyenlegGorbe = [];
+    let minEgyenleg = futo, minNap = maStr;
+    for (const n of napok) {
+      futo += (napiBevetel[n] || 0) - (napiKiadas[n] || 0);
+      egyenlegGorbe.push(Math.round(futo));
+      if (futo < minEgyenleg) { minEgyenleg = futo; minNap = n; }
+    }
+    const vegEgyenleg = futo;
+
+    // 7. KPI-k kitöltése
+    document.getElementById('pkBevetel').textContent = '+' + Math.round(osszBevetel).toLocaleString('hu-HU') + ' Ft';
+    document.getElementById('pkKiadas').textContent = '−' + Math.round(osszKiadas).toLocaleString('hu-HU') + ' Ft';
+    const vegEl = document.getElementById('pkVegEgyenleg');
+    vegEl.textContent = Math.round(vegEgyenleg).toLocaleString('hu-HU') + ' Ft';
+    vegEl.style.color = vegEgyenleg < 0 ? '#dc2626' : '#16a34a';
+
+    // 8. Figyelmeztetés ha negatívba fordul
+    const figyEl = document.getElementById('pkFigyelmeztetes');
+    if (minEgyenleg < 0) {
+      figyEl.style.display = 'block';
+      figyEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13.5px;color:#991b1b">
+        <strong>⚠️ Likviditási figyelmeztetés</strong><br>
+        Az előrejelzés szerint az egyenleg <strong>${new Date(minNap).toLocaleDateString('hu-HU')}</strong> környékén negatívba fordulhat
+        (mélypont: <strong>${Math.round(minEgyenleg).toLocaleString('hu-HU')} Ft</strong>).
+      </div>`;
+    } else {
+      figyEl.style.display = 'none';
+    }
+
+    // 9. Diagram (oszlop: napi be/ki + vonal: egyenleg)
+    pkRenderChart(napok, napiBevetel, napiKiadas, egyenlegGorbe);
+
+    // 10. Tételek táblázat (dátum szerint rendezve)
+    pkRenderTetelek(tetelek);
+
+  } catch(e) {
+    console.error('Pénzügyi kimutatás hiba:', e);
+    toast('Hiba a pénzügyi kimutatás betöltésekor: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Frissítés'; }
+  }
+}
+
+function pkRenderChart(napok, napiBevetel, napiKiadas, egyenlegGorbe) {
+  const ctx = document.getElementById('pkChart');
+  if (!ctx) return;
+  if (_pkChart) { _pkChart.destroy(); _pkChart = null; }
+
+  const cimkek = napok.map(n => {
+    const d = new Date(n);
+    return d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+  });
+
+  _pkChart = new Chart(ctx, {
+    data: {
+      labels: cimkek,
+      datasets: [
+        {
+          type: 'bar', label: 'Bevétel', order: 2,
+          data: napok.map(n => Math.round(napiBevetel[n] || 0)),
+          backgroundColor: 'rgba(22,163,74,0.65)', borderRadius: 3,
+          yAxisID: 'y',
+        },
+        {
+          type: 'bar', label: 'Kiadás', order: 2,
+          data: napok.map(n => -Math.round(napiKiadas[n] || 0)),
+          backgroundColor: 'rgba(220,38,38,0.65)', borderRadius: 3,
+          yAxisID: 'y',
+        },
+        {
+          type: 'line', label: 'Egyenleg', order: 1,
+          data: egyenlegGorbe,
+          borderColor: '#4f7fff', backgroundColor: 'rgba(79,127,255,0.08)',
+          borderWidth: 2.5, fill: true, tension: 0.25,
+          pointRadius: 0, pointHoverRadius: 5,
+          yAxisID: 'y',
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: (c) => `${c.dataset.label}: ${Math.round(c.parsed.y).toLocaleString('hu-HU')} Ft`,
+          },
+        },
+      },
+      scales: {
+        y: {
+          ticks: { callback: (v) => (v/1000000).toFixed(1) + 'M' },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+        x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+      },
+    },
+  });
+}
+
+function pkRenderTetelek(tetelek) {
+  const el = document.getElementById('pkTetelekTabla');
+  if (!el) return;
+  if (!tetelek.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;font-size:13px">Nincs várható tétel a következő 30 napban</div>';
+    return;
+  }
+  const rendezett = [...tetelek].sort((a,b) => a.nap.localeCompare(b.nap));
+  el.innerHTML = '<table class="table"><thead><tr>' +
+    '<th>Esedékesség</th><th>Típus</th><th>Partner / Számla</th><th style="text-align:right">Összeg (HUF)</th><th style="text-align:right">Eredeti</th>' +
+    '</tr></thead><tbody>' +
+    rendezett.map(t => {
+      const datum = new Date(t.nap).toLocaleDateString('hu-HU');
+      const lejartJel = t.lejart ? ` <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:8px">lejárt: ${new Date(t.eredetiHatarido).toLocaleDateString('hu-HU')}</span>` : '';
+      const tipusJel = t.tipus === 'bevetel'
+        ? '<span style="color:#16a34a">▲ Bevétel</span>'
+        : '<span style="color:#dc2626">▼ Kiadás</span>';
+      const eredeti = (t.deviza && t.deviza !== 'HUF')
+        ? `${Math.round(t.eredetiOsszeg).toLocaleString('hu-HU')} ${t.deviza}`
+        : '—';
+      const szin = t.tipus === 'bevetel' ? '#16a34a' : '#dc2626';
+      const elojel = t.tipus === 'bevetel' ? '+' : '−';
+      return `<tr>
+        <td style="font-family:'DM Mono',monospace;font-size:12px">${datum}${lejartJel}</td>
+        <td style="font-size:12px">${tipusJel}</td>
+        <td style="font-size:13px">${t.nev}<br><span style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace">${t.szamlaszam}</span></td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600;color:${szin}">${elojel}${Math.round(Math.abs(t.osszeg)).toLocaleString('hu-HU')}</td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted)">${eredeti}</td>
+      </tr>`;
+    }).join('') +
+    '</tbody></table>';
 }
 
 function showAfaBevallas() {

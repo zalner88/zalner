@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v250
+     ZALNER ERP - VERZIÓ: v252
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
@@ -320,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v250</title>
+<title>Zalner ERP v252</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -512,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v250</div>
+    <div class="nav-logo-sub">v252</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1544,6 +1544,27 @@ select.form-control{cursor:pointer}
           <button class="btn btn-primary" onclick="saveBillingoApiKey()">💾 Mentés</button>
           <button class="btn btn-secondary" onclick="testBillingoApiKey()">🔍 Kapcsolat tesztelése</button>
           <span id="billingoApiKeyStatus" style="font-size:13px"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Havi fix kiadások (bér + járulék) a cashflow-hoz -->
+    <div class="form-section" style="margin-top:28px;max-width:520px">
+      <div class="form-section-title">💼 Havi bér és járulék (cashflow)</div>
+      <div class="form-section-body">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Ezek az összegek minden hónap 10-én megjelennek a Pénzügyi kimutatás cashflow előrejelzésében. Elég évente egyszer beállítani.</div>
+        <div class="form-group">
+          <label class="form-label">Havi nettó bérek összesen (HUF)</label>
+          <input class="form-control" type="number" id="berInput" placeholder="pl. 1200000" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Havi járulékok összesen (HUF)</label>
+          <input class="form-control" type="number" id="jarulekInput" placeholder="pl. 450000" autocomplete="off">
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">SZOCHO, SZJA, TB stb. — amit a NAV felé fizetsz a bérek után.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveBerJarulek()">💾 Mentés</button>
+          <span id="berJarulekStatus" style="font-size:13px"></span>
         </div>
       </div>
     </div>
@@ -8379,7 +8400,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v250 · Belső rendszer
+          Zalner ERP v252 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -12526,6 +12547,67 @@ function loadFelhasznalokWithBillingo() {
   const apiKey = getBillingoApiKey();
   const input = document.getElementById('billingoApiKeyInput');
   if (input && apiKey) input.value = apiKey;
+  loadBerJarulek();
+}
+
+// ── Havi bér + járulék beállítás (cashflow-hoz) ──
+let _berJarulekCache = { ber: 0, jarulek: 0 };
+
+async function loadBerJarulek() {
+  try {
+    const records = await atGet('Felhasznalok', 'maxRecords=1');
+    if (records.length) {
+      const f = records[0].fields;
+      _berJarulekCache = {
+        ber: parseFloat(f.Havi_ber) || 0,
+        jarulek: parseFloat(f.Havi_jarulek) || 0,
+      };
+      const berInp = document.getElementById('berInput');
+      const jarInp = document.getElementById('jarulekInput');
+      if (berInp && _berJarulekCache.ber) berInp.value = _berJarulekCache.ber;
+      if (jarInp && _berJarulekCache.jarulek) jarInp.value = _berJarulekCache.jarulek;
+    }
+  } catch(e) { console.warn('Bér/járulék betöltési hiba:', e); }
+  // localStorage fallback
+  try {
+    const ls = JSON.parse(localStorage.getItem('berJarulek') || 'null');
+    if (ls && !_berJarulekCache.ber && !_berJarulekCache.jarulek) {
+      _berJarulekCache = ls;
+      if (document.getElementById('berInput')) document.getElementById('berInput').value = ls.ber || '';
+      if (document.getElementById('jarulekInput')) document.getElementById('jarulekInput').value = ls.jarulek || '';
+    }
+  } catch(e) {}
+}
+
+async function saveBerJarulek() {
+  const ber = parseFloat(document.getElementById('berInput')?.value) || 0;
+  const jarulek = parseFloat(document.getElementById('jarulekInput')?.value) || 0;
+  const s = document.getElementById('berJarulekStatus');
+  if (s) s.textContent = '⏳ Mentés...';
+  _berJarulekCache = { ber, jarulek };
+  localStorage.setItem('berJarulek', JSON.stringify(_berJarulekCache));
+  try {
+    const records = await atGet('Felhasznalok', 'maxRecords=1');
+    if (records.length) {
+      await atPatch('Felhasznalok', records[0].id, { Havi_ber: ber, Havi_jarulek: jarulek });
+    }
+    cacheInvalidate('Felhasznalok');
+    toast('Bér és járulék elmentve!', 'success');
+    if (s) s.textContent = '✓ Elmentve';
+  } catch(e) {
+    toast('Bér/járulék elmentve (csak helyi)!', 'success');
+    if (s) s.textContent = '✓ Elmentve (helyi)';
+  }
+}
+
+// A cashflow számára: visszaadja a havi bér+járulék tételeket
+function getBerJarulekCache() {
+  if (_berJarulekCache.ber || _berJarulekCache.jarulek) return _berJarulekCache;
+  try {
+    const ls = JSON.parse(localStorage.getItem('berJarulek') || 'null');
+    if (ls) return ls;
+  } catch(e) {}
+  return { ber: 0, jarulek: 0 };
 }
 
 // ===== ÁFA BEVALLÁS =====
@@ -12822,7 +12904,7 @@ async function pkFetchEurHuf() {
 
 async function pkFetchWiseEgyenleg() {
   try {
-    const r = await fetch(NAV_PROXY + '/api/wise-balance', {
+    const r = await fetch(NAV_PROXY + '/api/wise-webhook?action=balance', {
       headers: { 'X-Session-Token': getToken() },
     });
     const d = await r.json();
@@ -12953,6 +13035,30 @@ async function renderPenzugyiKimutatas() {
         eredetiOsszeg: inv.bruttoOssz, deviza: inv.currency,
         lejart: hatarido < maStr, eredetiHatarido: hatarido,
       });
+    }
+
+    // 5b. Havi fix kiadások: bér + járulék minden hónap 10-én (a 30 napos ablakon belül)
+    const bj = getBerJarulekCache();
+    if (bj.ber > 0 || bj.jarulek > 0) {
+      // Megkeressük a 10-éket az ablakban
+      for (const n of napok) {
+        if (n.split('-')[2] === '10') {
+          if (bj.ber > 0) {
+            tetelek.push({
+              nap: n, tipus: 'kiadas', osszeg: -Math.abs(bj.ber),
+              nev: 'Munkabérek', szamlaszam: 'Havi bér',
+              eredetiOsszeg: bj.ber, deviza: 'HUF', lejart: false, eredetiHatarido: n, fix: true,
+            });
+          }
+          if (bj.jarulek > 0) {
+            tetelek.push({
+              nap: n, tipus: 'kiadas', osszeg: -Math.abs(bj.jarulek),
+              nev: 'Járulékok (SZOCHO, SZJA, TB)', szamlaszam: 'Havi járulék',
+              eredetiOsszeg: bj.jarulek, deviza: 'HUF', lejart: false, eredetiHatarido: n, fix: true,
+            });
+          }
+        }
+      }
     }
 
     // 6. Napi aggregálás + futó egyenleg

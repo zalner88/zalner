@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v258
+     ZALNER ERP - VERZIÓ: v260
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
@@ -320,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v258</title>
+<title>Zalner ERP v260</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -512,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v258</div>
+    <div class="nav-logo-sub">v260</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -2494,8 +2494,11 @@ select.form-control{cursor:pointer}
       <div id="kszEmailInfo" style="background:#f0f4ff;border:1px solid #c7d5ff;border-radius:8px;padding:10px 14px;font-size:13px;color:#1a1d2e"></div>
       <div class="form-group">
         <label class="form-label">Címzett e-mail *</label>
-        <input class="form-control" type="email" id="kszEmailTo" placeholder="pl. ugyfel@ceg.com">
+        <input class="form-control" type="email" id="kszEmailTo" list="kszEmailToList" placeholder="pl. ugyfel@ceg.com" autocomplete="off">
+        <datalist id="kszEmailToList"></datalist>
         <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px" id="kszEmailToHint"></div>
+        <select id="kszEmailToSelect" class="form-control" style="display:none;margin-top:6px;font-size:13px" onchange="if(this.value){document.getElementById('kszEmailTo').value=this.value;const o=this.options[this.selectedIndex];document.getElementById('kszEmailToHint').textContent='Kiválasztva: '+o.textContent;}">
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">Másolat (CC)</label>
@@ -8405,7 +8408,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v258 · Belső rendszer
+          Zalner ERP v260 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11449,7 +11452,7 @@ function applySzamlaEmailSablon(sablon, params) {
     .replace(/{tipus}/g, params.tipus || '');
 }
 
-function openKszEmailModal(airtableId) {
+async function openKszEmailModal(airtableId) {
   kszEmailInvId = airtableId;
   const inv = kszInvoices.find(i => i._id === airtableId);
   if (!inv) { toast('Számla nem található!', 'error'); return; }
@@ -11460,10 +11463,16 @@ function openKszEmailModal(airtableId) {
     infoEl.innerHTML = `<strong>Számlaszám:</strong> ${inv.invoiceNumber || '—'} &nbsp;|&nbsp; <strong>Ügyfél:</strong> ${inv.ugyfelNev || '—'} &nbsp;|&nbsp; <strong>Bruttó:</strong> ${(inv.bruttoOssz||0).toLocaleString('hu-HU')} ${inv.currency || 'HUF'}`;
   }
 
+  // Kontaktok betöltése ha még nincs
+  if (!kontaktok || !kontaktok.length) {
+    try { kontaktok = await atGet('Kapcsolattartok', 'sort%5B0%5D%5Bfield%5D=Vezeteknev&sort%5B0%5D%5Bdirection%5D=asc'); } catch(e) {}
+  }
+
   // TO e-mail prioritás:
-  // 1. Pénzügy beosztású kontakt az ügyfélnél
-  // 2. Fő kapcsolattartó az ügyfélnél
-  // 3. Vevői kapcsolattartó (számlán kiválasztott)
+  // 1. Számlázás beosztású kontakt az ügyfélnél
+  // 2. Pénzügy beosztású kontakt
+  // 3. Fő kapcsolattartó az ügyfélnél
+  // 4. Vevői kapcsolattartó (számlán kiválasztott)
   let toEmail = '';
   let toHint = '';
 
@@ -11515,6 +11524,36 @@ function openKszEmailModal(airtableId) {
 
   document.getElementById('kszEmailTo').value = toEmail;
   document.getElementById('kszEmailToHint').textContent = toHint;
+
+  // Legördülő lista az ügyfél kontaktjaiból
+  const datalist = document.getElementById('kszEmailToList');
+  const selectEl = document.getElementById('kszEmailToSelect');
+  if (datalist) datalist.innerHTML = '';
+  if (selectEl) selectEl.innerHTML = '<option value="">— Másik címzett választása —</option>';
+  const beosztasLabel = { 'Szamlazas':'Számlázás', 'Penzugy':'Pénzügy', 'Vezetes':'Vezetés', 'Muszaki':'Műszaki', 'Beszerzes':'Beszerzés', 'Ertekesites':'Értékesítés', 'Egyeb':'Egyéb' };
+  const seenEmails = new Set();
+  for (const k of ugyfelKontaktok) {
+    const email = k.fields.Email;
+    if (!email || seenEmails.has(email)) continue;
+    seenEmails.add(email);
+    const nev = ((k.fields.Vezeteknev||'') + ' ' + (k.fields.Keresztnev||'')).trim();
+    const beosztas = beosztasLabel[k.fields.Beosztas] || k.fields.Beosztas || '';
+    const fo = k.fields.Fo_kapcsolattarto ? ' ⭐' : '';
+    const label = `${nev}${beosztas ? ' — ' + beosztas : ''}${fo}`;
+    if (datalist) {
+      const opt = document.createElement('option');
+      opt.value = email;
+      opt.label = label;
+      datalist.appendChild(opt);
+    }
+    if (selectEl) {
+      const opt = document.createElement('option');
+      opt.value = email;
+      opt.textContent = `${label} (${email})`;
+      selectEl.appendChild(opt);
+    }
+  }
+  if (selectEl) selectEl.style.display = seenEmails.size > 1 ? 'block' : 'none';
 
   // CC: alapértelmezetten szabolcs.wagner@zalner.hu
   document.getElementById('kszEmailCc').value = 'szabolcs.wagner@zalner.hu';

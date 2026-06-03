@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v254
+     ZALNER ERP - VERZIÓ: v255
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
@@ -320,7 +320,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v254</title>
+<title>Zalner ERP v255</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -512,7 +512,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v254</div>
+    <div class="nav-logo-sub">v255</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -8405,7 +8405,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v254 · Belső rendszer
+          Zalner ERP v255 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11677,17 +11677,18 @@ async function kszStornoFromRow(airtableId, billingoId, invoiceNumber) {
     await atPatch('Kimeno_Szamlak', airtableId, { Statusz: 'Storno' });
     // Airtable: sztornó számla mentése
     const inv = kszInvoices.find(i => i._id === airtableId);
-    await atPost('Kimeno_Szamlak', {
+    const stornoFields = {
       Szamlaszam: stornoSzam,
       Billingo_id: String(stornoId || ''),
       Ugyfel: inv?.ugyfelId ? [inv.ugyfelId] : undefined,
       Ugyfel_nev: inv?.ugyfelNev || '',
       Deviza: inv?.currency || 'HUF',
       Statusz: 'Storno',
-      Tipus: 'Sztornó',
       Kiallitas_datum: new Date().toISOString().split('T')[0],
       Megjegyzes: `Sztornó: ${invoiceNumber}`,
-    });
+    };
+    Object.keys(stornoFields).forEach(k => (stornoFields[k] === null || stornoFields[k] === undefined) && delete stornoFields[k]);
+    await atPost('Kimeno_Szamlak', stornoFields);
     toast(`✅ Sztornó kiállítva: ${stornoSzam}`, 'success');
     await syncKimenoSzamlak();
   } catch(e) {

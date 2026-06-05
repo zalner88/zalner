@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v274
+     ZALNER ERP - VERZIÓ: v276
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v276:
+- Ajánlat PDF: Fizetési határidő formátum módosítva: "Teljesítés + X nap" / "Fulfillment + X days"
+
+CHANGES v275:
+- Ajánlat PDF: Fizetési határidő (X nap) hozzáadva a meta szekcióhoz
+- Ajánlat PDF: Fizetési feltétel megjelenítése TRANSLATIONS-ból (ha kitöltve)
 
 CHANGES v274:
 - Kimenő számla: Bankszamla mező mentése Airtable-be és visszatöltése szerkesztéskor
@@ -369,7 +376,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v274</title>
+<title>Zalner ERP v276</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -561,7 +568,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v274</div>
+    <div class="nav-logo-sub">v276</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -6075,7 +6082,7 @@ const TRANSLATIONS = {
   Magyar: {
     ajanlat:'ÁRAJÁNLAT',elado:'Eladó',vevo:'Vevő',ajanlatszam:'Ajánlat száma',
     kiallitas:'Kiállítás dátuma',ervenyesseg:'Érvényesség',szallitasi_hatarido:'Szállítási idő (rendeléstől)',
-    fizetes_mod:'Fizetési mód',targy:'Tárgy',tetelek:'Tételek',megnevezes:'Megnevezés',
+    fizetes_mod:'Fizetési mód',fizetesi_hatarido:'Fizetési határidő',fizetes_feltetel:'Fizetési feltétel',targy:'Tárgy',tetelek:'Tételek',megnevezes:'Megnevezés',
     leiras:'Leírás',mennyiseg:'Mennyiség',egyseg:'Egység',egyseg_ar:'Egységár',tetel_osszeg:'Összeg',
     netto:'Nettó összesen',afa:'ÁFA',brutto:'Bruttó összesen',bankszamla:'Bankszámla',
     bank:'Bank',iban:'IBAN',swift:'SWIFT',adoszam:'Adószám',eu_adoszam:'EU adószám',kapcsolattarto:'Kapcsolattartó'
@@ -6083,7 +6090,7 @@ const TRANSLATIONS = {
   English: {
     ajanlat:'QUOTATION',elado:'Seller',vevo:'Buyer',ajanlatszam:'Quotation No.',
     kiallitas:'Issue Date',ervenyesseg:'Valid Until',szallitasi_hatarido:'Delivery Time (from order)',
-    fizetes_mod:'Payment Method',targy:'Subject',tetelek:'Items',megnevezes:'Description',
+    fizetes_mod:'Payment Method',fizetesi_hatarido:'Payment Deadline',fizetes_feltetel:'Payment Terms',targy:'Subject',tetelek:'Items',megnevezes:'Description',
     leiras:'Details',mennyiseg:'Qty',egyseg:'Unit',egyseg_ar:'Unit Price',tetel_osszeg:'Amount',
     netto:'Net Total',afa:'VAT',brutto:'Gross Total',bankszamla:'Bank Account',
     bank:'Bank',iban:'IBAN',swift:'SWIFT',adoszam:'Tax No.',eu_adoszam:'EU Tax No.',kapcsolattarto:'Contact Person'
@@ -6384,7 +6391,8 @@ async function generatePDF() {
     '<div class="meta-item"><div class="lbl">' + T.ervenyesseg + '</div><div class="val">' + formatDate(f.Ervenyesseg_datum, lang) + '</div></div>' +
     '<div class="meta-item"><div class="lbl">' + T.szallitasi_hatarido + '</div><div class="val">' + (f.Szallitasi_hatarido || '—') + '</div></div>' +
     '<div class="meta-item"><div class="lbl">' + T.fizetes_mod + '</div><div class="val">' + translateFizetes(f.Fizetes_mod, lang) + '</div></div>' +
-    (f.Fizetes_feltetel ? '<div class="meta-item" style="grid-column:1/-1"><div class="lbl">' + (lang==='Magyar'?'Fizetési feltétel':'Payment Terms') + '</div><div class="val">' + f.Fizetes_feltetel + '</div></div>' : '') +
+    '<div class="meta-item"><div class="lbl">' + T.fizetesi_hatarido + '</div><div class="val">' + (lang === 'Magyar' ? 'Teljesítés + ' + (f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30) + ' nap' : 'Fulfillment + ' + (f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30) + ' days') + '</div></div>' +
+    (f.Fizetes_feltetel ? '<div class="meta-item" style="grid-column:1/-1"><div class="lbl">' + T.fizetes_feltetel + '</div><div class="val">' + f.Fizetes_feltetel + '</div></div>' : '') +
     '<div class="meta-item"><div class="lbl">' + T.targy + '</div><div class="val">' + (f.Targy||'—') + '</div></div>' +
     '<div class="meta-item"><div class="lbl">' + T.kapcsolattarto + '</div><div class="val">' + translateNev(f.Kapcsolattarto, lang) + '</div></div>' +
     (vevoiKontaktNev ? '<div class="meta-item"><div class="lbl">' + (lang==='Magyar'?'Vevői kapcsolattartó':'Customer Contact') + '</div><div class="val">' + vevoiKontaktNev + '</div></div>' : '') +
@@ -8523,7 +8531,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v274 · Belső rendszer
+          Zalner ERP v276 · Belső rendszer
         </div>
       </div>
     </div>`;

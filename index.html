@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v273
+     ZALNER ERP - VERZIÓ: v274
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v274:
+- Kimenő számla: Bankszamla mező mentése Airtable-be és visszatöltése szerkesztéskor
+- Szerkesztéskor a korábban választott bankszámla marad, nem áll vissza az alapértelmezettre
+- Díjbekérő→Számla és Előlegszámla→Végszámla konverziónál is öröklődik a bankszámla
 
 CHANGES v273:
 - Kimenő számlák: "Fizetésre vár" szűrő mostantól a lejárt (kifizetetlen, határidőn túli) számlákat is mutatja
@@ -364,7 +369,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v273</title>
+<title>Zalner ERP v274</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -556,7 +561,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v273</div>
+    <div class="nav-logo-sub">v274</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -8518,7 +8523,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v273 · Belső rendszer
+          Zalner ERP v274 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11327,6 +11332,7 @@ async function syncKimenoSzamlak() {
       sajatKapcsolattarto: r.fields.Sajat_kapcsolattarto || '',
       sajatKapcsolattartoEmail: r.fields.Sajat_kapcsolattarto_email || '',
       emailKuldve: r.fields.Email_kuldve || '',
+      bankszamla: r.fields.Bankszamla || '',
     }));
     document.getElementById('kszSubtitle').textContent = `${kszInvoices.length} számla`;
     filterKimenoSzamlak();
@@ -11821,6 +11827,7 @@ function kszSzamlaFromDijbekero(airtableId) {
       document.getElementById('fKszProjekt').value = inv.projektId;
     }
     document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
+    document.getElementById('fKszBankszamla').value = inv.bankszamla || (((inv.currency || 'HUF') === 'HUF') ? 'Wise HUF' : 'Wise EUR');
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszMegjegyzes').value = inv.megjegyzes ? `Díjbekérő alapján: ${inv.invoiceNumber}` : `Díjbekérő alapján: ${inv.invoiceNumber}`;
     if (inv.sajatKapcsolattarto) {
@@ -11845,6 +11852,7 @@ function kszVegszamlaFromElolег(airtableId) {
     onKszUgyfelChange();
     if (inv.projektId) document.getElementById('fKszProjekt').value = inv.projektId;
     document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
+    document.getElementById('fKszBankszamla').value = inv.bankszamla || (((inv.currency || 'HUF') === 'HUF') ? 'Wise HUF' : 'Wise EUR');
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszMegjegyzes').value = `Előlegszámla alapján: ${inv.invoiceNumber}`;
     if (inv.sajatKapcsolattarto) {
@@ -11920,7 +11928,7 @@ function openKszModal(id = null) {
     document.getElementById('fKszTeljesites').value = inv.teljesitesDatum || today;
     document.getElementById('fKszHatarido').value = inv.fizetesiHatarido || dueStr;
     document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
-    document.getElementById('fKszBankszamla').value = ((inv.currency || 'HUF') === 'HUF') ? 'Wise HUF' : 'Wise EUR';
+    document.getElementById('fKszBankszamla').value = inv.bankszamla || (((inv.currency || 'HUF') === 'HUF') ? 'Wise HUF' : 'Wise EUR');
     document.getElementById('fKszMegjegyzes').value = inv.megjegyzes || '';
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszSajatKapcsolattarto').value = inv.sajatKapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
@@ -12479,6 +12487,7 @@ async function saveKimenoSzamla() {
       Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,
       PO_szam: poSzam || null,
       Vevoi_kontakt_id: vevoiKontaktId || null,
+      Bankszamla: document.getElementById('fKszBankszamla')?.value || '',
     };
     if (projektId) fields.Projekt = [projektId];
     Object.keys(fields).forEach(k => (fields[k] === null || fields[k] === undefined) && delete fields[k]);

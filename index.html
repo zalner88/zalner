@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v277
+     ZALNER ERP - VERZIÓ: v278
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v278:
+- Kontaktok: sorra kattintva lenyíló emlékeztető panel (megtekintés, készre állítás, új létrehozás)
+- Emlékeztetők listája hasonlóan jelenik meg mint az ajánlat/projekt naplóban
 
 CHANGES v277:
 - Projektek SharePoint mappa URL javítva: .../23_ERP_Projektek/Projektek/{szám} útvonal
@@ -379,7 +383,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v277</title>
+<title>Zalner ERP v278</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -571,7 +575,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v277</div>
+    <div class="nav-logo-sub">v278</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -8534,7 +8538,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v277 · Belső rendszer
+          Zalner ERP v278 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -10425,21 +10429,45 @@ function renderKontaktok() {
       'Ugyvezeto': 'Ügyvezető', 'Dontehozo': 'Döntéshozó', 'Mernok': 'Mérnök',
       'Beszerzo': 'Beszerző', 'Penzugy': 'Pénzügy', 'Szamlazas': 'Számlázás', 'Egyeb': 'Egyéb'
     };
-    return `<tr>
+    const kontaktNev = ((f.Vezeteknev||'')+' '+(f.Keresztnev||'')).trim().replace(/'/g,'');
+    const kontaktNevCeg = kontaktNev + ' (' + cegnev.replace(/'/g,'') + ')';
+    return `<tr onclick="toggleKontaktEmlekeztetok('${k.id}','${kontaktNevCeg}',this)" style="cursor:pointer">
       <td class="td-name">${f.Vezeteknev || '—'}</td>
       <td class="td-name">${f.Keresztnev || '—'}</td>
       <td>${cegnev}</td>
       <td class="td-muted">${beosztasLabel[f.Beosztas] || f.Beosztas || '—'}</td>
-      <td class="td-muted">${f.Email ? `<a href="mailto:${f.Email}" style="color:var(--accent)">${f.Email}</a>` : '—'}</td>
-      <td class="td-muted">${f.Telefon ? `<a href="tel:${f.Telefon}" style="color:var(--accent)">${f.Telefon}</a>` : '—'}</td>
+      <td class="td-muted">${f.Email ? `<a href="mailto:${f.Email}" onclick="event.stopPropagation()" style="color:var(--accent)">${f.Email}</a>` : '—'}</td>
+      <td class="td-muted">${f.Telefon ? `<a href="tel:${f.Telefon}" onclick="event.stopPropagation()" style="color:var(--accent)">${f.Telefon}</a>` : '—'}</td>
       <td>${f.Fo_kapcsolattarto ? '<span class="badge badge-elfogadva">✓</span>' : ''}</td>
       <td style="white-space:nowrap;display:flex;gap:4px">
-        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();ujEmlekeztetőModal('kontakt','${k.id}','${((f.Vezeteknev||'')+' '+(f.Keresztnev||'')).trim().replace(/'/g,'')} (${cegnev.replace(/'/g,'')})' )" title="Emlékeztető" style="font-size:12px">⏰</button>
         <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editKontakt('${k.id}')">✎</button>
-        <button class="btn btn-secondary btn-sm" style="color:#e74c3c" onclick="event.stopPropagation();deleteKontakt('${k.id}','${((f.Vezeteknev||'')+' '+(f.Keresztnev||'')).trim().replace(/'/g,'')}')">✕</button>
+        <button class="btn btn-secondary btn-sm" style="color:#e74c3c" onclick="event.stopPropagation();deleteKontakt('${k.id}','${kontaktNev}')">✕</button>
+      </td>
+    </tr>
+    <tr id="emlRow_${k.id}" style="display:none">
+      <td colspan="8" style="padding:0;background:var(--surface-alt,#f8f9fa)">
+        <div style="padding:12px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:600;font-size:13.5px">⏰ Emlékeztetők — ${kontaktNevCeg}</span>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();ujEmlekeztetőModal('kontakt','${k.id}','${kontaktNevCeg}')">＋ Új emlékeztető</button>
+          </div>
+          <div id="emlekeztetokContainer_kontakt_${k.id}"><div style="padding:16px;color:var(--text-muted);font-size:13px;text-align:center">Betöltés...</div></div>
+        </div>
       </td>
     </tr>`;
   }).join('');
+}
+
+function toggleKontaktEmlekeztetok(kontaktId, kontaktNev, rowEl) {
+  const emlRow = document.getElementById('emlRow_' + kontaktId);
+  if (!emlRow) return;
+  const wasOpen = emlRow.style.display !== 'none';
+  // Minden nyitott emlékeztető panelt bezár
+  document.querySelectorAll('[id^="emlRow_"]').forEach(r => r.style.display = 'none');
+  if (!wasOpen) {
+    emlRow.style.display = '';
+    loadEmlekeztetok('kontakt', kontaktId);
+  }
 }
 
 async function openKontaktModal(id = null, preselectedUgyfelId = null) {

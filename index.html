@@ -1,12 +1,23 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v278
+     ZALNER ERP - VERZIÓ: v281
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v281:
+- VRV PDF JAVÍTVA: lang változó definiálva (= "hu"), ami a "lang is not defined" hibát okozta
+
+CHANGES v280:
+- VRV PDF: try-catch az egész generateVrvPDF-et felöleli (hiba toast-ban jelenik meg)
+
+CHANGES v279:
+- VRV PDF javítva: Blob URL + beágyazott print szkript (mint az ajánlat PDF)
+- Szállítólevél PDF javítva: ugyanaz a Blob URL megoldás
+- Nincs több document.write — minden PDF egységesen Blob URL-t használ
 
 CHANGES v278:
 - Kontaktok: sorra kattintva lenyíló emlékeztető panel (megtekintés, készre állítás, új létrehozás)
@@ -383,7 +394,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v278</title>
+<title>Zalner ERP v281</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -575,7 +586,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v278</div>
+    <div class="nav-logo-sub">v281</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -6672,16 +6683,14 @@ async function generateSzlPDF(id, langOverride) {
   '</div>' +
   '<div class="footer"><span>' + CEGADATOK.nev + ' | ' + CEGADATOK.cim + '</span><span>' + (f.Szallitolevel_szam||'') + ' | ' + (f.Kiallitas_datum||'') + '</span></div>' +
   '</div>' +
+  '<script>document.title=' + JSON.stringify('Szallitolevel_' + (f.Szallitolevel_szam||'')) + ';window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>' +
   '</div></body></html>';
 
-  const win = window.open('', '_blank');
-  if (!win) { toast('A böngésző blokkolta a felugró ablakot! Engedélyezd a popup-okat.', 'error'); return; }
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => {
-    win.document.title = 'Szallitolevel_' + (f.Szallitolevel_szam || '');
-    win.print();
-  }, 800);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const win = window.open(blobUrl, '_blank');
+  if (!win) { toast('A böngésző blokkolta a felugró ablakot! Engedélyezd a popup-okat.', 'error'); }
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
 }
 
 // ===== VRV (VEVŐI RENDELÉS VISSZAIGAZOLÁS) =====
@@ -7151,7 +7160,9 @@ function deleteVrv(id, szam) {
 }
 
 async function generateVrvPDF(id) {
+  try {
   const L = SZL_LABELS['hu']; // VRV mindig magyar
+  const lang = 'hu';
   if (!vrevRendVisszaig.length) {
     try { vrevRendVisszaig = await atGet('VevRendVisszaig', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
   }
@@ -7280,15 +7291,15 @@ async function generateVrvPDF(id) {
   '</div>' +
   '<div class="footer"><span>' + CEGADATOK.nev + ' | ' + CEGADATOK.cim + '</span><span>' + (f.VRV_szam||'') + ' | ' + (f.Kiallitas_datum||'') + '</span></div>' +
   '</div>' +
+  '<script>document.title=' + JSON.stringify('VRV_' + (f.VRV_szam||'')) + ';window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>' +
   '</div></body></html>';
 
-  try {
-    const win = window.open('', '_blank');
-    if (!win) { toast('A böngésző blokkolta a felugró ablakot! Engedélyezd a popup-okat ezen az oldalon.', 'error'); return; }
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => { win.document.title = 'VRV_' + (f.VRV_szam||''); win.print(); }, 800);
-  } catch(e) { toast('PDF hiba: ' + e.message, 'error'); console.error(e); }
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const win = window.open(blobUrl, '_blank');
+    if (!win) { toast('A böngésző blokkolta a felugró ablakot! Engedélyezd a popup-okat.', 'error'); }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  } catch(e) { toast('VRV PDF hiba: ' + e.message, 'error'); console.error(e); }
 }
 
 
@@ -8538,7 +8549,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v278 · Belső rendszer
+          Zalner ERP v281 · Belső rendszer
         </div>
       </div>
     </div>`;

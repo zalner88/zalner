@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v281
+     ZALNER ERP - VERZIÓ: v282
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v282:
+- VRV PDF fájlnév javítva: dupla "VRV_" prefix eltávolítva (most: VRV-2026-005)
 
 CHANGES v281:
 - VRV PDF JAVÍTVA: lang változó definiálva (= "hu"), ami a "lang is not defined" hibát okozta
@@ -394,7 +397,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v281</title>
+<title>Zalner ERP v282</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -586,7 +589,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v281</div>
+    <div class="nav-logo-sub">v282</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -7231,7 +7234,7 @@ async function generateVrvPDF(id) {
     (vrvVevoiKapcsolattarto ? '<div class="meta-item"><div class="lbl">' + L.customerContact + '</div><div class="val">' + vrvVevoiKapcsolattarto + '</div></div>' : '');
 
   const html = '<!DOCTYPE html><html lang="' + lang + '"><head><meta charset="UTF-8">' +
-  '<title>VRV_' + (f.VRV_szam||'') + '</title>' +
+  '<title>' + (f.VRV_szam||'') + '</title>' +
   '<style>' +
   '@import url("https://use.typekit.net/walbaum-display.css");' +
   '@font-face{font-family:"Walbaum Display";src:local("Walbaum Display Light"),local("WalbaumDisplay-Light");font-weight:300;font-style:normal}' +
@@ -7291,7 +7294,7 @@ async function generateVrvPDF(id) {
   '</div>' +
   '<div class="footer"><span>' + CEGADATOK.nev + ' | ' + CEGADATOK.cim + '</span><span>' + (f.VRV_szam||'') + ' | ' + (f.Kiallitas_datum||'') + '</span></div>' +
   '</div>' +
-  '<script>document.title=' + JSON.stringify('VRV_' + (f.VRV_szam||'')) + ';window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>' +
+  '<script>document.title=' + JSON.stringify(f.VRV_szam||'') + ';window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>' +
   '</div></body></html>';
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
@@ -8549,7 +8552,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v281 · Belső rendszer
+          Zalner ERP v282 · Belső rendszer
         </div>
       </div>
     </div>`;

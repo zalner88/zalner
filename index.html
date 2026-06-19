@@ -1,12 +1,61 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v282
+     ZALNER ERP - VERZIÓ: v289
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v289:
+- Számla kiküldő e-mail a számla nyelvén készül (hu/en):
+  * angol standard tárgy- és törzssablon hozzáadva
+  * a típus felirat is fordul (Számla→Invoice, Díjbekérő→Proforma invoice, stb.)
+  * összeg formázása a nyelvhez igazítva (hu-HU / en-US)
+  * nyelv: a számlán mentett Nyelv, fallback az ügyfél országa alapján
+  * ügyfél egyedi sablonja továbbra is prioritást élvez, ha ki van töltve
+- Beállítások: külön szerkeszthető magyar és angol standard e-mail sablon (HU/EN kapcsoló)
+
+CHANGES v288:
+- Billingo számla megjegyzés címkéi a célnyelven jelennek meg (hu/en):
+  Vevői kapcsolattartó / Customer contact, ZALNER kapcsolattartó / ZALNER contact,
+  Szállítólevél / Delivery note, Beszállítói azonosítónk / Our supplier ID
+  (PO szám nemzetközi, marad "PO")
+
+CHANGES v287:
+- Kimenő számla nyelve mostantól MENTŐDIK az Airtable Kimeno_Szamlak.Nyelv mezőbe (hu/en)
+- Szerkesztésnél a mentett Nyelv töltődik vissza (ha üres, az ügyfél országa alapján javasol)
+
+CHANGES v286:
+- Kimenő számla: nyelvválasztó (Magyar / Angol) — a Billingo dokumentum nyelvét állítja (language: hu/en)
+- Automatikus nyelvjavaslat az ügyfél országa alapján (magyar ügyfél → hu, külföldi → en), kézzel felülírható
+- Szerkesztésnél a nyelv az ügyfél országából töltődik (mentett érték ha lenne), új számlánál alaphelyzet: magyar
+- Megjegyzés: a nyelv NEM kerül Airtable Kimeno_Szamlak mezőbe (nincs ilyen mező), csak a Billingo hívásba
+
+CHANGES v285:
+- Ügyfél űrlap: bontott számlázási cím mezők (Ország, Irányítószám, Város, Utca/házszám)
+  → új Airtable mezők: Orszag, Iranyitoszam, Varos, Utca_hazszam
+- Billingo cím: ELSŐDLEGESEN a bontott mezőket használja (nincs találgatás)
+  → így a Billingo helyesen kapja meg várost/irszámot/utcát (pl. belga partner)
+- FALLBACK megmarad: ha a bontott mezők üresek, a régi egysoros Szekhely_cim parser fut
+  → a MEGLÉVŐ magyar címek változatlanul, jól működnek (nem esnek szét)
+- Cím-építés egységes buildBillingoAddress() helperbe szervezve (létrehozás + meglévő partner frissítés)
+
+CHANGES v284:
+- Billingo külföldi vevő — TOVÁBBI JAVÍTÁS:
+  * Számlakiállításkor friss ügyfél-lekérés Airtable-ből (új Orszag mező biztosan betöltődik, nincs elavult cache)
+  * detectCountryCode több mezőnevet figyel: Orszag / Ország / orszag / Country
+  * MEGLÉVŐ Billingo partner országának javítása: ha korábban tévesen HU-ként jött létre,
+    a country_code mostantól frissül a detektált országra (eddig csak adószámot frissített)
+  * Diagnosztikai console.log-ok: melyik adat alapján mi az ország (F12 konzolban követhető)
+
+CHANGES v283:
+- Billingo külföldi vevő JAVÍTVA: a partner country_code már nem fix "HU"
+  → új detectCountryCode() függvény (Orszag mező / EU adószám előtag / cím országneve alapján)
+- Külföldi partnernél a magyar adószám NEM megy a taxcode mezőbe; az EU adószám a taxcode_eu-ba kerül
+- Cím-parser ország-érzékeny: külföldi címnél nincs erőltetett 4-jegyű HU irszám / Budapest fallback
+- Meglévő (found) partner frissítése is ország-érzékeny (EU adószám vs HU adószám)
 
 CHANGES v282:
 - VRV PDF fájlnév javítva: dupla "VRV_" prefix eltávolítva (most: VRV-2026-005)
@@ -397,7 +446,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v282</title>
+<title>Zalner ERP v289</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -589,7 +638,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v282</div>
+    <div class="nav-logo-sub">v289</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1591,14 +1640,33 @@ select.form-control{cursor:pointer}
     <div class="form-section" style="margin-top:28px;max-width:600px">
       <div class="form-section-title">✉️ Standard számla e-mail sablon</div>
       <div class="form-section-body">
-        <div class="form-group" style="margin-bottom:10px">
-          <label class="form-label">Tárgy sablon</label>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Változók: <code>{cegnev}</code> <code>{szamlaszam}</code> <code>{osszeg}</code> <code>{deviza}</code> <code>{po_szam}</code> <code>{tipus}</code></div>
-          <input class="form-control" id="szamlaEmailTargySablonInput" placeholder="pl. {tipus}: {szamlaszam} – {cegnev}" style="font-family:monospace;font-size:12px">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">A kiküldő e-mail nyelve a számlán kiválasztott nyelvet követi. Magyar számlához a magyar, angol számlához az angol sablon kerül felhasználásra.</div>
+        <div style="display:flex;gap:6px;margin-bottom:12px">
+          <button type="button" class="btn btn-secondary btn-sm" id="emailSablonTabHu" onclick="switchEmailSablonLang('hu')" style="font-weight:600">🇭🇺 Magyar</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="emailSablonTabEn" onclick="switchEmailSablonLang('en')">🇬🇧 Angol</button>
         </div>
-        <div class="form-group" style="margin-bottom:10px">
-          <label class="form-label">Üzenet sablon</label>
-          <textarea class="form-control" id="szamlaEmailSablonInput" rows="8" style="font-family:monospace;font-size:12px"></textarea>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Változók: <code>{cegnev}</code> <code>{szamlaszam}</code> <code>{osszeg}</code> <code>{deviza}</code> <code>{po_szam}</code> <code>{tipus}</code></div>
+        <!-- Magyar mezők -->
+        <div id="emailSablonHuWrap">
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">Tárgy sablon (magyar)</label>
+            <input class="form-control" id="szamlaEmailTargySablonInput" placeholder="pl. {tipus}: {szamlaszam} – {cegnev}" style="font-family:monospace;font-size:12px">
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">Üzenet sablon (magyar)</label>
+            <textarea class="form-control" id="szamlaEmailSablonInput" rows="8" style="font-family:monospace;font-size:12px"></textarea>
+          </div>
+        </div>
+        <!-- Angol mezők -->
+        <div id="emailSablonEnWrap" style="display:none">
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">Subject template (English)</label>
+            <input class="form-control" id="szamlaEmailTargySablonInputEn" placeholder="e.g. {tipus}: {szamlaszam} – {cegnev}" style="font-family:monospace;font-size:12px">
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label class="form-label">Message template (English)</label>
+            <textarea class="form-control" id="szamlaEmailSablonInputEn" rows="8" style="font-family:monospace;font-size:12px"></textarea>
+          </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn btn-primary" onclick="saveStandardEmailSablon()">💾 Mentés</button>
@@ -1953,7 +2021,14 @@ select.form-control{cursor:pointer}
             <option value="Aktiv">Aktív</option><option value="Inaktiv">Inaktív</option><option value="Potencialis">Potenciális</option>
           </select>
         </div>
-        <div class="form-group full"><label class="form-label">Székhely cím</label><input class="form-control" id="fSzekhely"></div>
+        <div class="form-group full"><label class="form-label">Székhely cím <span style="font-size:11px;color:var(--text-muted);font-weight:400">(teljes cím egy sorban — magyar partnereknél elég ez)</span></label><input class="form-control" id="fSzekhely" placeholder="pl. 9970 Szentgotthárd, Füzesi út 15."></div>
+        <div class="form-group full" style="border-top:1px dashed var(--border, #ddd);padding-top:10px;margin-top:2px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">📍 <strong>Bontott számlázási cím</strong> — külföldi partnernél töltsd ki ezeket, hogy a Billingo helyesen kapja meg. Ha üresek, a fenti „Székhely cím" kerül feldolgozásra.</div>
+        </div>
+        <div class="form-group"><label class="form-label">Ország <span style="font-size:11px;color:var(--text-muted);font-weight:400">(pl. Belgium / DE)</span></label><input class="form-control" id="fOrszag" placeholder="pl. Magyarország"></div>
+        <div class="form-group"><label class="form-label">Irányítószám</label><input class="form-control" id="fIranyitoszam" placeholder="pl. 8200"></div>
+        <div class="form-group"><label class="form-label">Város</label><input class="form-control" id="fVaros" placeholder="pl. Brugge"></div>
+        <div class="form-group"><label class="form-label">Utca, házszám</label><input class="form-control" id="fUtcaHazszam" placeholder="pl. Dirk Martensstraat 3A"></div>
         <div class="form-group full"><label class="form-label">Telephely cím</label><input class="form-control" id="fTelephely"></div>
         <div class="form-group"><label class="form-label">Fizetési határidő (nap)</label><input class="form-control" type="number" id="fUgyfelFizetesiHataridoNap" min="0" max="365" placeholder="30"></div>
         <div class="form-group"><label class="form-label">Beszállítói azonosító <span style="font-size:11px;color:var(--text-muted);font-weight:400">(megjelenik a számlán)</span></label><input class="form-control" id="fBeszallIazonosito" placeholder="pl. SUP-00123"></div>
@@ -2502,6 +2577,13 @@ select.form-control{cursor:pointer}
             <option value="wire_transfer">Átutalás</option>
             <option value="cash">Készpénz</option>
             <option value="bankcard">Bankkártya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Számla nyelve <span style="font-size:11px;color:var(--text-muted)">a Billingo dokumentum nyelve</span></label>
+          <select class="form-control" id="fKszNyelv" onchange="this.dataset.keziValasztas='1'">
+            <option value="hu">Magyar</option>
+            <option value="en">Angol (English)</option>
           </select>
         </div>
         <div class="form-group">
@@ -4681,6 +4763,10 @@ async function openUgyfelModal(id = null) {
     document.getElementById('fAdoszam').value = f.Ceg_adoszama || '';
     document.getElementById('fStatusz').value = f.Statusz || 'Aktiv';
     document.getElementById('fSzekhely').value = f.Szekhely_cim || '';
+    document.getElementById('fOrszag').value = f.Orszag || '';
+    document.getElementById('fIranyitoszam').value = f.Iranyitoszam || '';
+    document.getElementById('fVaros').value = f.Varos || '';
+    document.getElementById('fUtcaHazszam').value = f.Utca_hazszam || '';
     document.getElementById('fTelephely').value = f.Telephely_cim || '';
     document.getElementById('fUgyfelFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
     document.getElementById('fBeszallIazonosito').value = f.Beszallitoi_azonosito || '';
@@ -4688,7 +4774,7 @@ async function openUgyfelModal(id = null) {
     document.getElementById('fSzamlaEmailSablon').value = f.Szamla_email_sablon || '';
     document.getElementById('fSzamlaEmailTargySablon').value = f.Szamla_email_targy_sablon || '';
   } else {
-    ['fCegnev', 'fAdoszam', 'fSzekhely', 'fTelephely', 'fMegjegyzes', 'fSzamlaEmailSablon', 'fSzamlaEmailTargySablon', 'fBeszallIazonosito'].forEach(i => document.getElementById(i).value = '');
+    ['fCegnev', 'fAdoszam', 'fSzekhely', 'fOrszag', 'fIranyitoszam', 'fVaros', 'fUtcaHazszam', 'fTelephely', 'fMegjegyzes', 'fSzamlaEmailSablon', 'fSzamlaEmailTargySablon', 'fBeszallIazonosito'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('fStatusz').value = 'Aktiv';
     document.getElementById('fUgyfelFizetesiHataridoNap').value = 30;
     document.getElementById('fBeszallIazonosito').value = '';
@@ -4709,6 +4795,10 @@ async function saveUgyfel() {
     Cegnev: cegnev, Ceg_adoszama: document.getElementById('fAdoszam').value.trim(),
     Statusz: document.getElementById('fStatusz').value,
     Szekhely_cim: document.getElementById('fSzekhely').value.trim(),
+    Orszag: document.getElementById('fOrszag').value.trim() || null,
+    Iranyitoszam: document.getElementById('fIranyitoszam').value.trim() || null,
+    Varos: document.getElementById('fVaros').value.trim() || null,
+    Utca_hazszam: document.getElementById('fUtcaHazszam').value.trim() || null,
     Telephely_cim: document.getElementById('fTelephely').value.trim(),
     Fizetesi_hatarido_nap: (() => { const v = parseInt(document.getElementById('fUgyfelFizetesiHataridoNap').value); return isNaN(v) ? 30 : v; })(),
     Megjegyzes: document.getElementById('fMegjegyzes').value.trim(),
@@ -8552,7 +8642,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v282 · Belső rendszer
+          Zalner ERP v289 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11285,9 +11375,25 @@ function getBillingoApiKey() {
 
 function loadSzamlaEmailSablonSettings() {
   const inp = document.getElementById('szamlaEmailSablonInput');
-  if (inp) inp.value = getStandardEmailSablon();
+  if (inp) inp.value = getStandardEmailSablon('hu');
   const tinp = document.getElementById('szamlaEmailTargySablonInput');
-  if (tinp) tinp.value = getStandardEmailTargySablon();
+  if (tinp) tinp.value = getStandardEmailTargySablon('hu');
+  const inpEn = document.getElementById('szamlaEmailSablonInputEn');
+  if (inpEn) inpEn.value = getStandardEmailSablon('en');
+  const tinpEn = document.getElementById('szamlaEmailTargySablonInputEn');
+  if (tinpEn) tinpEn.value = getStandardEmailTargySablon('en');
+}
+
+function switchEmailSablonLang(lang) {
+  const huWrap = document.getElementById('emailSablonHuWrap');
+  const enWrap = document.getElementById('emailSablonEnWrap');
+  const huTab = document.getElementById('emailSablonTabHu');
+  const enTab = document.getElementById('emailSablonTabEn');
+  const en = lang === 'en';
+  if (huWrap) huWrap.style.display = en ? 'none' : 'block';
+  if (enWrap) enWrap.style.display = en ? 'block' : 'none';
+  if (huTab) huTab.style.fontWeight = en ? '400' : '600';
+  if (enTab) enTab.style.fontWeight = en ? '600' : '400';
 }
 
 async function loadBillingoApiKey() {
@@ -11386,6 +11492,7 @@ async function syncKimenoSzamlak() {
       sajatKapcsolattartoEmail: r.fields.Sajat_kapcsolattarto_email || '',
       emailKuldve: r.fields.Email_kuldve || '',
       bankszamla: r.fields.Bankszamla || '',
+      nyelv: r.fields.Nyelv || '',
     }));
     document.getElementById('kszSubtitle').textContent = `${kszInvoices.length} számla`;
     filterKimenoSzamlak();
@@ -11594,11 +11701,33 @@ ZALNER Engineering Kft.`;
 
 const SZAMLA_EMAIL_TARGY_DEFAULT = '{tipus}: {szamlaszam} – {cegnev}';
 
-function getStandardEmailSablon() {
+// Angol standard sablonok (külföldi / angol nyelvű számlákhoz)
+const SZAMLA_EMAIL_SABLON_DEFAULT_EN =
+`Dear {cegnev},
+
+Please find attached our invoice no. {szamlaszam}, gross total {osszeg} {deviza}.
+
+The document is available as a PDF attachment.
+
+Should you have any questions, please do not hesitate to contact us.
+
+Best regards,
+
+ZALNER Engineering Kft.`;
+
+const SZAMLA_EMAIL_TARGY_DEFAULT_EN = '{tipus}: {szamlaszam} – {cegnev}';
+
+function getStandardEmailSablon(nyelv) {
+  if (nyelv === 'en') {
+    return localStorage.getItem('szamlaEmailSablon_en') || SZAMLA_EMAIL_SABLON_DEFAULT_EN;
+  }
   return localStorage.getItem('szamlaEmailSablon') || SZAMLA_EMAIL_SABLON_DEFAULT;
 }
 
-function getStandardEmailTargySablon() {
+function getStandardEmailTargySablon(nyelv) {
+  if (nyelv === 'en') {
+    return localStorage.getItem('szamlaEmailTargySablon_en') || SZAMLA_EMAIL_TARGY_DEFAULT_EN;
+  }
   return localStorage.getItem('szamlaEmailTargySablon') || SZAMLA_EMAIL_TARGY_DEFAULT;
 }
 
@@ -11607,21 +11736,31 @@ function saveStandardEmailSablon() {
   const targy = document.getElementById('szamlaEmailTargySablonInput')?.value || '';
   localStorage.setItem('szamlaEmailSablon', val);
   localStorage.setItem('szamlaEmailTargySablon', targy);
+  const valEn = document.getElementById('szamlaEmailSablonInputEn')?.value || '';
+  const targyEn = document.getElementById('szamlaEmailTargySablonInputEn')?.value || '';
+  localStorage.setItem('szamlaEmailSablon_en', valEn);
+  localStorage.setItem('szamlaEmailTargySablon_en', targyEn);
   const s = document.getElementById('szamlaEmailSablonStatus');
   if (s) s.textContent = '✓ Elmentve';
-  toast('Standard e-mail sablon elmentve!', 'success');
+  toast('Standard e-mail sablonok elmentve (magyar + angol)!', 'success');
 }
 
 function resetStandardEmailSablon() {
   localStorage.removeItem('szamlaEmailSablon');
   localStorage.removeItem('szamlaEmailTargySablon');
+  localStorage.removeItem('szamlaEmailSablon_en');
+  localStorage.removeItem('szamlaEmailTargySablon_en');
   const inp = document.getElementById('szamlaEmailSablonInput');
   if (inp) inp.value = SZAMLA_EMAIL_SABLON_DEFAULT;
   const tinp = document.getElementById('szamlaEmailTargySablonInput');
   if (tinp) tinp.value = SZAMLA_EMAIL_TARGY_DEFAULT;
+  const inpEn = document.getElementById('szamlaEmailSablonInputEn');
+  if (inpEn) inpEn.value = SZAMLA_EMAIL_SABLON_DEFAULT_EN;
+  const tinpEn = document.getElementById('szamlaEmailTargySablonInputEn');
+  if (tinpEn) tinpEn.value = SZAMLA_EMAIL_TARGY_DEFAULT_EN;
   const s = document.getElementById('szamlaEmailSablonStatus');
   if (s) s.textContent = '✓ Visszaállítva';
-  toast('Standard sablon visszaállítva az alapértelmezetthez.', 'success');
+  toast('Standard sablonok visszaállítva az alapértelmezetthez.', 'success');
 }
 
 function applySzamlaEmailSablon(sablon, params) {
@@ -11741,24 +11880,31 @@ async function openKszEmailModal(airtableId) {
   document.getElementById('kszEmailCc').value = 'szabolcs.wagner@zalner.hu';
 
   // Tárgy + törzsszöveg sablonból (ügyfél egyedi → standard)
-  const cegnev = inv.ugyfelNev || 'Partnerünk';
-  const ossz = (inv.bruttoOssz||0).toLocaleString('hu-HU');
-  const params = { cegnev, szamlaszam: inv.invoiceNumber || '', osszeg: ossz, deviza: inv.currency || 'HUF' };
-
   const ugyfel = ugyfelek.find(u => u.id === inv.ugyfelId);
+
+  // Számla nyelve: a mentett érték, fallback az ügyfél országa alapján
+  let emailNyelv = inv.nyelv || '';
+  if (!emailNyelv) { try { emailNyelv = (detectCountryCode(ugyfel?.fields || {}) === 'HU') ? 'hu' : 'en'; } catch(e) { emailNyelv = 'hu'; } }
+
+  const cegnev = inv.ugyfelNev || (emailNyelv === 'en' ? 'Dear Partner' : 'Partnerünk');
+  const ossz = (inv.bruttoOssz||0).toLocaleString(emailNyelv === 'en' ? 'en-US' : 'hu-HU');
+  const params = { cegnev, szamlaszam: inv.invoiceNumber || '', osszeg: ossz, deviza: inv.currency || 'HUF' };
 
   // Params bővítése po_szam és tipus változókkal
   params.po_szam = inv.poSzam || '';
-  params.tipus = inv.tipus || 'Számla';
+  // Típus felirat a számla nyelvén
+  const tipusHu = inv.tipus || 'Számla';
+  const tipusEnMap = { 'Számla':'Invoice', 'Díjbekérő':'Proforma invoice', 'Előlegszámla':'Advance invoice', 'Végszámla':'Final invoice', 'Sztornó':'Cancellation invoice', 'Piszkozat':'Draft' };
+  params.tipus = emailNyelv === 'en' ? (tipusEnMap[tipusHu] || tipusHu) : tipusHu;
 
-  // Tárgy sablon: ügyfél egyedi → standard
+  // Tárgy sablon: ügyfél egyedi → standard (a számla nyelvén)
   const egyediTargySablon = ugyfel?.fields?.Szamla_email_targy_sablon || '';
-  const aktivTargySablon = egyediTargySablon.trim() ? egyediTargySablon : getStandardEmailTargySablon();
+  const aktivTargySablon = egyediTargySablon.trim() ? egyediTargySablon : getStandardEmailTargySablon(emailNyelv);
   document.getElementById('kszEmailSubject').value = applySzamlaEmailSablon(aktivTargySablon, params);
 
-  // Üzenet sablon: ügyfél egyedi → standard
+  // Üzenet sablon: ügyfél egyedi → standard (a számla nyelvén)
   const egyediSablon = ugyfel?.fields?.Szamla_email_sablon || '';
-  const aktivSablon = egyediSablon.trim() ? egyediSablon : getStandardEmailSablon();
+  const aktivSablon = egyediSablon.trim() ? egyediSablon : getStandardEmailSablon(emailNyelv);
   document.getElementById('kszEmailBody').value = applySzamlaEmailSablon(aktivSablon, params);
 
   document.getElementById('kszEmailModal').classList.add('open');
@@ -11988,6 +12134,14 @@ function openKszModal(id = null) {
     onKszKapcsolattartoChange();
     loadKszTetelek(inv.tetelek || []);
     if (inv.ugyfelId) loadKszVevoiKontaktok(inv.ugyfelId, inv.vevoiKontaktId || null);
+    // Nyelv: mentett érték ha van, különben az ügyfél országa alapján; szerkesztésnél fixáljuk
+    const nyelvSelEdit = document.getElementById('fKszNyelv');
+    if (nyelvSelEdit) {
+      let n = inv.nyelv || '';
+      if (!n && inv.ugyfelId) { const uu = ugyfelek.find(x => x.id === inv.ugyfelId); try { n = (detectCountryCode(uu?.fields || {}) === 'HU') ? 'hu' : 'en'; } catch(e) { n = 'hu'; } }
+      nyelvSelEdit.value = n || 'hu';
+      nyelvSelEdit.dataset.keziValasztas = '1';
+    }
   } else {
     selU.value = '';
     selP.value = '';
@@ -12004,6 +12158,9 @@ function openKszModal(id = null) {
     loadKszTetelek([]);
     addKszTetel();
     loadKszVevoiKontaktok('', null);
+    // Nyelv alaphelyzet: magyar, és újra engedélyezzük az ügyfél alapú automatikus javaslatot
+    const nyelvSelNew = document.getElementById('fKszNyelv');
+    if (nyelvSelNew) { nyelvSelNew.value = 'hu'; delete nyelvSelNew.dataset.keziValasztas; }
   }
 
   // Típus reset: mindig 'invoice'-ra álljon alapból
@@ -12257,6 +12414,16 @@ function onKszUgyfelChange() {
     document.getElementById('fKszHatarido').value = due.toISOString().split('T')[0];
   }
   loadKszVevoiKontaktok(uid, null);
+
+  // Számla nyelvének automatikus javaslata az ügyfél országa alapján
+  // (magyar ügyfél → magyar, külföldi → angol). Kézzel felülírható.
+  const nyelvSel = document.getElementById('fKszNyelv');
+  if (nyelvSel && !nyelvSel.dataset.keziValasztas) {
+    try {
+      const orszag = detectCountryCode(u.fields);
+      nyelvSel.value = (orszag === 'HU') ? 'hu' : 'en';
+    } catch(e) {}
+  }
 }
 
 function onKszProjektChange() {
@@ -12396,6 +12563,7 @@ async function saveKimenoSzamla() {
   const fizetesMod = document.getElementById('fKszFizetesMod').value;
   const megjegyzes = document.getElementById('fKszMegjegyzes').value.trim();
   const poSzam = document.getElementById('fKszPoSzam')?.value?.trim() || '';
+  const nyelv = document.getElementById('fKszNyelv')?.value || 'hu';
   const vevoiKontaktId = document.getElementById('fKszVevoiKontakt')?.value || null;
   const sajatKapcs = document.getElementById('fKszSajatKapcsolattarto')?.value || getCurrentUserAirtableName() || '';
   const sajatKapcsEmail = ZALNER_EMAILS[sajatKapcs] || '';
@@ -12437,27 +12605,39 @@ async function saveKimenoSzamla() {
       const billingoType = tipus === 'final' ? 'invoice' : tipus;
 
       // Strukturált comment: PO szám + kapcsolattartók + szállítólevelek + felhasználói megjegyzés
+      // Címkék a számla nyelvén (hu/en)
+      const CMT = nyelv === 'en' ? {
+        vevoiKapcs: 'Customer contact',
+        zalnerKapcs: 'ZALNER contact',
+        szallitolevel: 'Delivery note',
+        beszallAzon: 'Our supplier ID',
+      } : {
+        vevoiKapcs: 'Vevői kapcsolattartó',
+        zalnerKapcs: 'ZALNER kapcsolattartó',
+        szallitolevel: 'Szállítólevél',
+        beszallAzon: 'Beszállítói azonosítónk',
+      };
       const commentParts = [];
       if (poSzam) commentParts.push(`PO: ${poSzam}`);
       if (vevoiKontaktId) {
         const vevoiSel = document.getElementById('fKszVevoiKontakt');
         const vevoiNev = (vevoiSel?.options[vevoiSel?.selectedIndex]?.text || '').replace(/ · .+$/, '').replace(/★/g, '').trim();
-        if (vevoiNev) commentParts.push(`Vevői kapcsolattartó: ${vevoiNev}`);
+        if (vevoiNev) commentParts.push(`${CMT.vevoiKapcs}: ${vevoiNev}`);
       }
       if (sajatKapcs) {
         const sajatNev = { 'Jarfas Kitti':'Járfás Kitti','Wagner Szabolcs':'Wágner Szabolcs','Zombori Krisztina':'Zombori Krisztina' }[sajatKapcs] || sajatKapcs;
-        commentParts.push(`ZALNER kapcsolattartó: ${sajatNev}${sajatKapcsEmail ? ` (${sajatKapcsEmail})` : ''}`);
+        commentParts.push(`${CMT.zalnerKapcs}: ${sajatNev}${sajatKapcsEmail ? ` (${sajatKapcsEmail})` : ''}`);
       }
       // Szállítólevelek a projekthez
       if (projektId && szallitolevelek.length) {
         const szallIds = szallitolevelek
           .filter(s => s.fields.Projekt && s.fields.Projekt.includes(projektId) && s.fields.Szallitolevel_szam)
           .map(s => s.fields.Szallitolevel_szam);
-        if (szallIds.length) commentParts.push(`Szállítólevél: ${szallIds.join(', ')}`);
+        if (szallIds.length) commentParts.push(`${CMT.szallitolevel}: ${szallIds.join(', ')}`);
       }
       // Beszállítói azonosító ha van
       const beszallAzon = ugyfel?.fields?.Beszallitoi_azonosito || '';
-      if (beszallAzon) commentParts.push(`Beszállítói azonosítónk: ${beszallAzon}`);
+      if (beszallAzon) commentParts.push(`${CMT.beszallAzon}: ${beszallAzon}`);
       if (megjegyzes && megjegyzes.trim()) commentParts.push(megjegyzes.trim());
       const billingoComment = commentParts.length ? commentParts.join('\n') : undefined;
 
@@ -12471,7 +12651,7 @@ async function saveKimenoSzamla() {
         fulfillment_date: teljesites,
         due_date: hatarido,
         payment_method: fizetesMod,
-        language: 'hu',
+        language: nyelv,
         currency: deviza,
         electronic: true,
         paid: false,
@@ -12541,6 +12721,7 @@ async function saveKimenoSzamla() {
       PO_szam: poSzam || null,
       Vevoi_kontakt_id: vevoiKontaktId || null,
       Bankszamla: document.getElementById('fKszBankszamla')?.value || '',
+      Nyelv: nyelv || 'hu',
     };
     if (projektId) fields.Projekt = [projektId];
     Object.keys(fields).forEach(k => (fields[k] === null || fields[k] === undefined) && delete fields[k]);
@@ -12613,9 +12794,160 @@ async function billingoApiDirect(method, path, body, apiKey) {
   return data;
 }
 
+// Országkód meghatározása az ügyfél adataiból.
+// Sorrend: 1) explicit Orszag mező  2) EU adószám előtag  3) cím országneve  4) HU alapértelmezett
+function detectCountryCode(f) {
+  // EU tagállamok ISO kódjai (EU adószám előtag = országkód, kivéve GR↔EL)
+  const EU = ['AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU',
+              'IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK'];
+
+  // Ország-név → ISO kód (magyar és angol nevek, gyakori partnerországok)
+  const NAMES = {
+    'magyarország':'HU','hungary':'HU',
+    'ausztria':'AT','austria':'AT','österreich':'AT',
+    'németország':'DE','nemetorszag':'DE','germany':'DE','deutschland':'DE',
+    'szlovákia':'SK','szlovakia':'SK','slovakia':'SK','slovensko':'SK',
+    'szlovénia':'SI','szlovenia':'SI','slovenia':'SI',
+    'csehország':'CZ','csehorszag':'CZ','czech republic':'CZ','czechia':'CZ',
+    'románia':'RO','romania':'RO',
+    'horvátország':'HR','horvatorszag':'HR','croatia':'HR','hrvatska':'HR',
+    'lengyelország':'PL','lengyelorszag':'PL','poland':'PL',
+    'olaszország':'IT','olaszorszag':'IT','italy':'IT','italia':'IT',
+    'franciaország':'FR','franciaorszag':'FR','france':'FR',
+    'spanyolország':'ES','spanyolorszag':'ES','spain':'ES',
+    'hollandia':'NL','netherlands':'NL',
+    'belgium':'BE','svédország':'SE','svedorszag':'SE','sweden':'SE',
+    'dánia':'DK','dania':'DK','denmark':'DK','finnország':'FI','finnorszag':'FI','finland':'FI',
+    'írország':'IE','irorszag':'IE','ireland':'IE','portugália':'PT','portugalia':'PT','portugal':'PT',
+    'svájc':'CH','svajc':'CH','switzerland':'CH','schweiz':'CH',
+    'egyesült királyság':'GB','egyesult kiralysag':'GB','united kingdom':'GB','uk':'GB','nagy-britannia':'GB',
+    'norvégia':'NO','norvegia':'NO','norway':'NO',
+    'szerbia':'RS','serbia':'RS','ukrajna':'UA','ukraine':'UA',
+    'egyesült államok':'US','united states':'US','usa':'US','amerikai egyesült államok':'US',
+  };
+
+  // 1) Explicit ország mező (több névváltozatot is figyelünk: Orszag/Ország/orszag stb.)
+  const orszagRaw = f.Orszag || f['Ország'] || f.orszag || f.ORSZAG || f.Country || f.country || '';
+  const orszag = String(orszagRaw).trim();
+  if (orszag) {
+    const o = orszag.toLowerCase();
+    if (NAMES[o]) { console.log('[detectCountryCode] Orszag mező alapján:', orszag, '→', NAMES[o]); return NAMES[o]; }
+    // 2 betűs ISO kód közvetlenül megadva
+    if (/^[A-Za-z]{2}$/.test(orszag)) { console.log('[detectCountryCode] Orszag ISO kód:', orszag.toUpperCase()); return orszag.toUpperCase(); }
+    console.warn('[detectCountryCode] Orszag mező kitöltve ("' + orszag + '"), de nem ismert országnév/ISO kód — tovább próbálkozom.');
+  }
+
+  // 2) EU adószám előtagja (pl. "DE123456789" → DE, "ATU12345678" → AT)
+  const euAdo = (f.EU_adoszam || '').trim().toUpperCase();
+  const euPrefix = euAdo.slice(0, 2);
+  if (/^[A-Z]{2}$/.test(euPrefix)) {
+    if (euPrefix === 'EL') return 'GR';          // Görögország EU-prefixe EL
+    if (EU.includes(euPrefix)) return euPrefix;
+  }
+
+  // 3) Cím szövegében szereplő országnév (utolsó tag gyakran az ország)
+  const cim = (f.Szekhely_cim || f.Szamlazasi_cim || '').toLowerCase();
+  for (const [nev, kod] of Object.entries(NAMES)) {
+    if (cim.includes(nev)) return kod;
+  }
+
+  // 4) Alapértelmezett: belföldi
+  console.log('[detectCountryCode] Nem található országjelzés (Orszag="' + (f.Orszag||'') + '", EU_adoszam="' + (f.EU_adoszam||'') + '") → HU alapértelmezett. Elérhető mezők:', Object.keys(f));
+  return 'HU';
+}
+
+// Billingo cím objektum összeállítása az ügyfél mezőiből.
+// ELSŐDLEGES: bontott mezők (Iranyitoszam / Varos / Utca_hazszam) ha legalább egy ki van töltve.
+// FALLBACK: a régi egysoros Szekhely_cim parser (magyar címek így változatlanul működnek).
+function buildBillingoAddress(f, countryCode) {
+  const isForeign = countryCode !== 'HU';
+  const cimRaw = f.Szekhely_cim || f.Szamlazasi_cim || '';
+  let irszam = '', varos = '', utca = '-';
+
+  const bontottIrszam = (f.Iranyitoszam || '').trim();
+  const bontottVaros  = (f.Varos || '').trim();
+  const bontottUtca   = (f.Utca_hazszam || '').trim();
+  const vanBontottCim = bontottIrszam || bontottVaros || bontottUtca;
+
+  if (vanBontottCim) {
+    // Közvetlenül a megadott mezőket használjuk — nincs találgatás.
+    irszam = bontottIrszam || (isForeign ? '0000' : '1000');
+    varos  = bontottVaros  || (isForeign ? '-' : 'Budapest');
+    utca   = bontottUtca   || '-';
+    console.log('[Billingo cím] Bontott mezők használata:', { irszam, varos, utca });
+  } else if (isForeign) {
+    // Külföldi egysoros cím: "Strasse 12, 80331 München, Germany" vagy "12 High St, London SW1A 1AA, UK"
+    let reszek = cimRaw.split(',').map(s => s.trim()).filter(Boolean);
+    if (reszek.length > 1) {
+      const utolso = reszek[reszek.length - 1].toLowerCase();
+      const orszagSzavak = ['germany','deutschland','németország','austria','österreich','ausztria',
+        'slovakia','slovensko','szlovákia','czech','czechia','csehország','romania','románia',
+        'croatia','hrvatska','horvátország','poland','lengyelország','italy','italia','olaszország',
+        'france','franciaország','spain','spanyolország','netherlands','hollandia','belgium',
+        'switzerland','schweiz','svájc','united kingdom','uk','egyesült királyság','usa','united states'];
+      if (orszagSzavak.some(o => utolso === o || utolso.includes(o))) reszek.pop();
+    }
+    const pcMatch = cimRaw.match(/\b([A-Z]?\d{3,}[A-Z\d\s]{0,4}|\d{3,})\b/i);
+    if (pcMatch) irszam = pcMatch[1].trim();
+    if (reszek.length) {
+      let varosResz = reszek.find(r => irszam && r.includes(irszam)) || reszek[reszek.length - 1];
+      varos = (irszam ? varosResz.replace(irszam, '').trim() : varosResz).replace(/^[,\s]+|[,\s]+$/g, '') || varosResz;
+      utca = (reszek[0] && reszek[0] !== varosResz) ? reszek[0] : (reszek[0] || '-');
+    } else {
+      utca = cimRaw.trim() || '-';
+    }
+    if (!irszam) irszam = '0000';
+    if (!varos) varos = '-';
+  } else {
+    // Magyar egysoros cím: a meglévő, bevált logika
+    irszam = '1000'; varos = 'Budapest'; utca = '-';
+    const irszamAnyMatch = cimRaw.match(/(\d{4})/);
+    if (irszamAnyMatch) {
+      irszam = irszamAnyMatch[1];
+      const irszamIdx = cimRaw.indexOf(irszam);
+      const elotte = cimRaw.slice(0, irszamIdx).replace(/,\s*$/, '').trim();
+      const utana = cimRaw.slice(irszamIdx + 4).replace(/^[,\s]+/, '').trim();
+      if (elotte && !elotte.match(/^\d{4}$/)) {
+        utca = elotte;
+        const vesszoPoz = utana.indexOf(',');
+        varos = vesszoPoz > -1 ? utana.slice(0, vesszoPoz).trim() : utana.trim();
+        if (!varos) varos = 'Budapest';
+      } else {
+        const vesszoPoz = utana.indexOf(',');
+        if (vesszoPoz > -1) {
+          varos = utana.slice(0, vesszoPoz).trim() || 'Budapest';
+          utca = utana.slice(vesszoPoz + 1).trim() || '-';
+        } else {
+          varos = utana.trim() || 'Budapest';
+          utca = '-';
+        }
+      }
+    } else if (cimRaw) {
+      utca = cimRaw.trim();
+    }
+  }
+
+  return { country_code: countryCode, post_code: irszam, city: varos, address: utca };
+}
+
 async function getOrCreateBillingoPartner(ugyfel, apiKey) {
   if (!ugyfel) throw new Error('Nincs ügyfél kiválasztva');
+
+  // Friss lekérés Airtable-ből, hogy az újonnan felvett mezők (pl. Orszag) is meglegyenek,
+  // és ne egy elavult cache-elt rekorddal dolgozzunk. Hiba esetén a kapott objektumra esünk vissza.
+  try {
+    if (ugyfel.id) {
+      const fresh = await atGet('Ugyfelek', `filterByFormula=RECORD_ID()%3D%22${ugyfel.id}%22`);
+      if (fresh?.[0]) {
+        ugyfel = fresh[0];
+        const idx = ugyfelek.findIndex(x => x.id === ugyfel.id);
+        if (idx !== -1) ugyfelek[idx] = ugyfel; // lokális cache frissítése
+      }
+    }
+  } catch(e) { console.warn('Friss ügyfél lekérés sikertelen, cache-elt adattal folytatom:', e.message); }
+
   const f = ugyfel.fields;
+  console.log('[Billingo partner] Ügyfél:', f.Cegnev, '| Orszag mező:', JSON.stringify(f.Orszag), '| EU adószám:', f.EU_adoszam);
 
   // Keresés meglévő partner között névvel
   try {
@@ -12623,29 +12955,42 @@ async function getOrCreateBillingoPartner(ugyfel, apiKey) {
     const partners = existing?.data || [];
     const found = partners.find(p => p.name?.trim().toLowerCase() === f.Cegnev?.trim().toLowerCase());
     if (found) {
-      // Ha a meglévő partnernek hiányzik az adószáma, frissítjük
+      const erpCountry = detectCountryCode(f);
+      const erpIsForeign = erpCountry !== 'HU';
       const erpAdoszam = f.Ceg_adoszama || '';
-      console.log('Found partner taxcode:', found.taxcode, '| ERP adoszam:', erpAdoszam, '| Feltétel:', erpAdoszam && !found.taxcode);
-      if (erpAdoszam && !found.taxcode) {
+      const euAdoszam = f.EU_adoszam || '';
+      // A meglévő Billingo partner jelenlegi országkódja
+      const foundCountry = found.address?.country_code || 'HU';
+      const orszagElter = foundCountry !== erpCountry;
+      // Frissítés kell, ha:
+      //  - eltér az országkód (pl. korábban tévesen HU-ként jött létre), VAGY
+      //  - külföldinél hiányzik az EU adószám, belföldinél a HU adószám
+      const adoHianyzik = erpIsForeign ? (euAdoszam && !found.taxcode_eu) : (erpAdoszam && !found.taxcode);
+      const kellFrissites = orszagElter || adoHianyzik;
+      console.log('Found partner | ERP ország:', erpCountry, '| Billingo ország:', foundCountry, '| taxcode:', found.taxcode, '| taxcode_eu:', found.taxcode_eu, '| frissítés:', kellFrissites, '(ország eltér:', orszagElter, ', adó hiányzik:', adoHianyzik, ')');
+      if (kellFrissites) {
         try {
-          const euAdoszam = f.EU_adoszam || '';
+          // Cím: ha az országkód eltér, az ERP címét építjük újra (bontott mezőkből/parserből), különben a meglévőt
+          const addr = orszagElter
+            ? buildBillingoAddress(f, erpCountry)
+            : found.address;
           const updateData = {
             name: found.name,
-            address: found.address,
-            taxcode: erpAdoszam,
-            taxcode_eu: euAdoszam || undefined,
+            address: addr,
+            taxcode: erpIsForeign ? (found.taxcode || undefined) : (erpAdoszam || found.taxcode || undefined),
+            taxcode_eu: euAdoszam || found.taxcode_eu || undefined,
             // taxpayer mezőt NEM küldjük – Billingo auto-detektálja taxcode meglétéből
             emails: found.emails || [],
           };
           console.log('Partner frissítés küldés:', JSON.stringify(updateData));
           const updated = await billingoApiDirect('PUT', `partners/${found.id}`, updateData, apiKey);
           console.log('Partner frissítés válasz:', JSON.stringify(updated));
-          toast('Billingo partner frissítve (adószám: ' + erpAdoszam + ')', 'info');
+          toast('Billingo partner frissítve (ország: ' + erpCountry + (erpIsForeign ? ', EU adószám: ' + euAdoszam : ', adószám: ' + erpAdoszam) + ')', 'info');
         } catch(e) {
           console.warn('Partner frissítési hiba:', e.message);
-          toast('Billingo partner adószám frissítés sikertelen: ' + e.message, 'warning');
+          toast('Billingo partner frissítés sikertelen: ' + e.message, 'warning');
         }
-      } else if (!erpAdoszam) {
+      } else if (!erpIsForeign && !erpAdoszam) {
         toast('Figyelem: az ügyfélnek nincs adószáma az Airtable-ben!', 'warning');
       }
       return found.id;
@@ -12655,65 +13000,27 @@ async function getOrCreateBillingoPartner(ugyfel, apiKey) {
   // Létrehozás ha nem találtuk
   const adoszam = f.Ceg_adoszama || '';
 
-  // Cím feldolgozás - többféle formátum kezelése:
-  // 1. "1234 Budapest, Példa utca 5."  (irszám elöl)
-  // 2. "Füzesi út 15., 9970, Szentgotthárd, Vas"  (utca elöl)
-  const cimRaw = f.Szekhely_cim || f.Szamlazasi_cim || '';
-  let irszam = '1000', varos = 'Budapest', utca = '-';
+  // Országkód meghatározása (HU helyett a tényleges ország)
+  const countryCode = detectCountryCode(f);
+  const isForeign = countryCode !== 'HU';
 
-  // Keresünk 4 jegyű számot bárhol a cím szövegben
-  const irszamAnyMatch = cimRaw.match(/(\d{4})/);
+  // Cím összeállítása (bontott mezők elsőbbség, különben egysoros parser)
+  const address = buildBillingoAddress(f, countryCode);
 
-  if (irszamAnyMatch) {
-    irszam = irszamAnyMatch[1];
-    const irszamIdx = cimRaw.indexOf(irszam);
-    const elotte = cimRaw.slice(0, irszamIdx).replace(/,\s*$/, '').trim(); // utca rész
-    const utana = cimRaw.slice(irszamIdx + 4).replace(/^[,\s]+/, '').trim(); // város rész
-
-    if (elotte && !elotte.match(/^\d{4}$/)) {
-      // Utca-első formátum: "Füzesi út 15., [9970], Szentgotthárd, Vas"
-      utca = elotte;
-      // Városnév: utana első vesszőig
-      const vesszoPoz = utana.indexOf(',');
-      varos = vesszoPoz > -1 ? utana.slice(0, vesszoPoz).trim() : utana.trim();
-      if (!varos) varos = 'Budapest';
-    } else {
-      // Irszám-első formátum: "[1234] Budapest, Példa utca 5."
-      const vesszoPoz = utana.indexOf(',');
-      if (vesszoPoz > -1) {
-        varos = utana.slice(0, vesszoPoz).trim() || 'Budapest';
-        utca = utana.slice(vesszoPoz + 1).trim() || '-';
-      } else {
-        varos = utana.trim() || 'Budapest';
-        utca = '-';
-      }
-    }
-  } else if (cimRaw) {
-    utca = cimRaw.trim();
-  }
-
-  // Billingo taxpayer típus az adószám alapján:
-  // - Ha van adószám → belföldi ÁFA alany
-  // - Ha van EU adószám de nincs HU adószám → EU-s partner
-  // - Ha egyik sincs → természetes személy
+  // Billingo taxpayer típus:
+  // 'taxpayer' = belföldi ÁFA alany, 'private_person' = természetes személy, 'foreign' = külföldi
   const euAdoszam = f.EU_adoszam || '';
-  // Billingo v3 taxpayer értékek:
-  // 'taxpayer' = Adószámmal rendelkezik (Belföldi ÁFA alany)
-  // 'private_person' = Természetes személy
-  // 'foreign' = Külföldi, egyéb
   let taxpayer = 'private_person';
-  if (adoszam) taxpayer = 'taxpayer';
+  if (isForeign) taxpayer = 'foreign';
+  else if (adoszam) taxpayer = 'taxpayer';
   else if (euAdoszam) taxpayer = 'foreign';
 
   const partnerData = {
     name: f.Cegnev,
-    address: {
-      country_code: 'HU',
-      post_code: irszam,
-      city: varos,
-      address: utca,
-    },
-    taxcode: adoszam || undefined,           // Magyar adószám kötőjelekkel: XXXXXXXX-Y-ZZ
+    address: address,
+    // Magyar adószámot csak HU partnernél küldünk taxcode-ként;
+    // külföldinél az EU adószám megy a taxcode_eu mezőbe.
+    taxcode: (!isForeign && adoszam) ? adoszam : undefined,
     taxcode_eu: euAdoszam || undefined,      // EU adószám ha van
     // taxpayer mezőt NEM küldjük – Billingo auto-detektálja taxcode meglétéből
     emails: f.Kapcsolattarto_email ? [f.Kapcsolattarto_email] : [],

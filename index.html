@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v289
+     ZALNER ERP - VERZIÓ: v290
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v290:
+- Kimenő számla ÁFA: egyetlen közös választó a tételek felett (nem tételenként külön)
+  → minden tételre ugyanaz az ÁFA vonatkozik
+- ÁFA automatikus beállítása az ügyfél országa alapján: magyar cég → 27%, külföldi → 0% (kézzel felülírható)
+- Tétel-táblázatból az ÁFA oszlop eltávolítva
+- Szerkesztésnél a számla meglévő ÁFA-ja töltődik vissza a közös választóba
 
 CHANGES v289:
 - Számla kiküldő e-mail a számla nyelvén készül (hu/en):
@@ -446,7 +453,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v289</title>
+<title>Zalner ERP v290</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -638,7 +645,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v289</div>
+    <div class="nav-logo-sub">v290</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -2618,13 +2625,22 @@ select.form-control{cursor:pointer}
         </div>
         <div class="form-group full" id="kszTetelekWrap">
           <label class="form-label">Tételek</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--text-muted)">ÁFA (minden tételre):</label>
+            <select class="form-control" id="fKszAfa" onchange="this.dataset.keziValasztas='1';calcKszOssz()" style="width:90px">
+              <option value="27%">27%</option>
+              <option value="5%">5%</option>
+              <option value="0%">0%</option>
+              <option value="AAM">AAM</option>
+            </select>
+            <span style="font-size:11.5px;color:var(--text-muted)">Magyar cég → 27%, külföldi → 0% (automatikus, felülírható)</span>
+          </div>
           <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
             <table class="tetelek-table" style="width:100%">
               <thead><tr>
                 <th class="col-megnevezes">Megnevezés</th>
                 <th class="col-menny" style="width:70px">Menny.</th>
                 <th class="col-egyseg" style="width:70px">Egység</th>
-                <th style="width:80px;text-align:center">ÁFA</th>
                 <th class="col-ar" style="text-align:right;width:110px">Nettó egységár</th>
                 <th class="col-osszeg" style="text-align:right;width:110px">Nettó összeg</th>
                 <th class="col-del" style="width:36px"></th>
@@ -8642,7 +8658,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v289 · Belső rendszer
+          Zalner ERP v290 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -12132,7 +12148,16 @@ function openKszModal(id = null) {
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszSajatKapcsolattarto').value = inv.sajatKapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
     onKszKapcsolattartoChange();
+    // ÁFA: engedjük, hogy a betöltött tételek beállítsák a közös választót, aztán fixáljuk
+    const afaSelEdit = document.getElementById('fKszAfa');
+    if (afaSelEdit) delete afaSelEdit.dataset.keziValasztas;
     loadKszTetelek(inv.tetelek || []);
+    if (afaSelEdit) {
+      // Ha a tételeknek volt mentett ÁFA-juk, az már beállítódott; mindenesetre fixáljuk
+      const elsoAfa = (inv.tetelek && inv.tetelek[0] && inv.tetelek[0].afa) || afaSelEdit.value;
+      afaSelEdit.value = elsoAfa;
+      afaSelEdit.dataset.keziValasztas = '1';
+    }
     if (inv.ugyfelId) loadKszVevoiKontaktok(inv.ugyfelId, inv.vevoiKontaktId || null);
     // Nyelv: mentett érték ha van, különben az ügyfél országa alapján; szerkesztésnél fixáljuk
     const nyelvSelEdit = document.getElementById('fKszNyelv');
@@ -12161,6 +12186,9 @@ function openKszModal(id = null) {
     // Nyelv alaphelyzet: magyar, és újra engedélyezzük az ügyfél alapú automatikus javaslatot
     const nyelvSelNew = document.getElementById('fKszNyelv');
     if (nyelvSelNew) { nyelvSelNew.value = 'hu'; delete nyelvSelNew.dataset.keziValasztas; }
+    // ÁFA alaphelyzet: 27%, és engedjük az ügyfél alapú automatikus beállítást
+    const afaSelNew = document.getElementById('fKszAfa');
+    if (afaSelNew) { afaSelNew.value = '27%'; delete afaSelNew.dataset.keziValasztas; }
   }
 
   // Típus reset: mindig 'invoice'-ra álljon alapból
@@ -12418,12 +12446,19 @@ function onKszUgyfelChange() {
   // Számla nyelvének automatikus javaslata az ügyfél országa alapján
   // (magyar ügyfél → magyar, külföldi → angol). Kézzel felülírható.
   const nyelvSel = document.getElementById('fKszNyelv');
+  let kulfoldi = false;
+  try { kulfoldi = detectCountryCode(u.fields) !== 'HU'; } catch(e) {}
   if (nyelvSel && !nyelvSel.dataset.keziValasztas) {
-    try {
-      const orszag = detectCountryCode(u.fields);
-      nyelvSel.value = (orszag === 'HU') ? 'hu' : 'en';
-    } catch(e) {}
+    nyelvSel.value = kulfoldi ? 'en' : 'hu';
   }
+
+  // ÁFA automatikus beállítása az ügyfél országa alapján
+  // (magyar cég → 27%, külföldi → 0%). Kézzel felülírható.
+  const afaSel = document.getElementById('fKszAfa');
+  if (afaSel && !afaSel.dataset.keziValasztas) {
+    afaSel.value = kulfoldi ? '0%' : '27%';
+  }
+  calcKszOssz();
 }
 
 function onKszProjektChange() {
@@ -12481,12 +12516,15 @@ function addKszTetel(data = null) {
   const tbody = document.getElementById('kszTetelek');
   const tr = document.createElement('tr');
   tr.id = `kszTetel_${id}`;
-  const afaOpts = ['27%','5%','0%','AAM'].map(v => `<option value="${v}" ${(data?.afa||'27%')===v?'selected':''}>${v}</option>`).join('');
+  // Ha a betöltött tétel ÁFA-ja eltér a közös választótól, és még nem nyúltak hozzá kézzel, állítsuk a közös választót a tétel ÁFA-jára
+  if (data?.afa) {
+    const afaSel = document.getElementById('fKszAfa');
+    if (afaSel && !afaSel.dataset.keziValasztas) afaSel.value = data.afa;
+  }
   tr.innerHTML = `
     <td class="col-megnevezes"><input type="text" name="megnevezes" placeholder="Megnevezés..." value="${data?.megnevezes||''}" oninput="calcKszOssz()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
     <td class="col-menny"><input type="number" name="mennyiseg" value="${data?.mennyiseg??1}" min="0" step="1" oninput="calcKszTetel(${id});calcKszOssz()" style="width:60px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
     <td><input type="text" name="egyseg" value="${data?.egyseg||'db'}" oninput="calcKszOssz()" style="width:56px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
-    <td><select name="afa" onchange="calcKszTetel(${id});calcKszOssz()" style="padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:70px">${afaOpts}</select></td>
     <td class="col-ar"><input type="number" name="egyseg_ar" value="${data?.egyseg_ar||''}" min="0" step="1" oninput="calcKszTetel(${id});calcKszOssz()" style="width:100px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
     <td class="col-osszeg" id="kszTetelOssz_${id}" style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;padding:0 8px">—</td>
     <td class="col-del"><button type="button" onclick="document.getElementById('kszTetel_${id}').remove();calcKszOssz()" style="border:none;background:none;color:#e74c3c;cursor:pointer;font-size:16px;padding:4px 6px">✕</button></td>`;
@@ -12505,12 +12543,13 @@ function calcKszTetel(id) {
 }
 
 function getKszTetelek() {
+  const kozosAfa = document.getElementById('fKszAfa')?.value || '27%';
   const rows = document.getElementById('kszTetelek').querySelectorAll('tr');
   return Array.from(rows).map(tr => ({
     megnevezes: tr.querySelector('[name=megnevezes]')?.value?.trim() || '',
     mennyiseg: parseFloat(tr.querySelector('[name=mennyiseg]')?.value) || 1,
     egyseg: tr.querySelector('[name=egyseg]')?.value?.trim() || 'db',
-    afa: tr.querySelector('[name=afa]')?.value || '27%',
+    afa: kozosAfa,
     egyseg_ar: parseFloat(tr.querySelector('[name=egyseg_ar]')?.value) || 0,
   })).filter(t => t.megnevezes);
 }

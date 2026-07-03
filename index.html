@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v289
+     ZALNER ERP - VERZIÓ: v290
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v290:
+- Bizonylat típus (Díjbekérő/Előlegszámla/Végszámla/Számla) mentése az Airtable Tipus mezőjébe kiállításkor
+  → FONTOS: hozz létre egy "Tipus" nevű mezőt (Single line text) a Kimeno_Szamlak táblában!
+- Betöltésnél kszTipusFromRecord: Tipus mező, majd fallback Statusz='Dijbekero' / számlaszám alapján
+- "Számla kiállítása ebből" opció a díjbekérőknél (a státusztól függetlenül, akkor is ha már Fizetett)
+- Kimenő számla lista Típus oszlopa a valódi bizonylattípust mutatja
 
 CHANGES v289:
 - Billingo adózási típus MEGOLDVA: tax_type mező (HAS_TAX_NUMBER / NO_TAX_NUMBER / FOREIGN)
@@ -444,7 +451,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v289</title>
+<title>Zalner ERP v290</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -636,7 +643,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v289</div>
+    <div class="nav-logo-sub">v290</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -8621,7 +8628,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v289 · Belső rendszer
+          Zalner ERP v290 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11426,6 +11433,16 @@ async function initKimenoSzamlak() {
   await syncKimenoSzamlak();
 }
 
+// Bizonylat típus meghatározása: elsőként a Tipus mező, majd fallback a Statusz / számlaszám alapján.
+// (Régi rekordoknál nincs Tipus mező, ezért kell a fallback.)
+function kszTipusFromRecord(fields) {
+  if (fields.Tipus) return fields.Tipus;
+  if (fields.Statusz === 'Dijbekero') return 'Díjbekérő';
+  const sz = (fields.Szamlaszam || '').toUpperCase();
+  if (/\bDK\d|_DK|E-DÍJBEKÉRŐ|E-DIJBEKERO|DÍJBEK|DIJBEK/i.test(sz)) return 'Díjbekérő';
+  return 'Számla';
+}
+
 async function syncKimenoSzamlak() {
   const btn = document.getElementById('syncKszBtn');
   if (btn) btn.disabled = true;
@@ -11445,7 +11462,7 @@ async function syncKimenoSzamlak() {
       teljesitesDatum: r.fields.Teljesites_datum || '',
       fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
       statusz: r.fields.Statusz || 'Fizetesre_var',
-      tipus: r.fields.Tipus || 'Számla',
+      tipus: kszTipusFromRecord(r.fields),
       pdfUrl: r.fields.PDF_url || null,
       megjegyzes: r.fields.Megjegyzes || '',
       tetelek: (() => { try { return JSON.parse(r.fields.Tetelek || '[]'); } catch(e) { return []; } })(),
@@ -11590,7 +11607,8 @@ function renderKimenoSzamlak() {
 
   const today = new Date().toISOString().split('T')[0];
   tbody.innerHTML = items.map(inv => {
-    const tipusBadge = { 'Számla':'🧾','Díjbekérő':'📋','Előlegszámla':'💰','Végszámla':'✅','Piszkozat':'📝','Sztornó':'❌' }[inv.tipus || 'Számla'] || '🧾';
+    const tipusDisplay = inv.tipus || 'Számla';
+    const tipusBadge = { 'Számla':'🧾','Díjbekérő':'📋','Előlegszámla':'💰','Végszámla':'✅','Piszkozat':'📝','Sztornó':'❌' }[tipusDisplay] || '🧾';
     const overdue = inv.statusz !== 'Fizetett' && inv.fizetesiHatarido && inv.fizetesiHatarido < today;
     const statuszBadge = inv.statusz === 'Fizetett'
       ? `<span class="badge badge-elfogadva">Fizetett ✓</span>`
@@ -11605,7 +11623,7 @@ function renderKimenoSzamlak() {
       <td class="td-muted">${inv.currency || 'HUF'}</td>
       <td class="td-muted">${inv.teljesitesDatum || '—'}</td>
       <td class="td-muted" style="${overdue?'color:#e74c3c;font-weight:600':''}">${inv.fizetesiHatarido || '—'}</td>
-      <td><span style="font-size:12px">${tipusBadge} ${inv.tipus||'Számla'}</span></td>
+      <td><span style="font-size:12px">${tipusBadge} ${tipusDisplay}</span></td>
       <td>${statuszBadge}</td>
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;position:relative">
         ${inv.statusz !== 'Fizetett' && inv.statusz !== 'Storno' ? `<button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;color:#16a34a" onclick="markKszFizetett('${inv._id}','${inv._billingoId||''}')">✓ Fizetve</button>` : ''}
@@ -11623,8 +11641,10 @@ function renderKimenoSzamlak() {
 
 function kszSzarmaztatottGomb(inv) {
   const tipus = inv.tipus || 'Számla';
-  const storno = inv.statusz !== 'Storno' && ['Számla','Előlegszámla','Végszámla'].includes(tipus);
-  const szamlaFromDijb = tipus === 'Díjbekérő' && inv.statusz !== 'Storno';
+  const isDijbekero = tipus === 'Díjbekérő' && inv.statusz !== 'Storno';
+  // Számla-jellegű típusok, amiből sztornó / végszámla képezhető (díjbekérőből nem sztornózunk itt)
+  const storno = inv.statusz !== 'Storno' && !isDijbekero && ['Számla','Előlegszámla','Végszámla'].includes(tipus);
+  const szamlaFromDijb = isDijbekero;
   const vegszamla = tipus === 'Előlegszámla' && inv.statusz !== 'Storno';
 
   if (!storno && !szamlaFromDijb && !vegszamla) return '';
@@ -12646,6 +12666,7 @@ async function saveKimenoSzamla() {
       Vevoi_kontakt_id: vevoiKontaktId || null,
       Bankszamla: document.getElementById('fKszBankszamla')?.value || '',
       Nyelv: nyelv || 'hu',
+      Tipus: tipusLabelMap[tipus] || 'Számla',   // Bizonylat típusa (Díjbekérő/Előlegszámla/Végszámla/Számla)
     };
     if (projektId) fields.Projekt = [projektId];
     Object.keys(fields).forEach(k => (fields[k] === null || fields[k] === undefined) && delete fields[k]);
@@ -13358,7 +13379,7 @@ function initAfaBevallas() {
             fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
             kiallitasDatum: r.fields.Kiallitas_datum || '',
             statusz: r.fields.Statusz || 'Fizetesre_var',
-            tipus: r.fields.Tipus || 'Számla',
+            tipus: kszTipusFromRecord(r.fields),
             pdfUrl: r.fields.PDF_url || null,
             megjegyzes: r.fields.Megjegyzes || '',
             tetelek: (() => { try { return JSON.parse(r.fields.Tetelek || '[]'); } catch(e) { return []; } })(),
@@ -13498,7 +13519,7 @@ async function renderPenzugyiKimutatas() {
           bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
           currency: r.fields.Deviza || 'HUF',
           statusz: r.fields.Statusz || 'Fizetesre_var',
-          tipus: r.fields.Tipus || 'Számla',
+          tipus: kszTipusFromRecord(r.fields),
         }));
         kszInvoices = kszData;
       } catch(e) { console.warn('Kimenő számlák betöltési hiba:', e); }
@@ -13777,7 +13798,7 @@ async function renderAfaBevallas() {
         fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
         kiallitasDatum: r.fields.Kiallitas_datum || '',
         statusz: r.fields.Statusz || 'Fizetesre_var',
-        tipus: r.fields.Tipus || 'Számla',
+        tipus: kszTipusFromRecord(r.fields),
         pdfUrl: r.fields.PDF_url || null,
         megjegyzes: r.fields.Megjegyzes || '',
         tetelek: (() => { try { return JSON.parse(r.fields.Tetelek || '[]'); } catch(e) { return []; } })(),

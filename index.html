@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v290
+     ZALNER ERP - VERZIÓ: v291
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v291:
+- Díjbekérő/előlegszámla → számla kiállításnál automatikus EKB árfolyam betöltés (nem-HUF deviza)
+  Javítja: "conversion_rate is required unless currency is in HUF" Billingo hibát
+- Ha a díjbekérőn volt rögzített árfolyam, azt használja
 
 CHANGES v290:
 - Bizonylat típus (Díjbekérő/Előlegszámla/Végszámla/Számla) mentése az Airtable Tipus mezőjébe kiállításkor
@@ -451,7 +456,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v290</title>
+<title>Zalner ERP v291</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -643,7 +648,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v290</div>
+    <div class="nav-logo-sub">v291</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -8628,7 +8633,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v290 · Belső rendszer
+          Zalner ERP v291 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11969,8 +11974,12 @@ function kszSzamlaFromDijbekero(airtableId) {
     if (inv.projektId) {
       document.getElementById('fKszProjekt').value = inv.projektId;
     }
-    document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
-    document.getElementById('fKszBankszamla').value = inv.bankszamla || (((inv.currency || 'HUF') === 'HUF') ? 'Wise HUF' : 'Wise EUR');
+    const _devDijb = inv.currency || 'HUF';
+    document.getElementById('fKszDeviza').value = _devDijb;
+    // Árfolyam mező megjelenítése + EKB árfolyam betöltése (nem-HUF esetén kötelező a Billingónak)
+    onKszDevizaChange(_devDijb);
+    // Ha a díjbekérőn volt rögzített árfolyam, azt használjuk (különben az EKB-t tölti be a fenti hívás)
+    if (inv.arfolyam) { const _af = document.getElementById('fKszArfolyam'); if (_af) _af.value = inv.arfolyam; }
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszMegjegyzes').value = inv.megjegyzes ? `Díjbekérő alapján: ${inv.invoiceNumber}` : `Díjbekérő alapján: ${inv.invoiceNumber}`;
     if (inv.sajatKapcsolattarto) {
@@ -11994,8 +12003,10 @@ function kszVegszamlaFromElolег(airtableId) {
     document.getElementById('fKszUgyfel').value = inv.ugyfelId || '';
     onKszUgyfelChange();
     if (inv.projektId) document.getElementById('fKszProjekt').value = inv.projektId;
-    document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
-    document.getElementById('fKszBankszamla').value = inv.bankszamla || (((inv.currency || 'HUF') === 'HUF') ? 'Wise HUF' : 'Wise EUR');
+    const _devElo = inv.currency || 'HUF';
+    document.getElementById('fKszDeviza').value = _devElo;
+    onKszDevizaChange(_devElo);
+    if (inv.arfolyam) { const _af = document.getElementById('fKszArfolyam'); if (_af) _af.value = inv.arfolyam; }
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszMegjegyzes').value = `Előlegszámla alapján: ${inv.invoiceNumber}`;
     if (inv.sajatKapcsolattarto) {

@@ -1,12 +1,53 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v300
+     ZALNER ERP - VERZIÓ: v308
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v308:
+- Ajánlat szerkesztő: "🤖 Ajánlatkérő feltöltése (PDF)" gomb a Tételek fejlécben. Vevői
+  ajánlatkérő (RFQ) PDF-ből az AI (Claude) automatikusan bemásolja a tételeket, mennyiségeket
+  és leírásokat az ajánlatba (ár nélkül — azt te töltöd ki). Az új sorok kiemelve.
+
+CHANGES v307:
+- Beszállítói visszaig AI-kitöltés: a Megjegyzés mezőbe automatikusan bekerül a beszállító
+  ajánlatának azonosítója és az ajánlatadás dátuma (ha az ajánlatból kinyerhető).
+
+CHANGES v306:
+- Beszállítói visszaig: "📎 Ajánlat feltöltése" gomb — feltöltesz egy beszállítói árajánlatot
+  (PDF vagy Excel), és az AI (Claude) automatikusan kitölti a beszállítót, devizát, ÁFÁ-t,
+  határidőt és a tételeket. Az AI által kitöltött mezők kiemelve; mentés előtt kézzel ellenőrizhető.
+  (A claude.js proxy PDF-fejléce szükséges hozzá — lásd deploy.)
+
+CHANGES v305:
+- Beszállítói visszaig szerkesztő: "+ Új beszállító felvétele" gomb a Beszállító mező alatt.
+  A beszállító modal a BRV szerkesztő fölött nyílik (annak tartalma megmarad); mentés után
+  automatikusan visszatér a BRV szerkesztőbe és kiválasztja az új beszállítót.
+
+CHANGES v304:
+- Beszállítói visszaig ANGOL PDF: a kiállító címe elé (az irányítószám elé) bekerül a "Hungary".
+  A magyar PDF változatlan.
+
+CHANGES v303:
+- Beszállítói visszaig ANGOL PDF: a kiállító (Zalner) adószáma helyett a közösségi adószám
+  (HU26681964) jelenik meg. A magyar PDF változatlan (hazai adószám).
+
+CHANGES v302:
+- JAVÍTVA: a "Beszállítói Visszaig" menüpontra kattintva üres volt a lap. A showPage lap-térképéből
+  (pm) hiányzott a bejegyzés (csak a nav-kiemelés térképébe került be). Most a lap helyesen megjelenik.
+
+CHANGES v301:
+- ÚJ menüpont: "Beszállítói Visszaig" (a Visszaigazolások és Szállítólevelek között) — a
+  beszállítóknál leadott megrendeléseink rögzítése. Lista + létrehozó/szerkesztő modal
+  (beszállító, projekt, tételek leírással, deviza, ÁFA), HU/EN PDF (külön magyar/angol gombbal).
+- A projekt részletnézetében a Dokumentumok kártyán megjelenik minden kapcsolódó Beszállítói
+  visszaig, és korlátlan számú hozható létre a "+ Beszállítói visszaig létrehozása" gombbal
+  (mint az ajánlatoknál).
+- ÚJ Airtable tábla szükséges hozzá: Beszallitoi_Visszaig (lásd a mezőlistát a dokumentációban).
 
 CHANGES v300:
 - ÁFA / Összes csatolmány: a kimenő PDF-et először KÖZVETLENÜL a Billingo publikus linkjéről
@@ -509,7 +550,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v300</title>
+<title>Zalner ERP v308</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -701,7 +742,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v300</div>
+    <div class="nav-logo-sub">v308</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -712,6 +753,7 @@ select.form-control{cursor:pointer}
   <button class="nav-item" id="navItem-projektek" onclick="showPage('projektek')"><span>◈</span> Projektek</button>
   <button class="nav-item" id="navItem-jutalek" onclick="showPage('jutalek')"><span>💰</span> Ért. jutalék</button>
   <button class="nav-item" id="navItem-vrv" onclick="showPage('vrv')"><span>✉</span> Visszaigazolások</button>
+  <button class="nav-item" id="navItem-beszallitoi-visszaig" onclick="showPage('beszallitoi-visszaig')"><span>⇄</span> Beszállítói Visszaig</button>
   <button class="nav-item" id="navItem-szallitolevelek" onclick="showPage('szallitolevelek')"><span>◧</span> Szállítólevelek</button>
   <button class="nav-item" id="navItem-bejovo-szamlak" onclick="showPage('bejovo-szamlak')"><span>↓</span> Bejövő számlák</button>
   <button class="nav-item" id="navItem-kimeno-szamlak" onclick="showPage('kimeno-szamlak')"><span>↑</span> Kimenő számlák</button>
@@ -1071,10 +1113,15 @@ select.form-control{cursor:pointer}
 
       <!-- TÉTELEK -->
       <div class="form-section">
-        <div class="form-section-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div class="form-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <span>Tételek</span>
-          <button class="btn btn-primary btn-sm" onclick="addTetel()">＋ Új tétel</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="file" id="ajkFile" accept=".pdf" style="display:none" onchange="ajanlatAjkFeltoltes(this)">
+            <button type="button" class="btn btn-secondary btn-sm" id="ajkBtn" onclick="document.getElementById('ajkFile').click()">🤖 Ajánlatkérő feltöltése (PDF)</button>
+            <button class="btn btn-primary btn-sm" onclick="addTetel()">＋ Új tétel</button>
+          </div>
         </div>
+        <div id="ajkStatus" style="font-size:12px;color:var(--text-muted);padding:0 0 8px 0"></div>
         <div style="overflow-x:auto">
           <table class="tetelek-table" id="tetelekTable">
             <thead>
@@ -1636,6 +1683,39 @@ select.form-control{cursor:pointer}
         </tr></thead>
         <tbody id="vrvTable"><tr><td colspan="6"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
         <div class="pagination" id="vrvPagination" style="display:none"><span id="vrvPagInfo"></span><div class="page-btns" id="vrvPagBtns"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-beszallitoi-visszaig">
+    <div class="page-header">
+      <div><div class="page-title">Beszállítói visszaigazolások (megrendelések)</div><div class="page-subtitle" id="brvCount">Betöltés...</div></div>
+      <button class="btn btn-primary" onclick="openBrvModal()">＋ Új beszállítói visszaig</button>
+    </div>
+    <div class="page-content">
+      <div class="search-bar">
+        <div class="search-wrap"><span class="search-icon">⌕</span>
+          <input class="search-input" type="text" placeholder="Keresés szám, beszállító, projekt alapján..." id="brvSearch" oninput="filterBrv()">
+        </div>
+      </div>
+      <div class="filter-pills">
+        <span class="pill active" onclick="setBrvFilter('mind',this)">Mind</span>
+        <span class="pill" onclick="setBrvFilter('Kiallitva',this)">Kiállítva</span>
+        <span class="pill" onclick="setBrvFilter('Elfogadva',this)">Elfogadva</span>
+        <span class="pill" onclick="setBrvFilter('Visszautasitva',this)">Visszautasítva</span>
+        <span class="pill" onclick="setBrvFilter('Storno',this)">Sztornó</span>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>Visszaig. szám</th>
+          <th>Beszállító</th>
+          <th>Projekt</th>
+          <th>Kiállítás dátuma</th>
+          <th>Státusz</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="brvTable"><tr><td colspan="6"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
+        <div class="pagination" id="brvPagination" style="display:none"><span id="brvPagInfo"></span><div class="page-btns" id="brvPagBtns"></div></div>
       </div>
     </div>
   </div>
@@ -2849,6 +2929,121 @@ select.form-control{cursor:pointer}
   </div>
 </div>
 
+<div class="modal-overlay" id="brvModal">
+  <div class="modal" style="width:min(760px,96vw);max-width:96vw;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <div class="modal-title" id="brvModalTitle">Új beszállítói visszaig</div>
+      <button class="modal-close" onclick="closeBrvModal()">×</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <div style="background:#f0f7ff;border:1px solid #cfe0ff;border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:20px">🤖</span>
+        <div style="flex:1;min-width:180px">
+          <div style="font-weight:600;font-size:13px;color:#1a2e5a">Automatikus kitöltés ajánlatból</div>
+          <div style="font-size:12px;color:var(--text-muted)">Tölts fel egy beszállítói árajánlatot (PDF vagy Excel), és az AI kitölti a mezőket. Mentés előtt ellenőrizd!</div>
+        </div>
+        <input type="file" id="brvAjanlatFile" accept=".pdf,.xlsx,.xls" style="display:none" onchange="brvAjanlatFeltoltes(this)">
+        <button type="button" class="btn btn-primary btn-sm" id="brvAjanlatBtn" onclick="document.getElementById('brvAjanlatFile').click()">📎 Ajánlat feltöltése</button>
+        <span id="brvAjanlatStatus" style="font-size:12px;color:var(--text-muted);flex-basis:100%"></span>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Visszaig. szám *</label>
+          <input class="form-control" id="fBrvSzam" placeholder="pl. BRV-2026-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Státusz</label>
+          <select class="form-control" id="fBrvStatusz">
+            <option value="Kiallitva">Kiállítva</option>
+            <option value="Elfogadva">Elfogadva</option>
+            <option value="Visszautasitva">Visszautasítva</option>
+            <option value="Storno">Sztornó</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Beszállító *</label>
+          <select class="form-control" id="fBrvBeszallito" onchange="onBrvBeszallitoChange()">
+            <option value="">— Válassz beszállítót —</option>
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="openBeszallitoFromBrv()">＋ Új beszállító felvétele</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kapcsolódó projekt</label>
+          <select class="form-control" id="fBrvProjekt"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kiállítás dátuma *</label>
+          <input class="form-control" type="date" id="fBrvKiallitas">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Szállítási határidő</label>
+          <input class="form-control" type="date" id="fBrvHatarido">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deviza</label>
+          <select class="form-control" id="fBrvDeviza" onchange="recalcBrv()">
+            <option value="EUR">EUR</option>
+            <option value="HUF">HUF</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ÁFA</label>
+          <select class="form-control" id="fBrvAfa" onchange="recalcBrv()">
+            <option value="27%">27%</option>
+            <option value="5%">5%</option>
+            <option value="0%">0%</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fizetési határidő (nap)</label>
+          <input class="form-control" type="number" id="fBrvFizetesiNap" min="0" max="365" value="30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dokumentum nyelve</label>
+          <select class="form-control" id="fBrvNyelv">
+            <option value="Magyar">Magyar</option>
+            <option value="English">Angol (English)</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Tételek</label>
+          <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <table class="tetelek-table" style="width:100%">
+              <thead><tr>
+                <th class="col-megnevezes">Megnevezés</th>
+                <th class="col-menny" style="width:70px">Menny.</th>
+                <th class="col-egyseg" style="width:55px">Egység</th>
+                <th class="col-ar" style="text-align:right;width:110px">Nettó egységár</th>
+                <th class="col-ar" style="text-align:right;width:110px">Bruttó egységár</th>
+                <th class="col-osszeg" style="text-align:right;width:110px">Nettó összeg</th>
+                <th class="col-del" style="width:36px"></th>
+              </tr></thead>
+              <tbody id="brvTetelek"></tbody>
+            </table>
+          </div>
+          <div id="brvOsszesite" style="display:none;margin-top:12px;display:flex;justify-content:flex-end">
+            <table style="border-collapse:collapse;font-size:13px;width:320px">
+              <tr><td style="padding:6px 12px;color:var(--text-muted)">Nettó összesen:</td><td id="brvNettoTotal" style="padding:6px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600"></td></tr>
+              <tr><td id="brvAfaLabel" style="padding:6px 12px;color:var(--text-muted)">ÁFA (27%):</td><td id="brvAfaOssz" style="padding:6px 12px;text-align:right;font-family:'DM Mono',monospace"></td></tr>
+              <tr style="background:#1a2e5a;color:#fff"><td style="padding:8px 12px;font-weight:700;border-radius:4px 0 0 4px">Bruttó összesen:</td><td id="brvBruttoTotal" style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:700;border-radius:0 4px 4px 0"></td></tr>
+            </table>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="addBrvTetel()">＋ Tétel hozzáadása</button>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Megjegyzés a megrendelésre</label>
+          <textarea class="form-control" id="fBrvMegjegyzes" rows="2" placeholder="írj ide..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0">
+      <button class="btn btn-secondary" onclick="closeBrvModal()">Mégse</button>
+      <button class="btn btn-primary" onclick="saveBrv()">💾 Mentés</button>
+    </div>
+  </div>
+</div>
+
 <!-- BESZÁLLÍTÓ MODAL -->
 <div class="modal-overlay" id="beszallitoModal">
   <div class="modal" style="max-width:620px">
@@ -2962,6 +3157,12 @@ let vrevRendVisszaig = [], filteredVrv = [];
 let vrvFilter = 'mind', vrvCurrentPage = 1, editingVrvId = null;
 let vrvTetelCounter = 0;
 let vrvSlot = 1;
+
+// BRV (Beszállítói Visszaigazolás / megrendelés)
+let beszVisszaig = [], filteredBrv = [];
+let brvFilter = 'mind', brvCurrentPage = 1, editingBrvId = null;
+let brvTetelCounter = 0;
+let brvBeszallitoReturn = false;
 
 // ===== CACHE =====
 // ═══════════════════════════════════════════════════════════════
@@ -3275,7 +3476,7 @@ const AUDIT_PAGE_SIZE = 30;
 const AUDIT_TABLE_LABELS = {
   Ugyfelek: 'Ügyfelek', Ajanlatok: 'Ajánlatok', AjanlatTetelek: 'Ajánlat tételek',
   Projektek: 'Projektek', Projekt_Naplo: 'Projekt napló', Ajanlat_Naplo: 'Ajánlat napló',
-  Szallitolevelek: 'Szállítólevelek', VevRendVisszaig: 'Visszaigazolások',
+  Szallitolevelek: 'Szállítólevelek', VevRendVisszaig: 'Visszaigazolások', Beszallitoi_Visszaig: 'Beszállítói Visszaig',
   Bejovo_Szamlak: 'Bejövő számlák', Vamkezeles: 'Vámkezelés',
   Beszallitok: 'Beszállítók', Kapcsolattartok: 'Kontaktok',
   Wise_Tranzakciok: 'Wise tranzakciók'
@@ -3466,6 +3667,7 @@ const NAV_MENU_ITEMS = [
   { id: 'projektek',          label: 'Projektek',                    icon: '◈' },
   { id: 'jutalek',            label: 'Ért. jutalék',                 icon: '💰' },
   { id: 'vrv',                label: 'Visszaigazolások',             icon: '✉' },
+  { id: 'beszallitoi-visszaig', label: 'Beszállítói Visszaig',       icon: '⇄' },
   { id: 'szallitolevelek',    label: 'Szállítólevelek',              icon: '◧' },
   { id: 'bejovo-szamlak',     label: 'Bejövő számlák',              icon: '↓' },
   { id: 'kimeno-szamlak',     label: 'Kimenő számlák',              icon: '↑' },
@@ -4129,7 +4331,7 @@ function showPage(name) {
     'ajanlat-reszlet': 'page-ajanlat-reszlet', 'ajanlat-form': 'page-ajanlat-form',
     projektek: 'page-projektek', 'projekt-reszlet': 'page-projekt-reszlet', 'projekt-form': 'page-projekt-form',
     jutalek: 'page-jutalek', 'jutalek-szamlazott': 'page-jutalek-szamlazott',
-    szallitolevelek: 'page-szallitolevelek', vrv: 'page-vrv',
+    szallitolevelek: 'page-szallitolevelek', vrv: 'page-vrv', 'beszallitoi-visszaig': 'page-beszallitoi-visszaig',
     'bejovo-szamlak': 'page-bejovo-szamlak',
     'afa-bevallas': 'page-afa-bevallas',
     'penzugyi-kimutatas': 'page-penzugyi-kimutatas',
@@ -4143,7 +4345,7 @@ function showPage(name) {
     ajanlatok: 'navItem-ajanlatok', 'ajanlat-reszlet': 'navItem-ajanlatok', 'ajanlat-form': 'navItem-ajanlatok',
     projektek: 'navItem-projektek', 'projekt-reszlet': 'navItem-projektek', 'projekt-form': 'navItem-projektek',
     jutalek: 'navItem-jutalek', 'jutalek-szamlazott': 'navItem-jutalek',
-    vrv: 'navItem-vrv', szallitolevelek: 'navItem-szallitolevelek',
+    vrv: 'navItem-vrv', 'beszallitoi-visszaig': 'navItem-beszallitoi-visszaig', szallitolevelek: 'navItem-szallitolevelek',
     'bejovo-szamlak': 'navItem-bejovo-szamlak', 'wise-sync': 'navItem-bejovo-szamlak',
     'afa-bevallas': 'navItem-afa-bevallas',
     'penzugyi-kimutatas': 'navItem-penzugyi-kimutatas',
@@ -4161,6 +4363,7 @@ function showPage(name) {
     if (name === 'dashboard') loadDashboard();
     if (name === 'szallitolevelek') loadSzallitolevelek();
     if (name === 'vrv') loadVrv();
+    if (name === 'beszallitoi-visszaig') loadBrv();
     if (name === 'bejovo-szamlak') initBevoSzamlak();
     if (name === 'afa-bevallas') initAfaBevallas();
     if (name === 'penzugyi-kimutatas') initPenzugyiKimutatas();
@@ -5703,6 +5906,7 @@ function ujAjanlatForm() {
   tetelCounter = 0;
   addTetel();
   recalcAll();
+  { const _ajk = document.getElementById('ajkStatus'); if (_ajk) _ajk.textContent = ''; }
   showPage('ajanlat-form');
 }
 
@@ -5769,6 +5973,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   } catch(e) { console.error('Tételek betöltési hiba:', e); }
   if (document.getElementById('tetelekBody').children.length === 0) addTetel();
   recalcAll();
+  { const _ajk = document.getElementById('ajkStatus'); if (_ajk) _ajk.textContent = ''; }
   showPage('ajanlat-form');
 }
 
@@ -5855,6 +6060,7 @@ async function masolAjanlat() {
   } catch(e) { console.error('Tételek másolási hiba:', e); }
   if (document.getElementById('tetelekBody').children.length === 0) addTetel();
   recalcAll();
+  { const _ajk = document.getElementById('ajkStatus'); if (_ajk) _ajk.textContent = ''; }
   showPage('ajanlat-form');
   toast(`Másolat készítve: ${ujSzam} (mentés előtt módosítható)`, 'success');
 }
@@ -7527,6 +7733,723 @@ async function generateVrvPDF(id, langOverride) {
 }
 
 
+// ===== BRV (BESZÁLLÍTÓI VISSZAIGAZOLÁS / MEGRENDELÉS) =====
+const BRV_STATUSZ = {
+  'Kiallitva':      { label: 'Kiállítva',       cls: 'badge-elkuldve' },
+  'Elfogadva':      { label: 'Elfogadva',        cls: 'badge-elfogadva' },
+  'Visszautasitva': { label: 'Visszautasítva',   cls: 'badge-lejart' },
+  'Storno':         { label: 'Sztornó',          cls: 'badge-inaktiv' },
+};
+
+const BRV_LABELS = {
+  hu: {
+    title: 'BESZÁLLÍTÓI MEGRENDELÉS',
+    issuer: 'Megrendelő', supplier: 'Beszállító',
+    issueDate: 'Kiállítás dátuma', deliveryDate: 'Szállítási határidő',
+    projectId: 'Projekt azonosító',
+    items: 'Tételek',
+    col_no: '#', col_desc: 'Megnevezés', col_qty: 'Mennyiség', col_unit: 'Egység',
+    col_unitPrice: 'Nettó Egységár', col_amount: 'Nettó Összeg',
+    netTotal: 'Nettó összesen:', vatLabel: 'ÁFA', grossTotal: 'Bruttó összesen:',
+    notes: 'Megjegyzés', taxNo: 'Adószám:',
+  },
+  en: {
+    title: 'PURCHASE ORDER',
+    issuer: 'Buyer', supplier: 'Supplier',
+    issueDate: 'Date of Issue', deliveryDate: 'Delivery Deadline',
+    projectId: 'Project ID',
+    items: 'Items',
+    col_no: '#', col_desc: 'Description', col_qty: 'Quantity', col_unit: 'Unit',
+    col_unitPrice: 'Net Unit Price', col_amount: 'Net Amount',
+    netTotal: 'Net total:', vatLabel: 'VAT', grossTotal: 'Gross total:',
+    notes: 'Notes', taxNo: 'Tax No.:',
+  }
+};
+
+async function loadBrv() {
+  try {
+    beszVisszaig = await atGet('Beszallitoi_Visszaig', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
+    if (!beszallitok.length) { try { beszallitok = await atGet('Beszallitok', 'sort%5B0%5D%5Bfield%5D=Cegnev&sort%5B0%5D%5Bdirection%5D=asc'); } catch(e) {} }
+    document.getElementById('brvCount').textContent = `${beszVisszaig.length} beszállítói visszaig összesen`;
+    filterBrv();
+  } catch(e) {
+    const msg = e.message.includes('403') || e.message.includes('INVALID_PERMISSIONS') || e.message.includes('NOT_FOUND') || e.message.includes('404')
+      ? 'Az Airtable-ben létre kell hozni a "Beszallitoi_Visszaig" táblát. Ellenőrizd a táblanevet és a mezőket!'
+      : e.message;
+    document.getElementById('brvTable').innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-title">⚠️ ${msg}</div></div></td></tr>`;
+    document.getElementById('brvCount').textContent = 'Hiba';
+  }
+}
+
+function setBrvFilter(filter, el) {
+  brvFilter = filter;
+  document.querySelectorAll('#page-beszallitoi-visszaig .pill').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  brvCurrentPage = 1;
+  filterBrv();
+}
+
+function filterBrv() {
+  const search = (document.getElementById('brvSearch')?.value || '').toLowerCase();
+  filteredBrv = beszVisszaig.filter(v => {
+    const f = v.fields;
+    if (brvFilter !== 'mind' && f.Statusz !== brvFilter) return false;
+    if (search) {
+      const beszNev = f.Beszallito ? (beszallitok.find(b => b.id === f.Beszallito[0])?.fields?.Cegnev || '') : '';
+      const projektSzam = f.Projekt ? (projektek.find(p => p.id === f.Projekt[0])?.fields?.Projekt_szam || '') : '';
+      return (f.BRV_szam||'').toLowerCase().includes(search) || beszNev.toLowerCase().includes(search) || projektSzam.toLowerCase().includes(search);
+    }
+    return true;
+  });
+  if (!search && brvFilter === 'mind') filteredBrv = filteredBrv.slice(0, 10);
+  renderBrv();
+}
+
+function renderBrv() {
+  const tbody = document.getElementById('brvTable');
+  if (!filteredBrv.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-title">Nincs beszállítói visszaig</div></div></td></tr>`; return; }
+  const start = (brvCurrentPage - 1) * PAGE_SIZE;
+  const page = filteredBrv.slice(start, start + PAGE_SIZE);
+  tbody.innerHTML = page.map(v => {
+    const f = v.fields;
+    const beszNev = f.Beszallito ? (beszallitok.find(b => b.id === f.Beszallito[0])?.fields?.Cegnev || '—') : '—';
+    const projektSzam = f.Projekt ? (projektek.find(p => p.id === f.Projekt[0])?.fields?.Projekt_szam || '—') : '—';
+    const st = BRV_STATUSZ[f.Statusz] || { label: f.Statusz || '—', cls: 'badge-inaktiv' };
+    return `<tr onclick="viewBrv('${v.id}')" style="cursor:pointer">
+      <td class="td-name">${f.BRV_szam || '—'}</td>
+      <td>${beszNev}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${projektSzam}</td>
+      <td>${f.Kiallitas_datum ? fmt(f.Kiallitas_datum) : '—'}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+      <td style="white-space:nowrap;display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();generateBrvPDF('${v.id}')">📄 PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editBrv('${v.id}')">✎</button>
+        <button class="btn btn-secondary btn-sm" style="color:#e74c3c" onclick="event.stopPropagation();deleteBrv('${v.id}','${(f.BRV_szam||'').replace(/'/g,'')}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+  const totalPages = Math.ceil(filteredBrv.length / PAGE_SIZE);
+  const pag = document.getElementById('brvPagination');
+  pag.style.display = totalPages > 1 ? 'flex' : 'none';
+  document.getElementById('brvPagInfo').textContent = `${start+1}–${Math.min(start+PAGE_SIZE, filteredBrv.length)} / ${filteredBrv.length}`;
+  const btns = document.getElementById('brvPagBtns'); btns.innerHTML = '';
+  for (let i = 1; i <= totalPages; i++) {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (i === brvCurrentPage ? ' current' : '');
+    b.textContent = i;
+    b.onclick = () => { brvCurrentPage = i; renderBrv(); };
+    btns.appendChild(b);
+  }
+}
+
+function openBrvModal(id = null, preselectedProjektId = null) {
+  editingBrvId = id;
+  document.getElementById('brvModal').classList.add('open');
+  ['fBrvDeviza','fBrvAfa','fBrvHatarido','fBrvFizetesiNap','fBrvBeszallito','fBrvMegjegyzes'].forEach(fid => { const el = document.getElementById(fid); if (el) { el.style.background = ''; delete el.dataset.aiFilled; } });
+  const _brvSt = document.getElementById('brvAjanlatStatus'); if (_brvSt) _brvSt.textContent = '';
+  const selB = document.getElementById('fBrvBeszallito');
+  selB.innerHTML = '<option value="">— Válassz beszállítót —</option>' + beszallitok.filter(b => b.fields.Statusz !== 'Inaktiv').map(b => `<option value="${b.id}">${b.fields.Cegnev}</option>`).join('');
+  const selP = document.getElementById('fBrvProjekt');
+  selP.innerHTML = '<option value="">— Nincs kapcsolódó projekt —</option>' + projektek.map(p => `<option value="${p.id}">${p.fields.Projekt_szam || p.id} – ${p.fields.Projekt_neve || ''}</option>`).join('');
+
+  if (id) {
+    const v = beszVisszaig.find(x => x.id === id);
+    if (!v) return;
+    const f = v.fields;
+    document.getElementById('brvModalTitle').textContent = 'Beszállítói visszaig szerkesztése';
+    document.getElementById('fBrvSzam').value = f.BRV_szam || '';
+    document.getElementById('fBrvStatusz').value = f.Statusz || 'Kiallitva';
+    document.getElementById('fBrvNyelv').value = f.Nyelv || 'Magyar';
+    selB.value = f.Beszallito?.[0] || '';
+    selP.value = f.Projekt?.[0] || '';
+    document.getElementById('fBrvKiallitas').value = f.Kiallitas_datum || '';
+    document.getElementById('fBrvHatarido').value = f.Hatarido || '';
+    document.getElementById('fBrvDeviza').value = f.Deviza || 'EUR';
+    document.getElementById('fBrvAfa').value = f.Afa || '27%';
+    document.getElementById('fBrvFizetesiNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
+    document.getElementById('fBrvMegjegyzes').value = f.Megjegyzes || '';
+    loadBrvTetelek(f.Tetelek ? JSON.parse(f.Tetelek) : []);
+  } else {
+    document.getElementById('brvModalTitle').textContent = 'Új beszállítói visszaig';
+    document.getElementById('fBrvSzam').value = genBrvSzam();
+    document.getElementById('fBrvStatusz').value = 'Kiallitva';
+    document.getElementById('fBrvNyelv').value = 'Magyar';
+    document.getElementById('fBrvKiallitas').value = new Date().toISOString().split('T')[0];
+    document.getElementById('fBrvHatarido').value = '';
+    document.getElementById('fBrvDeviza').value = 'EUR';
+    document.getElementById('fBrvAfa').value = '27%';
+    document.getElementById('fBrvFizetesiNap').value = 30;
+    document.getElementById('fBrvMegjegyzes').value = '';
+    selB.value = '';
+    selP.value = preselectedProjektId || '';
+    loadBrvTetelek([]);
+  }
+}
+
+function closeBrvModal() { document.getElementById('brvModal').classList.remove('open'); }
+function editBrv(id) { openBrvModal(id); }
+
+function loadBrvTetelek(arr) {
+  document.getElementById('brvTetelek').innerHTML = '';
+  brvTetelCounter = 0;
+  (arr||[]).forEach(t => addBrvTetel(t));
+}
+
+function getBrvAfaSzorzo() {
+  const afa = document.getElementById('fBrvAfa')?.value || '27%';
+  return afa === '27%' ? 0.27 : afa === '5%' ? 0.05 : 0;
+}
+function getBrvDeviza() { return document.getElementById('fBrvDeviza')?.value || 'EUR'; }
+
+function addBrvTetel(data = {}) {
+  brvTetelCounter++;
+  const tr = document.createElement('tr');
+  const ar = data.ar !== undefined && data.ar !== '' ? data.ar : '';
+  const menny = data.menny !== undefined && data.menny !== '' ? data.menny : '1';
+  tr.innerHTML = `
+    <td class="col-megnevezes"><input class="brv-nev" placeholder="Termék neve" value="${(data.nev||'').replace(/"/g,'&quot;')}" oninput="recalcBrv()"><input class="brv-leiras" placeholder="Leírás (opcionális)" value="${(data.leiras||'').replace(/"/g,'&quot;')}" style="display:block;margin-top:4px;width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text-muted);font-family:'DM Sans',sans-serif"></td>
+    <td style="width:65px"><input class="brv-menny" type="number" min="0" step="1" placeholder="0" value="${menny}" oninput="recalcBrv()" style="width:58px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
+    <td style="width:52px"><input class="brv-egyseg" placeholder="db" value="${data.egyseg||'db'}" style="width:46px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
+    <td style="white-space:nowrap;width:115px"><input class="brv-ar" type="number" min="0" step="any" placeholder="0" value="${ar}" style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif" oninput="recalcBrv()"> <span class="brv-deviza" style="font-size:11px;color:var(--text-muted)"></span></td>
+    <td class="readonly-cell brv-bruttoar" style="text-align:right;white-space:nowrap;width:110px;font-size:12px;padding:6px 8px">—</td>
+    <td class="readonly-cell brv-ossz" style="text-align:right;white-space:nowrap;width:110px;font-size:12px;font-weight:600;padding:6px 8px">—</td>
+    <td style="width:36px"><button type="button" onclick="this.closest('tr').remove();recalcBrv()" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:16px;padding:4px">✕</button></td>`;
+  document.getElementById('brvTetelek').appendChild(tr);
+  recalcBrv();
+}
+
+function recalcBrv() {
+  const afaSzorzo = getBrvAfaSzorzo();
+  const deviza = getBrvDeviza();
+  const fmtV = n => Number(n).toLocaleString('hu-HU', {minimumFractionDigits:0, maximumFractionDigits:2});
+  let nettoTotal = 0;
+  document.querySelectorAll('#brvTetelek tr').forEach(tr => {
+    const ar = parseFloat(tr.querySelector('.brv-ar')?.value) || 0;
+    const menny = parseFloat(tr.querySelector('.brv-menny')?.value) || 0;
+    const bruttoAr = Math.round(ar * (1 + afaSzorzo) * 100) / 100;
+    const nettoOssz = ar * menny;
+    nettoTotal += nettoOssz;
+    const bEl = tr.querySelector('.brv-bruttoar');
+    if (bEl) bEl.textContent = ar ? fmtV(bruttoAr) + ' ' + deviza : '—';
+    const oEl = tr.querySelector('.brv-ossz');
+    if (oEl) oEl.textContent = ar ? fmtV(nettoOssz) + ' ' + deviza : '—';
+  });
+  document.querySelectorAll('.brv-deviza').forEach(el => el.textContent = deviza);
+  const afaOssz = Math.round(nettoTotal * afaSzorzo * 100) / 100;
+  const bruttoTotal2 = Math.round((nettoTotal + afaOssz) * 100) / 100;
+  const hasAr = nettoTotal > 0;
+  const osszesite = document.getElementById('brvOsszesite');
+  if (osszesite) osszesite.style.display = hasAr ? 'flex' : 'none';
+  const afaStr = afaSzorzo === 0.27 ? '27%' : afaSzorzo === 0.05 ? '5%' : '0%';
+  const afaLabel = document.getElementById('brvAfaLabel');
+  if (afaLabel) afaLabel.textContent = 'ÁFA (' + afaStr + '):';
+  const nt = document.getElementById('brvNettoTotal');
+  if (nt) nt.textContent = fmtV(nettoTotal) + ' ' + deviza;
+  const ao = document.getElementById('brvAfaOssz');
+  if (ao) ao.textContent = fmtV(afaOssz) + ' ' + deviza;
+  const bt = document.getElementById('brvBruttoTotal');
+  if (bt) bt.textContent = fmtV(bruttoTotal2) + ' ' + deviza;
+}
+
+function getBrvTetelek() {
+  return Array.from(document.getElementById('brvTetelek').querySelectorAll('tr')).map(tr => ({
+    nev: tr.querySelector('.brv-nev')?.value.trim() || '',
+    leiras: tr.querySelector('.brv-leiras')?.value.trim() || '',
+    menny: tr.querySelector('.brv-menny')?.value || '',
+    egyseg: tr.querySelector('.brv-egyseg')?.value.trim() || '',
+    ar: tr.querySelector('.brv-ar')?.value || '',
+  })).filter(t => t.nev);
+}
+
+function genBrvSzam() {
+  const ev = new Date().getFullYear();
+  const prefix = `BRV-${ev}-`;
+  let max = 0;
+  beszVisszaig.forEach(v => {
+    const sz = v.fields?.BRV_szam || '';
+    if (sz.startsWith(prefix)) {
+      const n = parseInt(sz.slice(prefix.length), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  return `${prefix}${String(max + 1).padStart(3,'0')}`;
+}
+
+function onBrvBeszallitoChange() {
+  const bid = document.getElementById('fBrvBeszallito').value;
+  if (!bid) return;
+  const b = beszallitok.find(x => x.id === bid)?.fields;
+  if (b?.Deviza) document.getElementById('fBrvDeviza').value = b.Deviza;
+  if (b?.Fizetesi_hatarido != null) document.getElementById('fBrvFizetesiNap').value = b.Fizetesi_hatarido;
+  recalcBrv();
+}
+
+// Új beszállító felvétele a BRV szerkesztőből (a BRV modal nyitva marad alatta)
+function openBeszallitoFromBrv() {
+  brvBeszallitoReturn = true;
+  openBeszallitoModal();
+  const m = document.getElementById('beszallitoModal');
+  if (m) m.style.zIndex = 300;
+}
+
+// ===== AI ajánlat-kinyerés a beszállítói visszaig szerkesztőbe =====
+function brvFileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => { const s = r.result; const i = s.indexOf(','); res(i >= 0 ? s.slice(i+1) : s); };
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function brvExtractCallClaude(messages) {
+  const token = localStorage.getItem('zalnerSessionToken') || '';
+  const resp = await fetch(NAV_PROXY + '/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Session-Token': token },
+    body: JSON.stringify({
+      max_tokens: 4096,
+      system: 'Beszallitoi arajanlat adatkinyero vagy egy magyar ERP-hez. Csak ervenyes JSON-t adj vissza, magyarazat es markdown nelkul.',
+      messages
+    }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error((data && data.error) ? data.error : ('Claude proxy HTTP ' + resp.status));
+  if (Array.isArray(data.content)) return data.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+  return typeof data === 'string' ? data : JSON.stringify(data);
+}
+
+function brvParseJson(text) {
+  if (!text) return null;
+  try { return JSON.parse(text); } catch(e) {}
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch(e) {} }
+  return null;
+}
+
+function brvPrefillFromExtract(data) {
+  const hl = (el) => { if (el) { el.style.background = '#fffbe6'; el.dataset.aiFilled = '1'; } };
+  const selB = document.getElementById('fBrvBeszallito');
+  let matchedId = (data.beszallito_id && beszallitok.some(b => b.id === data.beszallito_id)) ? data.beszallito_id : null;
+  if (!matchedId && data.beszallito_nev) {
+    const nl = String(data.beszallito_nev).trim().toLowerCase();
+    const found = beszallitok.find(b => (b.fields.Cegnev||'').trim().toLowerCase() === nl)
+      || beszallitok.find(b => { const c = (b.fields.Cegnev||'').trim().toLowerCase(); return c && (c.includes(nl) || nl.includes(c)); });
+    if (found) matchedId = found.id;
+  }
+  if (matchedId && selB) { selB.value = matchedId; hl(selB); onBrvBeszallitoChange(); }
+  else if (data.beszallito_nev) { toast('A beszallito nincs a listaban: "' + data.beszallito_nev + '". Vedd fel a "+ Uj beszallito" gombbal.', ''); }
+
+  if (data.deviza && ['EUR','HUF','USD'].includes(data.deviza)) { const el = document.getElementById('fBrvDeviza'); el.value = data.deviza; hl(el); }
+  if (data.afa && ['27%','5%','0%'].includes(data.afa)) { const el = document.getElementById('fBrvAfa'); el.value = data.afa; hl(el); }
+  if (data.szallitasi_hatarido && /^\d{4}-\d{2}-\d{2}$/.test(data.szallitasi_hatarido)) { const el = document.getElementById('fBrvHatarido'); el.value = data.szallitasi_hatarido; hl(el); }
+  if (data.fizetesi_hatarido_nap != null && !isNaN(parseInt(data.fizetesi_hatarido_nap))) { const el = document.getElementById('fBrvFizetesiNap'); el.value = parseInt(data.fizetesi_hatarido_nap); hl(el); }
+
+  const megjParts = [];
+  if (data.ajanlat_azonosito) megjParts.push('Beszállítói ajánlat: ' + data.ajanlat_azonosito);
+  if (data.ajanlat_datuma) megjParts.push('Ajánlatadás dátuma: ' + data.ajanlat_datuma);
+  if (megjParts.length) { const el = document.getElementById('fBrvMegjegyzes'); const ex = (el.value||'').trim(); el.value = megjParts.join(' | ') + (ex ? '\n' + ex : ''); hl(el); }
+
+  if (Array.isArray(data.tetelek) && data.tetelek.length) {
+    loadBrvTetelek(data.tetelek.map(t => ({
+      nev: t.nev || '',
+      leiras: t.leiras || '',
+      menny: (t.menny != null ? t.menny : ''),
+      egyseg: t.egyseg || 'db',
+      ar: (t.ar != null ? t.ar : '')
+    })));
+  }
+  recalcBrv();
+}
+
+async function brvAjanlatFeltoltes(inputEl) {
+  const file = inputEl.files && inputEl.files[0];
+  inputEl.value = '';
+  if (!file) return;
+  const status = document.getElementById('brvAjanlatStatus');
+  const btn = document.getElementById('brvAjanlatBtn');
+  const setStatus = (t) => { if (status) status.textContent = t; };
+  if (file.size > 3.5 * 1024 * 1024) { toast('A fajl tul nagy (max ~3,5 MB a proxy miatt). Tomoritsd vagy vagd szet.', 'error'); return; }
+  if (btn) btn.disabled = true;
+  try {
+    setStatus('⏳ Feldolgozas AI-val...');
+    if (!beszallitok.length) { try { beszallitok = await atGet('Beszallitok', 'sort%5B0%5D%5Bfield%5D=Cegnev&sort%5B0%5D%5Bdirection%5D=asc'); } catch(e) {} }
+    const beszLista = beszallitok.filter(b => b.fields.Statusz !== 'Inaktiv').map(b => b.id + ' — ' + (b.fields.Cegnev||'') + (b.fields.Adoszam ? ' — ' + b.fields.Adoszam : '')).join('\n');
+
+    const utasitas =
+      'Nyerd ki az alabbi beszallitoi arajanlatbol az adatokat, es PONTOSAN ezt a JSON semat add vissza (csak JSON, semmi mas, markdown nelkul):\n' +
+      '{\n' +
+      '  "beszallito_nev": string,\n' +
+      '  "beszallito_adoszam": string vagy null,\n' +
+      '  "beszallito_email": string vagy null,\n' +
+      '  "beszallito_id": string vagy null,\n' +
+      '  "deviza": "EUR" vagy "HUF" vagy "USD" vagy null,\n' +
+      '  "afa": "27%" vagy "5%" vagy "0%" vagy null,\n' +
+      '  "szallitasi_hatarido": "EEEE-HH-NN" vagy null,\n' +
+      '  "fizetesi_hatarido_nap": szam vagy null,\n' +
+      '  "ajanlat_azonosito": string vagy null,\n' +
+      '  "ajanlat_datuma": string vagy null,\n' +
+      '  "tetelek": [ { "nev": string, "leiras": string vagy null, "menny": szam, "egyseg": string, "ar": szam } ]\n' +
+      '}\n' +
+      'Az "ar" a NETTO egysegar szamkent (a nemet "1.234,56" formatumot alakitsd 1234.56-ra). ' +
+      'A "menny" is szam. Ha egy mezo nem derul ki, hasznalj null-t (a tetelek kotelezok, ha vannak). ' +
+      'Az "ajanlat_azonosito" a beszallito sajat ajanlat-szama/hivatkozasi szama, az "ajanlat_datuma" az ajanlatadas datuma (EEEE-HH-NN formatumban, ha lehet). ' +
+      'Ha a szallito egyezik az alabbi ismert beszallitok valamelyikevel (nev vagy adoszam alapjan), toltsd ki a "beszallito_id"-t annak azonositojaval, kulonben null.\n' +
+      'Ismert beszallitok (id — nev — adoszam):\n' + (beszLista || '(nincs)');
+
+    let contentBlock;
+    const nameLc = file.name.toLowerCase();
+    if (nameLc.endsWith('.pdf')) {
+      const b64 = await brvFileToBase64(file);
+      contentBlock = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } };
+    } else if (nameLc.endsWith('.xlsx') || nameLc.endsWith('.xls')) {
+      setStatus('⏳ Excel beolvasasa...');
+      const XLSX = await importGetXLSX();
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      let csv = '';
+      wb.SheetNames.forEach(nm => { csv += '# Lap: ' + nm + '\n' + XLSX.utils.sheet_to_csv(wb.Sheets[nm]) + '\n\n'; });
+      contentBlock = { type: 'text', text: 'Az arajanlat Excel tartalma (CSV):\n' + csv.slice(0, 60000) };
+      setStatus('⏳ Feldolgozas AI-val...');
+    } else {
+      toast('Csak PDF vagy Excel (.xlsx/.xls) tolthető fel.', 'error'); setStatus(''); if (btn) btn.disabled = false; return;
+    }
+
+    const messages = [{ role: 'user', content: [ contentBlock, { type: 'text', text: utasitas } ] }];
+    const raw = await brvExtractCallClaude(messages);
+    const data = brvParseJson(raw);
+    if (!data) { toast('Az AI valaszabol nem sikerult adatot kinyerni. Probald ujra.', 'error'); setStatus('⚠ Sikertelen feldolgozas'); return; }
+    brvPrefillFromExtract(data);
+    const n = Array.isArray(data.tetelek) ? data.tetelek.length : 0;
+    setStatus('✓ Kesz — ' + n + ' tetel kitoltve. Ellenorizd az adatokat mentes elott!');
+    toast('AI kitoltes kesz (' + n + ' tetel). Kerlek ellenorizd!', 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Hiba a feldolgozasban: ' + e.message, 'error');
+    setStatus('⚠ Hiba: ' + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ===== AI: vevoi ajanlatkero (PDF) -> tetelek az ajanlatba =====
+async function ajanlatAjkFeltoltes(inputEl) {
+  const file = inputEl.files && inputEl.files[0];
+  inputEl.value = '';
+  if (!file) return;
+  const status = document.getElementById('ajkStatus');
+  const btn = document.getElementById('ajkBtn');
+  const setStatus = (t) => { if (status) status.textContent = t; };
+  if (!file.name.toLowerCase().endsWith('.pdf')) { toast('Csak PDF ajanlatkero tolthető fel.', 'error'); return; }
+  if (file.size > 3.5 * 1024 * 1024) { toast('A fajl tul nagy (max ~3,5 MB a proxy miatt).', 'error'); return; }
+  if (btn) btn.disabled = true;
+  try {
+    setStatus('⏳ Feldolgozas AI-val...');
+    const b64 = await brvFileToBase64(file);
+    const utasitas =
+      'Ez egy VEVOI ajanlatkero (RFQ) PDF. Nyerd ki belole a kert teteleket, es PONTOSAN ezt a JSON-t add vissza (csak JSON, markdown es magyarazat nelkul):\n' +
+      '{ "tetelek": [ { "megnevezes": string, "leiras": string vagy null, "mennyiseg": szam, "egyseg": string } ] }\n' +
+      'Az "egyseg" pl. db, m2, fm, kg, ora, keszlet stb. Ha nincs megadva mennyiseg, hasznalj 1-et. ' +
+      'Arat NE adj vissza (a vevo nem ad arat). A leiras a tetel reszletezese, ha van. Csak JSON-t adj vissza.';
+    const messages = [{ role: 'user', content: [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+      { type: 'text', text: utasitas }
+    ] }];
+    const raw = await brvExtractCallClaude(messages);
+    const data = brvParseJson(raw);
+    const tetelek = (data && Array.isArray(data.tetelek)) ? data.tetelek : (Array.isArray(data) ? data : null);
+    if (!tetelek || !tetelek.length) { toast('Nem sikerult tetelt kinyerni a PDF-bol.', 'error'); setStatus('⚠ Nem talalhato tetel'); return; }
+    const egysegMap = { 'm2':'m²', 'm^2':'m²', 'nm':'m²', 'db.':'db', 'pcs':'db', 'pc':'db', 'h':'óra', 'hour':'óra' };
+    document.getElementById('tetelekBody').innerHTML = '';
+    tetelCounter = 0;
+    tetelek.forEach(t => {
+      let eg = (t.egyseg || 'db').toString().trim();
+      if (egysegMap[eg.toLowerCase()]) eg = egysegMap[eg.toLowerCase()];
+      addTetel({
+        Megnevezes: t.megnevezes || t.nev || '',
+        Leiras: t.leiras || '',
+        Mennyiseg: (t.mennyiseg != null ? t.mennyiseg : (t.menny != null ? t.menny : 1)),
+        Egyseg: eg
+      });
+    });
+    if (!document.getElementById('tetelekBody').children.length) addTetel();
+    recalcAll();
+    document.querySelectorAll('#tetelekBody input[name="megnevezes"]').forEach(inp => { inp.style.background = '#fffbe6'; });
+    setStatus('✓ Kesz — ' + tetelek.length + ' tetel bemasolva. Ellenorizd es toltsd ki az arakat!');
+    toast('AI: ' + tetelek.length + ' tetel bemasolva az ajanlatkerobol. Ellenorizd!', 'success');
+  } catch(e) {
+    console.error(e);
+    toast('Hiba a feldolgozasban: ' + e.message, 'error');
+    setStatus('⚠ Hiba: ' + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function saveBrv() {
+  const szam = document.getElementById('fBrvSzam').value.trim();
+  const beszId = document.getElementById('fBrvBeszallito').value;
+  const kiallitas = document.getElementById('fBrvKiallitas').value;
+  if (!szam) { toast('A visszaigazolás száma kötelező!', 'error'); return; }
+  if (!beszId) { toast('Beszállító megadása kötelező!', 'error'); return; }
+  if (!kiallitas) { toast('Kiállítás dátuma kötelező!', 'error'); return; }
+
+  const projektId = document.getElementById('fBrvProjekt').value;
+  const tetelek = getBrvTetelek();
+  const fields = {
+    BRV_szam: szam,
+    Statusz: document.getElementById('fBrvStatusz').value,
+    Beszallito: [beszId],
+    Kiallitas_datum: kiallitas,
+    Hatarido: document.getElementById('fBrvHatarido').value || null,
+    Deviza: document.getElementById('fBrvDeviza').value,
+    Afa: document.getElementById('fBrvAfa').value,
+    Fizetesi_hatarido_nap: (() => { const v = parseInt(document.getElementById('fBrvFizetesiNap').value); return isNaN(v) ? 30 : v; })(),
+    Nyelv: document.getElementById('fBrvNyelv').value,
+    Megjegyzes: document.getElementById('fBrvMegjegyzes').value.trim() || null,
+    Tetelek: tetelek.length ? JSON.stringify(tetelek) : null,
+  };
+  if (projektId) fields.Projekt = [projektId];
+  Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
+
+  try {
+    let savedRec = null;
+    if (editingBrvId) {
+      savedRec = await atPatch('Beszallitoi_Visszaig', editingBrvId, fields, true);
+      toast('Beszállítói visszaig frissítve!', 'success');
+    } else {
+      savedRec = await atPost('Beszallitoi_Visszaig', fields, true);
+      toast('Beszállítói visszaig mentve!', 'success');
+    }
+    closeBrvModal();
+    await loadBrv();
+    if (savedRec?.id) {
+      beszVisszaig = [savedRec, ...beszVisszaig.filter(v => v.id !== savedRec.id)];
+      cacheInvalidate('Beszallitoi_Visszaig');
+    }
+    if (projektId && currentProjekt?.id === projektId) {
+      await showProjektReszlet(projektId);
+    }
+  } catch(e) { toast('Hiba: ' + e.message, 'error'); }
+}
+
+function deleteBrv(id, szam) {
+  showConfirm('Beszállítói visszaig törlése', `Biztosan törlöd: "${szam}"?`, async () => {
+    try {
+      const rec = beszVisszaig.find(v => v.id === id);
+      const projektId = rec?.fields?.Projekt?.[0] || null;
+      await atDelete('Beszallitoi_Visszaig', id);
+      toast('Beszállítói visszaig törölve!', 'success');
+      await loadBrv();
+      if (projektId && currentProjekt?.id === projektId) await showProjektReszlet(projektId);
+    } catch(e) { toast('Hiba: ' + e.message, 'error'); }
+  });
+}
+
+async function viewBrv(id) {
+  if (!beszVisszaig.length) {
+    try { beszVisszaig = await atGet('Beszallitoi_Visszaig', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
+  }
+  if (!beszallitok.length) { try { beszallitok = await atGet('Beszallitok', 'sort%5B0%5D%5Bfield%5D=Cegnev&sort%5B0%5D%5Bdirection%5D=asc'); } catch(e) {} }
+  const v = beszVisszaig.find(x => x.id === id);
+  if (!v) return;
+  const f = v.fields;
+  const beszNev = f.Beszallito ? (beszallitok.find(b => b.id === f.Beszallito[0])?.fields?.Cegnev || '—') : '—';
+  const projektObj = f.Projekt ? projektek.find(p => p.id === f.Projekt[0]) : null;
+  const projektSzam = projektObj?.fields?.Projekt_szam || '—';
+  const deviza = f.Deviza || 'EUR';
+  const afaStr = f.Afa || '27%';
+  const afaSzorzo = afaStr === '27%' ? 0.27 : afaStr === '5%' ? 0.05 : 0;
+  const fmtV = n => Number(n).toLocaleString('hu-HU', {minimumFractionDigits:0, maximumFractionDigits:2});
+  const st = BRV_STATUSZ[f.Statusz] || { label: f.Statusz || '—', cls: 'badge-inaktiv' };
+  let tetelek = []; try { tetelek = f.Tetelek ? JSON.parse(f.Tetelek) : []; } catch(e) {}
+  const hasAr = tetelek.some(t => t.ar && parseFloat(t.ar) > 0);
+  let nettoTotal = 0;
+  tetelek.forEach(t => { nettoTotal += (parseFloat(t.ar)||0) * (parseFloat(t.menny)||0); });
+  const afaOssz = Math.round(nettoTotal * afaSzorzo * 100) / 100;
+  const bruttoTotal = Math.round((nettoTotal + afaOssz) * 100) / 100;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.style.zIndex = 250;
+  overlay.innerHTML = `
+    <div class="modal" style="width:min(820px,96vw);max-width:96vw;max-height:92vh;display:flex;flex-direction:column">
+      <div class="modal-header" style="flex-shrink:0">
+        <div>
+          <div class="modal-title">${f.BRV_szam || 'Beszállítói visszaig'}</div>
+          <span class="badge ${st.cls}" style="margin-top:4px">${st.label}</span>
+        </div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;flex:1">
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">Beszállító</div><div class="detail-value">${beszNev}</div></div>
+          <div class="detail-item"><div class="detail-label">Projekt azonosító</div><div class="detail-value" style="font-family:'DM Mono',monospace">${projektSzam}</div></div>
+          <div class="detail-item"><div class="detail-label">Kiállítás</div><div class="detail-value">${f.Kiallitas_datum ? fmt(f.Kiallitas_datum) : '—'}</div></div>
+          <div class="detail-item"><div class="detail-label">Szállítási határidő</div><div class="detail-value">${f.Hatarido ? fmt(f.Hatarido) : '—'}</div></div>
+          <div class="detail-item"><div class="detail-label">Deviza / ÁFA</div><div class="detail-value">${deviza} / ${afaStr}</div></div>
+          <div class="detail-item"><div class="detail-label">Fizetési határidő</div><div class="detail-value">${f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap + ' nap' : '—'}</div></div>
+        </div>
+        ${tetelek.length ? `
+        <div style="margin-top:16px">
+          <div class="detail-label" style="margin-bottom:8px">TÉTELEK</div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:var(--bg-secondary)">
+              <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--text-light)">Megnevezés</th>
+              <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:var(--text-light)">Menny.</th>
+              <th style="padding:8px 10px;text-align:center;font-size:11px;font-weight:700;color:var(--text-light)">Egység</th>
+              ${hasAr ? '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:var(--text-light)">Nettó egységár</th><th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:var(--text-light)">Nettó összeg</th>' : ''}
+            </tr></thead>
+            <tbody>${tetelek.map((t,i) => {
+              const nettoAr = parseFloat(t.ar) || 0;
+              const nettoOssz = nettoAr * (parseFloat(t.menny) || 0);
+              return `<tr style="background:${i%2===0?'var(--bg)':'var(--bg-secondary)'}">
+              <td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--border);font-weight:500">${t.nev||''}${t.leiras ? `<div style="font-weight:400;font-size:11.5px;color:var(--text-muted);margin-top:2px">${t.leiras}</div>` : ''}</td>
+              <td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">${t.menny||''}</td>
+              <td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--border);text-align:center;color:var(--text-light)">${t.egyseg||'db'}</td>
+              ${hasAr ? `<td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">${nettoAr ? fmtV(nettoAr)+' '+deviza : '—'}</td><td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${nettoOssz ? fmtV(nettoOssz)+' '+deviza : '—'}</td>` : ''}
+            </tr>`;}).join('')}</tbody>
+          </table>
+          ${hasAr ? `<div style="display:flex;justify-content:flex-end;margin-top:12px">
+            <table style="border-collapse:collapse;font-size:13px;width:300px">
+              <tr><td style="padding:6px 12px;color:var(--text-muted)">Nettó összesen:</td><td style="padding:6px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600">${fmtV(nettoTotal)} ${deviza}</td></tr>
+              <tr><td style="padding:6px 12px;color:var(--text-muted)">ÁFA (${afaStr}):</td><td style="padding:6px 12px;text-align:right;font-family:'DM Mono',monospace">${fmtV(afaOssz)} ${deviza}</td></tr>
+              <tr style="background:#1a2e5a;color:#fff;border-radius:6px"><td style="padding:8px 12px;font-weight:700">Bruttó összesen:</td><td style="padding:8px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtV(bruttoTotal)} ${deviza}</td></tr>
+            </table>
+          </div>` : ''}
+        </div>` : ''}
+        ${f.Megjegyzes ? `<div style="margin-top:12px"><div class="detail-label" style="margin-bottom:4px">MEGJEGYZÉS</div><div style="font-size:13px;padding:10px;background:var(--bg-secondary);border-radius:8px">${f.Megjegyzes}</div></div>` : ''}
+      </div>
+      <div class="modal-footer" style="flex-shrink:0">
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Bezárás</button>
+        <button class="btn btn-secondary" onclick="generateBrvPDF('${v.id}','hu')">📄 PDF (magyar)</button>
+        <button class="btn btn-secondary" onclick="generateBrvPDF('${v.id}','en')">📄 PDF (angol)</button>
+        ${f.Projekt?.[0] ? `<button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();showPage('projekt-reszlet');showProjektReszlet('${f.Projekt[0]}')">→ Ugrás a projektre</button>` : ''}
+        <button class="btn btn-secondary" style="color:#e74c3c" onclick="this.closest('.modal-overlay').remove();deleteBrv('${v.id}','${(f.BRV_szam||'').replace(/'/g,'')}')">✕ Törlés</button>
+        <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();editBrv('${v.id}')">✎ Szerkesztés</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function generateBrvPDF(id, langOverride) {
+  try {
+  if (!beszVisszaig.length) {
+    try { beszVisszaig = await atGet('Beszallitoi_Visszaig', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
+  }
+  if (!beszallitok.length) { try { beszallitok = await atGet('Beszallitok', 'sort%5B0%5D%5Bfield%5D=Cegnev&sort%5B0%5D%5Bdirection%5D=asc'); } catch(e) {} }
+  const v = beszVisszaig.find(x => x.id === id);
+  if (!v) return;
+  const f = v.fields;
+  const lang = (langOverride === 'hu' || langOverride === 'en') ? langOverride : ((f.Nyelv === 'Angol' || f.Nyelv === 'English' || f.Nyelv === 'en') ? 'en' : 'hu');
+  const L = BRV_LABELS[lang];
+  const beszAdat = f.Beszallito ? beszallitok.find(b => b.id === f.Beszallito[0])?.fields : null;
+  const beszNev = beszAdat?.Cegnev || '—';
+  const projektAdat = f.Projekt ? projektek.find(p => p.id === f.Projekt[0])?.fields : null;
+  const projektSzam = projektAdat?.Projekt_szam || null;
+  let tetelek = []; try { tetelek = f.Tetelek ? JSON.parse(f.Tetelek) : []; } catch(e) {}
+  const deviza = f.Deviza || 'EUR';
+  const afaStr = f.Afa || '27%';
+  const afaSzorzo = afaStr === '27%' ? 0.27 : afaStr === '5%' ? 0.05 : 0;
+  const fmtN = n => Number(n).toLocaleString(lang === 'en' ? 'en-US' : 'hu-HU', {minimumFractionDigits:0, maximumFractionDigits:2});
+  const hasAr = tetelek.some(t => t.ar && parseFloat(t.ar) > 0);
+  let nettoTotal = 0;
+  tetelek.forEach(t => { nettoTotal += (parseFloat(t.ar)||0) * (parseFloat(t.menny)||0); });
+  const afaOssz = Math.round(nettoTotal * afaSzorzo * 100) / 100;
+  const bruttoTotal = Math.round((nettoTotal + afaOssz) * 100) / 100;
+
+  const tetelSorok = tetelek.map((t,i) => {
+    const nettoAr = parseFloat(t.ar) || 0;
+    const menny = parseFloat(t.menny) || 0;
+    const nettoOssz = nettoAr * menny;
+    return '<tr style="background:' + (i%2===0?'#fff':'#f9fafd') + '">' +
+    '<td style="padding:5px 8px;border-bottom:1px solid #1a2e5a;font-size:12px;color:#1a2e5a">' + (i+1) + '.</td>' +
+    '<td style="padding:5px 8px;border-bottom:1px solid #1a2e5a;font-size:12px;color:#1a2e5a">' + (t.nev||'') + (t.leiras ? '<div style="font-size:10.5px;color:#4a5a7a;margin-top:2px;font-weight:400">' + t.leiras + '</div>' : '') + '</td>' +
+    '<td style="padding:5px 8px;border-bottom:1px solid #1a2e5a;font-size:12px;color:#1a2e5a;text-align:right">' + (menny||'') + '</td>' +
+    '<td style="padding:5px 8px;border-bottom:1px solid #1a2e5a;font-size:12px;color:#1a2e5a;text-align:center">' + (t.egyseg||'db') + '</td>' +
+    (hasAr ? '<td style="padding:5px 8px;border-bottom:1px solid #1a2e5a;font-size:12px;color:#1a2e5a;text-align:right">' + (nettoAr ? fmtN(nettoAr) : '—') + '</td>' : '') +
+    (hasAr ? '<td style="padding:5px 8px;border-bottom:1px solid #1a2e5a;font-size:12px;color:#1a2e5a;text-align:right;font-weight:600">' + (nettoOssz ? fmtN(nettoOssz) : '—') + '</td>' : '') +
+    '</tr>';
+  }).join('');
+
+  const osszesitoHtml = hasAr ? (
+    '<div class="ossz-wrap"><table class="ossz-table">' +
+    '<tr><td class="ossz-lbl">' + L.netTotal + '</td><td class="ossz-val">' + fmtN(nettoTotal) + ' ' + deviza + '</td></tr>' +
+    '<tr><td class="ossz-lbl">' + L.vatLabel + ' (' + afaStr + '):</td><td class="ossz-val">' + fmtN(afaOssz) + ' ' + deviza + '</td></tr>' +
+    '<tr class="ossz-total"><td>' + L.grossTotal + '</td><td style="text-align:right">' + fmtN(bruttoTotal) + ' ' + deviza + '</td></tr>' +
+    '</table></div>'
+  ) : '';
+
+  const metaExtra = (projektSzam ? '<div class="meta-item"><div class="lbl">' + L.projectId + '</div><div class="val">' + projektSzam + '</div></div>' : '');
+
+  const html = '<!DOCTYPE html><html lang="' + lang + '"><head><meta charset="UTF-8">' +
+  '<title>' + (f.BRV_szam||'') + '</title>' +
+  '<style>' +
+  '@import url("https://use.typekit.net/walbaum-display.css");' +
+  '@font-face{font-family:"Walbaum Display";src:local("Walbaum Display Light"),local("WalbaumDisplay-Light");font-weight:300;font-style:normal}' +
+  '*{box-sizing:border-box;margin:0;padding:0}' +
+  'body{font-family:Calibri,"Carlito",Arial,sans-serif;color:#1a1d2e;font-size:13.2px}' +
+  '.page{padding:14px 22px 20px 22px;max-width:900px;margin:0 auto}' +
+  '.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:10px;border-bottom:1.5px solid #1a2e5a}' +
+  '.logo img{height:44px}' +
+  '.title-wrap{text-align:right}.title-wrap h1{font-family:"Walbaum Display","Walbaum","Book Antiqua","Palatino Linotype",Georgia,serif;font-size:20px;font-weight:300;color:#1a2e5a;letter-spacing:3px}' +
+  '.title-wrap .szam{font-size:13.2px;color:#1a2e5a;margin-top:2px;font-family:"Walbaum Display","Walbaum","Book Antiqua","Palatino Linotype",Georgia,serif;font-weight:300}' +
+  '.parties{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}' +
+  '.party{background:#f7f8fc;border-radius:6px;padding:8px 12px;border-left:1.5px solid #1a2e5a}' +
+  '.party-label{font-size:10.8px;font-weight:600;color:#1a2e5a;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}' +
+  '.party-name{font-size:14.4px;font-weight:600;margin-bottom:2px}' +
+  '.party-detail{font-size:12px;color:#6b7280;line-height:1.5}' +
+  '.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;background:#f7f8fc;border-radius:6px;padding:8px}' +
+  '.meta-item .lbl{font-size:10.8px;color:#1a2e5a;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}' +
+  '.meta-item .val{font-size:13.2px;font-weight:500;color:#1a2e5a}' +
+  '.section-title{font-size:12px;font-weight:600;color:#1a2e5a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;margin-top:10px}' +
+  'table{width:100%;border-collapse:collapse}' +
+  'thead tr{background:#1a2e5a;color:#fff}' +
+  'thead th{padding:6px 8px;font-size:12px;font-weight:500;text-align:left;letter-spacing:.04em}' +
+  'tbody td{border-bottom:1px solid #1a2e5a}' +
+  '.ossz-wrap{display:flex;justify-content:flex-end;margin-top:8px}' +
+  '.ossz-table{width:260px;border-collapse:collapse}' +
+  '.ossz-table td{padding:4px 10px;font-size:13.2px;border-bottom:1px solid #1a2e5a}' +
+  '.ossz-lbl{color:#1a1d2e;font-weight:600}.ossz-val{text-align:right;font-weight:600}' +
+  '.ossz-total{background:none;color:#1a1d2e}' +
+  '.ossz-total td{padding:6px 10px;font-size:14.4px;font-weight:600;border:none}' +
+  '.footer{margin-top:30px;padding-top:8px;border-top:1px solid #e5e7f0;display:flex;justify-content:space-between;font-size:12px;color:#6b7280}' +
+  '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}' +
+  '</style></head><body><div class="page">' +
+  '<div class="header">' +
+    '<div class="logo"><img src="data:image/png;base64,' + LOGO_B64 + '" alt="Zalner"></div>' +
+    '<div class="title-wrap"><h1>' + L.title + '</h1><div class="szam">' + (f.BRV_szam||'') + '</div></div>' +
+  '</div>' +
+  '<div class="parties">' +
+    '<div class="party"><div class="party-label">' + L.issuer + '</div>' +
+    '<div class="party-name">' + CEGADATOK.nev + '</div>' +
+    '<div class="party-detail">' + (lang === 'en' ? 'Hungary ' + CEGADATOK.cim : CEGADATOK.cim) + '<br>' + L.taxNo + ' ' + (lang === 'en' ? 'HU26681964' : CEGADATOK.adoszam) + '</div></div>' +
+    '<div class="party"><div class="party-label">' + L.supplier + '</div>' +
+    '<div class="party-name">' + beszNev + '</div>' +
+    '<div class="party-detail">' + (beszAdat?.Cim || '') + (beszAdat?.Adoszam ? '<br>' + L.taxNo + ' ' + beszAdat.Adoszam : '') + '</div></div>' +
+  '</div>' +
+  '<div class="meta">' +
+    '<div class="meta-item"><div class="lbl">' + L.issueDate + '</div><div class="val">' + (f.Kiallitas_datum ? fmt(f.Kiallitas_datum) : '—') + '</div></div>' +
+    '<div class="meta-item"><div class="lbl">' + L.deliveryDate + '</div><div class="val">' + (f.Hatarido ? fmt(f.Hatarido) : '—') + '</div></div>' +
+    metaExtra +
+  '</div>' +
+  (tetelek.length ? '<div class="section-title">' + L.items + '</div>' +
+  '<table><thead><tr><th style="width:30px">' + L.col_no + '</th><th>' + L.col_desc + '</th><th style="width:90px;text-align:right">' + L.col_qty + '</th><th style="width:55px;text-align:center">' + L.col_unit + '</th>' + (hasAr ? '<th style="width:120px;text-align:right;white-space:nowrap">' + L.col_unitPrice + ' (' + deviza + ')</th><th style="width:120px;text-align:right;white-space:nowrap">' + L.col_amount + ' (' + deviza + ')</th>' : '') + '</tr></thead>' +
+  '<tbody>' + tetelSorok + '</tbody></table>' + osszesitoHtml : '') +
+  (f.Megjegyzes ? '<div class="section-title" style="margin-top:10px">' + L.notes + '</div><div style="font-size:12px;padding:8px 12px;background:#f7f8fc;border-radius:6px">' + f.Megjegyzes + '</div>' : '') +
+  '<div class="footer"><span>' + CEGADATOK.nev + ' | ' + CEGADATOK.cim + '</span><span>' + (f.BRV_szam||'') + ' | ' + (f.Kiallitas_datum||'') + '</span></div>' +
+  '</div>' +
+  '<' + 'script>document.title=' + JSON.stringify(f.BRV_szam||'') + ';window.onload=function(){setTimeout(function(){window.print();},400);};<' + '/script>' +
+  '</body></html>';
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const win = window.open(blobUrl, '_blank');
+  if (!win) { toast('A böngésző blokkolta a felugró ablakot! Engedélyezd a popup-okat.', 'error'); }
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  } catch(e) { toast('BRV PDF hiba: ' + e.message, 'error'); console.error(e); }
+}
+
 // ===== PROJEKTEK =====
 let projektek = [], filteredProjektek = [];
 let projektFilter = 'Beerkezett_Folyamatban', projektCurrentPage = 1;
@@ -7610,6 +8533,8 @@ async function showProjektReszlet(id) {
   if (!vrevRendVisszaig.length) {
     try { vrevRendVisszaig = await atGet('VevRendVisszaig', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
   }
+  try { beszVisszaig = await atGet('Beszallitoi_Visszaig', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
+  if (!beszallitok.length) { try { beszallitok = await atGet('Beszallitok', 'sort%5B0%5D%5Bfield%5D=Cegnev&sort%5B0%5D%5Bdirection%5D=asc'); } catch(e) {} }
   const f = currentProjekt.fields;
   const un = f.Ugyfel ? (ugyfelek.find(u => u.id === f.Ugyfel[0])?.fields?.Cegnev || '—') : '—';
   const an = f.Ajanlat ? (ajanlatok.find(a => a.id === f.Ajanlat[0])?.fields?.Ajanlat_szam || '—') : '—';
@@ -7708,6 +8633,12 @@ async function showProjektReszlet(id) {
               }
             }
             return html || `<a href="#" onclick="event.preventDefault();openVrvModal(null,'${id}',1)" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">＋ Visszaigazolás 1 létrehozása</a>`;
+          })()}
+          ${(() => {
+            const list = beszVisszaig.filter(b => b.fields?.Projekt && b.fields.Projekt[0] === id);
+            let out = list.map(b => `<a href="#" onclick="event.preventDefault();viewBrv('${b.id}')" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">🔗 ${b.fields?.BRV_szam || 'Beszállítói visszaig'}</a>`).join('');
+            out += `<a href="#" onclick="event.preventDefault();openBrvModal(null,'${id}')" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">＋ Beszállítói visszaig létrehozása</a>`;
+            return out;
           })()}
           ${(() => {
             const slotLabels = ['Szállítólevél 1','Szállítólevél 2','Szállítólevél 3','Szállítólevél 4'];
@@ -8854,7 +9785,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v300 · Belső rendszer
+          Zalner ERP v308 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -10002,7 +10933,7 @@ async function openBeszallitoModal(id = null) {
   }
 }
 
-function closeBeszallitoModal() { document.getElementById('beszallitoModal').classList.remove('open'); lockRelease(); }
+function closeBeszallitoModal() { document.getElementById('beszallitoModal').classList.remove('open'); document.getElementById('beszallitoModal').style.zIndex = ''; brvBeszallitoReturn = false; lockRelease(); }
 function editBeszallito(id) { openBeszallitoModal(id); }
 
 async function saveBeszallito() {
@@ -10023,15 +10954,26 @@ async function saveBeszallito() {
   };
   Object.keys(fields).forEach(k => fields[k] === null && delete fields[k]);
   try {
+    const returnToBrv = brvBeszallitoReturn;
+    let savedBesz = null;
     if (editingBeszallitoId) {
-      await atPatch('Beszallitok', editingBeszallitoId, fields);
+      savedBesz = await atPatch('Beszallitok', editingBeszallitoId, fields);
       toast('Beszállító frissítve!', 'success');
     } else {
-      await atPost('Beszallitok', fields);
+      savedBesz = await atPost('Beszallitok', fields);
       toast('Beszállító mentve!', 'success');
     }
     closeBeszallitoModal();
     await loadBeszallitok();
+    if (returnToBrv) {
+      // Airtable read-after-write ellen: a frissen mentett beszállító biztosan legyen a listában
+      if (savedBesz?.id && !beszallitok.some(b => b.id === savedBesz.id)) beszallitok = [savedBesz, ...beszallitok];
+      const selB = document.getElementById('fBrvBeszallito');
+      if (selB) {
+        selB.innerHTML = '<option value="">— Válassz beszállítót —</option>' + beszallitok.filter(b => b.fields.Statusz !== 'Inaktiv').map(b => `<option value="${b.id}">${b.fields.Cegnev}</option>`).join('');
+        if (savedBesz?.id) { selB.value = savedBesz.id; onBrvBeszallitoChange(); }
+      }
+    }
   } catch(e) { toast('Hiba: ' + e.message, 'error'); }
 }
 

@@ -1,12 +1,33 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v297
+     ZALNER ERP - VERZIÓ: v300
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v300:
+- ÁFA / Összes csatolmány: a kimenő PDF-et először KÖZVETLENÜL a Billingo publikus linkjéről
+  próbálja letölteni (ha a CDN engedi a CORS-t, akkor proxy nélkül is működik). Ha az nem megy,
+  a proxyn keresztüli bináris letöltés a tartalék.
+- Sérült-PDF felismerés: ha a letöltött PDF UTF-8 roncsolt (fehér oldal, "ï¿½" jelek, tömeges
+  U+FFFD), a rendszer NEM menti el, hanem kihagyja. A letöltés-üzenet mutatja, hány kimenő
+  számla sikerült (pl. "kimenő: 15/17"), így egyből látszik, ha a proxyt még javítani kell.
+
+CHANGES v299:
+- ÁFA bevallás: a kimenő számlák PDF-je mostantól a PROXYN keresztül, binárisan töltődik le
+  (documents/{id}/download), így nincs CORS-akadály. A rendszer ellenőrzi, hogy valódi PDF-et
+  kapott (%PDF fejléc), és ha nem, a Billingo publikus URL-re esik vissza. A letöltés-üzenet
+  jelzi, hány kimenő PDF sikerült (pl. "kimenő: 15/17").
+
+CHANGES v298:
+- ÁFA bevallás: "Havi csatolmányok" gomb eltávolítva (nem volt hasznos).
+- ÁFA bevallás: az "Összes csatolmány" letöltésnél a KIMENŐ számlák PDF-jei is bekerülnek a zipbe.
+  Eddig üres volt a "kimenő számlák" mappa, mert a Billingo PDF URL csak akkor volt eltárolva, ha
+  valaki korábban letöltötte. Mostantól a rendszer letöltéskor feloldja a hiányzó PDF URL-eket
+  közvetlenül a Billingóból (és vissza is menti Airtable-be).
 
 CHANGES v297:
 - ÁFA bevallás: új "🔄 Frissítés" gomb, amely az adott hónaphoz újratölti az ÖSSZES releváns
@@ -488,7 +509,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v297</title>
+<title>Zalner ERP v300</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -680,7 +701,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v297</div>
+    <div class="nav-logo-sub">v300</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1515,7 +1536,6 @@ select.form-control{cursor:pointer}
       <div><div class="page-title">ÁFA Bevallás</div></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" id="afaFrissitBtn" onclick="afaFrissit()">🔄 Frissítés</button>
-        <button class="btn btn-secondary" id="afaPdfLetoltesBtn" onclick="afaCsatolmanyLetoltes()" style="display:none">⬇ Havi csatolmányok</button>
         <button class="btn btn-secondary" onclick="afaOsszesCsatolmanyLetoltes()">⬇ Összes csatolmány</button>
         <button class="btn btn-secondary" id="afaExcelExportBtn" onclick="exportAfaExcel()" style="display:none">📥 Excel export</button>
       </div>
@@ -8834,7 +8854,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v297 · Belső rendszer
+          Zalner ERP v300 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -14670,16 +14690,16 @@ async function afaOsszesCsatolmanyLetoltes() {
   const ev = document.getElementById('afaEv')?.value || '';
   const honap = document.getElementById('afaHonap')?.value || '';
   const idoszak = ev && honap ? `${ev}_${honap}` : 'osszes';
+  const prefix = ev && honap ? `${ev}-${honap}` : '';
 
-  // Bejövő számlák PDF-jei
+  // Bejövő számlák PDF-jei (Airtable csatolmány URL)
   const bejovoPdfek = bszInvoices.filter(i => i._pdfUrl);
 
-  // Kimenő számlák PDF-jei (csak az aktuális hónaposak ha van hónap kiválasztva, különben mind)
-  const prefix = ev && honap ? `${ev}-${honap}` : '';
-  const kimenoSzamlak = prefix
-    ? kszInvoices.filter(i => (i.kiallitasDatum||'').startsWith(prefix) && i.pdfUrl)
-    : kszInvoices.filter(i => i.pdfUrl);
-  const kimenoPdfek = kimenoSzamlak.map(i => ({ invoiceNumber: i.invoiceNumber || i._id, _pdfUrl: i.pdfUrl }));
+  // Kimenő számlák (nem storno/piszkozat, van Billingo azonosító) az adott időszakra
+  const kimenoScope = (prefix
+    ? kszInvoices.filter(i => (i.kiallitasDatum||'').startsWith(prefix))
+    : kszInvoices.slice()
+  ).filter(i => i.statusz !== 'Storno' && i.statusz !== 'Piszkozat' && i._billingoId);
 
   // Vámhatározatok PDF-jei
   if (!vamRecords || !vamRecords.length) {
@@ -14688,38 +14708,90 @@ async function afaOsszesCsatolmanyLetoltes() {
   const vamHavi = prefix
     ? (vamRecords||[]).filter(v => (v.fields?.Vamhatarozat_datum||v.fields?.Datum||'').startsWith(prefix) && v.fields?.PDF_url)
     : (vamRecords||[]).filter(v => v.fields?.PDF_url);
-  const vamPdfek = vamHavi.map(v => ({
-    invoiceNumber: v.fields?.MRN_szam || v.id,
-    _pdfUrl: v.fields.PDF_url
-  }));
+  const vamPdfek = vamHavi.map(v => ({ invoiceNumber: v.fields?.MRN_szam || v.id, _pdfUrl: v.fields.PDF_url }));
 
-  const osszes = bejovoPdfek.length + kimenoPdfek.length + vamPdfek.length;
-  if (!osszes) { toast('Nincs letölthető PDF csatolmány!', 'error'); return; }
+  if (!bejovoPdfek.length && !kimenoScope.length && !vamPdfek.length) {
+    toast('Nincs letölthető PDF csatolmány!', 'error'); return;
+  }
 
-  toast(`⏳ ${osszes} PDF zippelésse folyamatban...`, '');
+  toast(`⏳ Csatolmányok előkészítése és zippelése... (kimenő: ${kimenoScope.length} db)`, '');
+
+  const billingoKey = getBillingoApiKey();
+  const sessionToken = localStorage.getItem('zalnerSessionToken') || '';
+
+  // Érvényes, ÉP PDF-e a blob? %PDF fejléc + NEM UTF-8 roncsolt (a proxy szöveggé alakítása
+  // esetén a bináris bájtok tömegesen U+FFFD (EF BF BD) hármasra cserélődnek → fehér oldal).
+  const validPdfBlob = async (blob) => {
+    try {
+      if (!blob || blob.size < 800) return false;
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      if (!(buf[0]===0x25&&buf[1]===0x50&&buf[2]===0x44&&buf[3]===0x46)) return false; // %PDF
+      let repl = 0;
+      for (let i = 0; i < buf.length - 2; i++) {
+        if (buf[i]===0xEF && buf[i+1]===0xBF && buf[i+2]===0xBD) { if (++repl > 20) return false; }
+      }
+      return true;
+    } catch(e) { return false; }
+  };
+
+  // Kimenő számla PDF binárisának letöltése.
+  // 1) Elsőként KÖZVETLENÜL a Billingo publikus URL-jéről (ha a CDN engedi a CORS-t → proxy nélkül).
+  // 2) Tartalék: a proxyn keresztüli bináris letöltés (documents/{id}/download).
+  // Csak ÉP PDF-et fogadunk el (sérült/fehér PDF-et nem mentünk el).
+  const fetchKimenoBlob = async (inv) => {
+    // 1) Publikus URL közvetlenül
+    let url = inv.pdfUrl || null;
+    if (!url && inv._billingoId && billingoKey) {
+      try {
+        const resp = await billingoApiDirect('GET', `documents/${inv._billingoId}/public-url`, null, billingoKey);
+        url = resp?.public_url || resp?.url || resp?.download_url || resp?.pdf_url || null;
+        if (url) { inv.pdfUrl = url; try { await atPatch('Kimeno_Szamlak', inv._id, { PDF_url: url }); } catch(e) {} }
+      } catch(e) {}
+    }
+    if (url) {
+      try { const r = await fetch(url); if (r.ok) { const blob = await r.blob(); if (await validPdfBlob(blob)) return blob; } }
+      catch(e) { console.warn('Publikus URL letöltés (CORS?):', inv.invoiceNumber, e.message); }
+    }
+    // 2) Tartalék: proxyn keresztüli bináris letöltés
+    if (inv._billingoId && billingoKey) {
+      try {
+        const purl = NAV_PROXY + '/api/billingo?path=' + encodeURIComponent(`documents/${inv._billingoId}/download`);
+        const r = await fetch(purl, { method: 'GET', headers: { 'X-API-KEY': billingoKey, 'X-Session-Token': sessionToken } });
+        if (r.ok) { const blob = await r.blob(); if (await validPdfBlob(blob)) return blob; }
+      } catch(e) { console.warn('Proxy PDF letöltés hiba:', inv.invoiceNumber, e.message); }
+    }
+    return null;
+  };
 
   try {
     const zip = new JSZip();
     const bejMappa = zip.folder('bejövő számlák');
     const kimMappa = zip.folder('kimenő számlák');
     const vamMappa = zip.folder('vámhatározatok');
+    const safe = (name) => (name || 'szamla').replace(/[/\\:*?"<>|]/g, '_');
 
-    const fetchPdf = async (url, fileName, mappa) => {
+    const fetchPdfUrl = async (url, fileName, mappa) => {
       try {
         const resp = await fetch(url);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const blob = await resp.blob();
-        mappa.file(fileName.replace(/[/\\:*?"<>|]/g, '_') + '.pdf', blob);
-      } catch(e) {
-        console.warn(`PDF letöltés sikertelen: ${fileName}`, e.message);
-      }
+        mappa.file(safe(fileName) + '.pdf', await resp.blob());
+      } catch(e) { console.warn(`PDF letöltés sikertelen: ${fileName}`, e.message); }
     };
 
+    let kimOk = 0;
+    const kimTasks = kimenoScope.map(async inv => {
+      const blob = await fetchKimenoBlob(inv);
+      if (blob) { kimMappa.file(safe(inv.invoiceNumber || inv._id) + '.pdf', blob); kimOk++; }
+    });
+
     await Promise.all([
-      ...bejovoPdfek.map(inv => fetchPdf(inv._pdfUrl, inv.invoiceNumber || 'szamla', bejMappa)),
-      ...kimenoPdfek.map(inv => fetchPdf(inv._pdfUrl, inv.invoiceNumber || 'kimeno', kimMappa)),
-      ...vamPdfek.map(inv => fetchPdf(inv._pdfUrl, inv.invoiceNumber || 'vam', vamMappa)),
+      ...bejovoPdfek.map(inv => fetchPdfUrl(inv._pdfUrl, inv.invoiceNumber || 'szamla', bejMappa)),
+      ...kimTasks,
+      ...vamPdfek.map(inv => fetchPdfUrl(inv._pdfUrl, inv.invoiceNumber || 'vam', vamMappa)),
     ]);
+
+    const total = bejovoPdfek.length + kimOk + vamPdfek.length;
+    if (!total) { toast('Nem sikerült egyetlen PDF-et sem letölteni.', 'error'); return; }
 
     const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
     const a = document.createElement('a');
@@ -14727,7 +14799,7 @@ async function afaOsszesCsatolmanyLetoltes() {
     a.download = `csatolmanyok_${idoszak}.zip`;
     a.click();
     URL.revokeObjectURL(a.href);
-    toast(`✓ ${osszes} PDF letöltve (bejövő: ${bejovoPdfek.length}, kimenő: ${kimenoPdfek.length}, vám: ${vamPdfek.length})`, 'success');
+    toast(`✓ ${total} PDF letöltve (bejövő: ${bejovoPdfek.length}, kimenő: ${kimOk}/${kimenoScope.length}, vám: ${vamPdfek.length})`, 'success');
   } catch(e) {
     toast('Hiba a zip generálásakor: ' + e.message, 'error');
   }

@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v308
+     ZALNER ERP - VERZIÓ: v310
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v310:
+- Ajánlat szerkesztő: a Megnevezés és Leírás mezők többsoros, átméretezhető textareák lettek
+  (a sarkuknál húzva nagyobbra vehetők), így hosszabb szöveg is jól látszik.
+
+CHANGES v309:
+- Ajánlatok lista: új "Felelős" oszlop a Tárgy után, a Nettó előtt (a Kapcsolattarto mezőből).
 
 CHANGES v308:
 - Ajánlat szerkesztő: "🤖 Ajánlatkérő feltöltése (PDF)" gomb a Tételek fejlécben. Vevői
@@ -550,7 +557,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v308</title>
+<title>Zalner ERP v310</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -645,8 +652,9 @@ select.form-control{cursor:pointer}
 .tetelek-table th{text-align:left;padding:8px 10px;font-size:11px;font-weight:500;color:var(--text-muted);border-bottom:1px solid var(--border);background:#fafbfd;white-space:nowrap}
 .tetelek-table td{padding:6px 6px;border-bottom:1px solid var(--border);vertical-align:middle}
 .tetelek-table tr:last-child td{border-bottom:none}
-.tetelek-table input,.tetelek-table select{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);outline:none}
-.tetelek-table input:focus,.tetelek-table select:focus{border-color:var(--accent)}
+.tetelek-table input,.tetelek-table select,.tetelek-table textarea{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--surface);outline:none}
+.tetelek-table textarea{resize:both;min-height:40px;line-height:1.4;vertical-align:top}
+.tetelek-table input:focus,.tetelek-table select:focus,.tetelek-table textarea:focus{border-color:var(--accent)}
 .tetelek-table .readonly-cell{padding:6px 10px;font-size:13px;color:var(--text-muted);text-align:right;font-family:'DM Mono',monospace;white-space:nowrap}
 .col-megnevezes{min-width:200px}
 .col-leiras{min-width:150px}
@@ -742,7 +750,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v308</div>
+    <div class="nav-logo-sub">v310</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -953,8 +961,8 @@ select.form-control{cursor:pointer}
         <span class="pill active" id="ajanlatOsszesPill" onclick="setAjanlatKapcsolattartoFilter('osszes',this)">Összes</span>
       </div>
       <div class="table-wrap">
-        <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th>Tárgy</th><th>Nettó</th><th>Deviza</th><th>Kiállítás</th><th>Érvényesség</th><th>Státusz</th><th></th></tr></thead>
-        <tbody id="ajanlatTable"><tr><td colspan="9"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
+        <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th>Tárgy</th><th>Felelős</th><th>Nettó</th><th>Deviza</th><th>Kiállítás</th><th>Érvényesség</th><th>Státusz</th><th></th></tr></thead>
+        <tbody id="ajanlatTable"><tr><td colspan="10"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
         <div class="pagination" id="ajanlatPagination" style="display:none"><span id="ajanlatPagInfo"></span><div class="page-btns" id="ajanlatPagBtns"></div></div>
       </div>
     </div>
@@ -5092,7 +5100,7 @@ async function loadAjanlatok() {
     filterAjanlatok();
     document.getElementById('ajanlatCount').textContent = `${ajanlatok.length} ajánlat összesen`;
   } catch (e) {
-    document.getElementById('ajanlatTable').innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
+    document.getElementById('ajanlatTable').innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
   }
 }
 
@@ -5205,7 +5213,7 @@ function renderAjanlatok() {
   const start = (ajanlatCurrentPage - 1) * PAGE_SIZE;
   const items = filteredAjanlatok.slice(start, start + PAGE_SIZE);
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">◫</div><div class="empty-title">Nincs találat</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">◫</div><div class="empty-title">Nincs találat</div></div></td></tr>';
     document.getElementById('ajanlatPagination').style.display = 'none'; return;
   }
   tbody.innerHTML = items.map(a => {
@@ -5227,6 +5235,7 @@ function renderAjanlatok() {
       <td class="td-name" style="font-family:'DM Mono',monospace;font-size:13px">${f.Ajanlat_szam || '—'}${f.Van_csatolmany ? ' <span title="Van csatolmány" style="font-size:13px">📎</span>' : ''}</td>
       <td>${un}</td>
       <td class="td-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(f.Targy||'').replace(/"/g,'&quot;')}">${f.Targy || '—'}</td>
+      <td class="td-muted">${DISPLAY_NAME_MAP[f.Kapcsolattarto] || f.Kapcsolattarto || '—'}</td>
       <td>${f.Netto_osszeg ? Number(f.Netto_osszeg).toLocaleString('hu-HU') : '—'}</td>
       <td class="td-muted">${f.Deviza || 'HUF'}</td>
       <td class="td-muted">${f.Kiallitas_datum || '—'}</td>
@@ -6072,8 +6081,8 @@ function addTetel(data = null, atId = null) {
   tr.dataset.tid = id;
   if (atId) tr.dataset.atId = atId;
   tr.innerHTML = `
-    <td class="col-megnevezes"><input type="text" name="megnevezes" placeholder="Megnevezés..." value="${data?.Megnevezes||''}" oninput="calcTetel(${id})"></td>
-    <td class="col-leiras"><input type="text" name="leiras" placeholder="Leírás..." value="${data?.Leiras||''}"></td>
+    <td class="col-megnevezes"><textarea name="megnevezes" rows="2" placeholder="Megnevezés..." oninput="calcTetel(${id})">${data?.Megnevezes||''}</textarea></td>
+    <td class="col-leiras"><textarea name="leiras" rows="2" placeholder="Leírás...">${data?.Leiras||''}</textarea></td>
     <td class="col-menny"><input type="number" name="mennyiseg" placeholder="1" value="${data?.Mennyiseg!==undefined&&data?.Mennyiseg!==null?data.Mennyiseg:1}" min="0" step="1" oninput="calcTetel(${id})"></td>
     <td class="col-egyseg">
       <select name="egyseg" oninput="calcTetel(${id})">
@@ -6172,14 +6181,14 @@ async function saveAjanlat() {
   const tetelekData = [];
   let valid = true;
   rows.forEach(tr => {
-    const megnevezes = tr.querySelector('input[name="megnevezes"]')?.value.trim();
+    const megnevezes = tr.querySelector('[name="megnevezes"]')?.value.trim();
     if (!megnevezes) { valid = false; return; }
     const menny = parseFloat(tr.querySelector('input[name="mennyiseg"]')?.value) || 0;
     const ar = parseFloat(tr.querySelector('input[name="egyseg_ar"]')?.value) || 0;
     tetelekData.push({
       atId: tr.dataset.atId || null,
       Megnevezes: megnevezes,
-      Leiras: tr.querySelector('input[name="leiras"]')?.value.trim() || '',
+      Leiras: tr.querySelector('[name="leiras"]')?.value.trim() || '',
       Mennyiseg: menny,
       Egyseg: tr.querySelector('select[name="egyseg"]')?.value || 'db',
       Egyseg_ar: ar,
@@ -8174,7 +8183,7 @@ async function ajanlatAjkFeltoltes(inputEl) {
     });
     if (!document.getElementById('tetelekBody').children.length) addTetel();
     recalcAll();
-    document.querySelectorAll('#tetelekBody input[name="megnevezes"]').forEach(inp => { inp.style.background = '#fffbe6'; });
+    document.querySelectorAll('#tetelekBody [name="megnevezes"]').forEach(inp => { inp.style.background = '#fffbe6'; });
     setStatus('✓ Kesz — ' + tetelek.length + ' tetel bemasolva. Ellenorizd es toltsd ki az arakat!');
     toast('AI: ' + tetelek.length + ' tetel bemasolva az ajanlatkerobol. Ellenorizd!', 'success');
   } catch(e) {
@@ -9785,7 +9794,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v308 · Belső rendszer
+          Zalner ERP v310 · Belső rendszer
         </div>
       </div>
     </div>`;

@@ -1,12 +1,27 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v310
+     ZALNER ERP - VERZIÓ: v312
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v312:
+- Ajánlat + Projekt napló: ha egy megjegyzéshez értesítés ment ki ("Értesítést küldök ...nak"
+  pipák), a bejegyzés alatt megjelenik, KI kapott értesítést és MIKOR
+  (📣 Értesítve: Név, Név · dátum idő). A már meglévő Ertesitesek mezőből olvassa, így a
+  korábbi bejegyzéseknél is visszamenőleg látszik — új Airtable mező nem szükséges.
+
+CHANGES v311:
+- Kimenő számla projektből: ha a projekthez van szállítólevél (1-4. slot), a számlára a
+  szállítólevél (szállítólevelek) tételei kerülnek az ajánlat tételei helyett. Az egységárat
+  az ajánlat tételeiből, megnevezés alapján párosítja (ha nincs találat, 0 — kézzel kitöltendő).
+  Ha a projekthez nincs szállítólevél, marad az eddigi működés (ajánlat tételei).
+- Projekt részletnézet / Dokumentumok kártya: a projekthez már kiállított kimenő számlák
+  listája (számlaszám, típus, bruttó összeg, státusz, PDF link). A számlaszámra kattintva
+  a Kimenő számlák oldalra ugrik, az adott számlára szűrve.
 
 CHANGES v310:
 - Ajánlat szerkesztő: a Megnevezés és Leírás mezők többsoros, átméretezhető textareák lettek
@@ -557,7 +572,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v310</title>
+<title>Zalner ERP v312</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -750,7 +765,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v310</div>
+    <div class="nav-logo-sub">v312</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -5305,6 +5320,7 @@ async function showAjanlatReszlet(id) {
         </div>
       </div>
       <div style="font-size:13.5px;color:var(--text);white-space:pre-wrap">${n.fields.Megjegyzes||''}</div>
+      ${naploErtesitesHtml(n)}
       ${emlHtml}
     </div>`;
   }).join('') : '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Nincs megjegyzés</div>';
@@ -8544,6 +8560,8 @@ async function showProjektReszlet(id) {
   }
   try { beszVisszaig = await atGet('Beszallitoi_Visszaig', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
   if (!beszallitok.length) { try { beszallitok = await atGet('Beszallitok', 'sort%5B0%5D%5Bfield%5D=Cegnev&sort%5B0%5D%5Bdirection%5D=asc'); } catch(e) {} }
+  // Kimenő számlák betöltése ha még nincs memóriában (a Dokumentumok kártya számlalistájához)
+  if (!kszInvoices.length) { try { await syncKimenoSzamlak(); } catch(e) {} }
   const f = currentProjekt.fields;
   const un = f.Ugyfel ? (ugyfelek.find(u => u.id === f.Ugyfel[0])?.fields?.Cegnev || '—') : '—';
   const an = f.Ajanlat ? (ajanlatok.find(a => a.id === f.Ajanlat[0])?.fields?.Ajanlat_szam || '—') : '—';
@@ -8579,6 +8597,7 @@ async function showProjektReszlet(id) {
         </div>
       </div>
       <div style="font-size:13.5px;color:var(--text);white-space:pre-wrap">${n.fields.Megjegyzes||''}</div>
+      ${naploErtesitesHtml(n)}
       ${emlHtml}
     </div>`;
   }).join('') : '<div style="padding:20px;color:var(--text-muted);font-size:13px;text-align:center">Nincs megjegyzés</div>';
@@ -8668,8 +8687,31 @@ async function showProjektReszlet(id) {
             }
             return html;
           })()}
-          ${linkHtml('Számla', f.Szamla_link)}
-          <a href="#" onclick="event.preventDefault();openKszModalFromProjekt('${id}')" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">🧾 Kimenő számla kiállítása</a>
+          ${f.Szamla_link ? linkHtml('Számla', f.Szamla_link) : ''}
+          ${(() => {
+            const invList = kszInvoices.filter(i => i.projektId === id);
+            if (!invList.length && !f.Szamla_link) return '<span style="color:var(--text-light);font-size:13px">Számla: —</span>';
+            return invList.map(inv => {
+              const isDraft = inv.statusz === 'Piszkozat' || inv.tipus === 'Piszkozat';
+              const label = inv.invoiceNumber || `${inv.tipus || 'Számla'} (piszkozat)`;
+              const st = inv.statusz === 'Storno'
+                ? '<span style="font-size:11px;font-weight:600;color:#dc2626">Sztornó</span>'
+                : inv.statusz === 'Fizetett'
+                  ? '<span style="font-size:11px;font-weight:600;color:#15803d">Fizetett ✓</span>'
+                  : isDraft
+                    ? '<span style="font-size:11px;color:#6b7280">Piszkozat</span>'
+                    : '<span style="font-size:11px;font-weight:600;color:#b45309">Fizetésre vár</span>';
+              const osszeg = inv.bruttoOssz ? `${inv.bruttoOssz.toLocaleString('hu-HU')} ${inv.currency}` : '';
+              return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+                <a href="#" onclick="event.preventDefault();showKszInvoiceFromProjekt('${inv._id}')" style="color:var(--accent);font-size:13px">🔗 ${label}</a>
+                <span style="font-size:11px;color:var(--text-muted)">${inv.tipus || 'Számla'}</span>
+                ${osszeg ? `<span style="font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace">${osszeg}</span>` : ''}
+                ${st}
+                ${inv.pdfUrl ? `<a href="${inv.pdfUrl}" target="_blank" title="PDF megnyitása" onclick="event.stopPropagation()" style="font-size:11px;color:var(--accent)">📄 PDF</a>` : ''}
+              </div>`;
+            }).join('');
+          })()}
+          <a href="#" onclick="event.preventDefault();openKszModalFromProjekt('${id}')" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">＋ Kimenő számla kiállítása</a>
           ${(() => { try { const e = JSON.parse(f.Dokumentumok_extra || '{}'); const links = Array.isArray(e) ? e : (e._links || []); return links.map(l => linkHtml(l.nev, l.url)).join(''); } catch(e) { return ''; } })()}
         </div>
       </div>
@@ -8754,6 +8796,27 @@ function removeAjanlatFromProjekt(projektId, ajanlatId) {
 }
 
 // Napló modal
+// Napló értesítés-lista megjelenítés: e-mail címekből olvasható nevek
+function naploErtesitettNevek(str) {
+  const nevMap = {
+    'kitti.jarfas@zalner.hu': 'Járfás Kitti',
+    'krisztina.zombori@zalner.hu': 'Zombori Krisztina',
+    'nikoletta.wagnerpatai@zalner.hu': 'Wágner-Patai Nikoletta',
+    'szabolcs.wagner@zalner.hu': 'Wágner Szabolcs',
+  };
+  return String(str).split(',').map(e => e.trim()).filter(Boolean)
+    .map(e => nevMap[e.toLowerCase()] || e).join(', ');
+}
+
+// Napló bejegyzés alatti értesítés-sor HTML-je (ki kapott értesítést és mikor)
+function naploErtesitesHtml(n) {
+  if (!n.fields?.Ertesitesek) return '';
+  const mikor = n.fields.Datum
+    ? new Date(n.fields.Datum).toLocaleString('hu-HU', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
+    : '';
+  return `<div style="margin-top:6px;font-size:11px;color:var(--text-muted)">📣 Értesítve: <strong style="color:var(--text)">${naploErtesitettNevek(n.fields.Ertesitesek)}</strong>${mikor ? ' · ' + mikor : ''}</div>`;
+}
+
 async function ujNaploBejegyzes(projektId) {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay open';
@@ -9794,7 +9857,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v310 · Belső rendszer
+          Zalner ERP v312 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -13301,6 +13364,17 @@ function openKszModal(id = null) {
   calcKszOssz();
 }
 
+// Projekt részletnézetből: ugrás a kimenő számlák oldalra, az adott számlára szűrve
+function showKszInvoiceFromProjekt(invId) {
+  const inv = kszInvoices.find(i => i._id === invId);
+  showPage('kimeno-szamlak');
+  const search = document.getElementById('kszSearch');
+  if (search) {
+    search.value = inv?.invoiceNumber || '';
+    filterKimenoSzamlak();
+  }
+}
+
 function openKszModalFromProjekt(projektId) {
   openKszModal(null);
   const selP = document.getElementById('fKszProjekt');
@@ -13553,7 +13627,7 @@ function onKszUgyfelChange() {
   }
 }
 
-function onKszProjektChange() {
+async function onKszProjektChange() {
   const pid = document.getElementById('fKszProjekt').value;
   if (!pid) return;
   const p = projektek.find(x => x.id === pid);
@@ -13566,20 +13640,68 @@ function onKszProjektChange() {
   if (p.fields.PO_szam) {
     document.getElementById('fKszPoSzam').value = p.fields.PO_szam;
   }
-  // Ajánlat tételek, deviza és vevői kontakt betöltése
-  if (p.fields.Ajanlat?.length) {
-    const ajanlatRec = ajanlatok.find(a => a.id === p.fields.Ajanlat[0]);
-    if (ajanlatRec?.fields?.Deviza) {
+  // Deviza és vevői kontakt betöltése az ajánlatból
+  const ajanlatRec = p.fields.Ajanlat?.length ? ajanlatok.find(a => a.id === p.fields.Ajanlat[0]) : null;
+  if (ajanlatRec) {
+    if (ajanlatRec.fields?.Deviza) {
       document.getElementById('fKszDeviza').value = ajanlatRec.fields.Deviza;
       onKszDevizaChange(ajanlatRec.fields.Deviza);
     }
     // Vevői kapcsolattartó az ajánlatból
-    if (ajanlatRec?.fields?.Vevoi_kapcsolattarto && p.fields.Ugyfel?.length) {
+    if (ajanlatRec.fields?.Vevoi_kapcsolattarto && p.fields.Ugyfel?.length) {
       loadKszVevoiKontaktok(p.fields.Ugyfel[0], ajanlatRec.fields.Vevoi_kapcsolattarto);
     }
+  }
+
+  // Tételek betöltése:
+  //  - ha a projekthez van szállítólevél, annak tételei kerülnek a számlára
+  //    (az egységárat az ajánlat tételeiből, megnevezés alapján párosítjuk),
+  //  - ha nincs szállítólevél, az ajánlat tételei (eddigi működés).
+  const szlIds = [];
+  for (let i = 1; i <= 4; i++) { const sid = getSzlSlotValue(p, i); if (sid) szlIds.push(sid); }
+  if (szlIds.length) {
+    if (!szallitolevelek.length) {
+      try { szallitolevelek = await atGet('Szallitolevelek', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
+    }
+    const afa = ajanlatRec?.fields?.Afa || '27%';
+    // Árlista az ajánlat tételeiből (megnevezés → egységár)
+    const arMap = {};
+    if (p.fields.Ajanlat?.length) {
+      try {
+        const ajTetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]);
+        ajTetelek.forEach(t => {
+          const k = (t.fields.Megnevezes || '').trim().toLowerCase();
+          if (k && !(k in arMap)) arMap[k] = t.fields.Egyseg_ar || 0;
+        });
+      } catch(e) {}
+    }
+    const tetelek = [];
+    szlIds.forEach(sid => {
+      const szl = szallitolevelek.find(x => x.id === sid);
+      if (!szl?.fields?.Tetelek) return;
+      try {
+        JSON.parse(szl.fields.Tetelek).forEach(t => {
+          tetelek.push({
+            megnevezes: t.nev || '',
+            mennyiseg: parseFloat(t.menny) || 1,
+            egyseg: t.egyseg || 'db',
+            afa: afa,
+            egyseg_ar: arMap[(t.nev || '').trim().toLowerCase()] || 0,
+          });
+        });
+      } catch(e) {}
+    });
+    if (tetelek.length) {
+      loadKszTetelek(tetelek);
+      calcKszOssz();
+      return;
+    }
+  }
+
+  // Nincs szállítólevél (vagy nincs tétele): ajánlat tételek
+  if (p.fields.Ajanlat?.length) {
     atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek);
       if (tetelek.length) {
-        const ajanlatRec = ajanlatok.find(a => a.id === p.fields.Ajanlat[0]);
         const afa = ajanlatRec?.fields?.Afa || '27%';
         loadKszTetelek(tetelek.map(t => ({
           megnevezes: t.fields.Megnevezes || '',

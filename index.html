@@ -1,12 +1,28 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v312
+     ZALNER ERP - VERZIÓ: v314
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v314:
+- Pénzügyi kimutatás: ÚJ "Havi eredmény" diagram az aktuális évre (január → aktuális hónap).
+  Havonta: bevétel (kimenő számlák nettó, kivéve sztornó/piszkozat/díjbekérő) mínusz kiadás
+  (bejövő számlák nettó, kivéve sztornó, PLUSZ a havi fix költségek: bér + járulék + hitel).
+  A hónap a számla TELJESÍTÉS dátuma szerint számít. Zöld oszlop = nyereség, piros = veszteség;
+  a fejlécben éves összesített eredmény. Devizás számláknál a mentett árfolyam, ennek híján
+  az aktuális EKB EUR/HUF árfolyam alapján számol HUF-ra.
+
+CHANGES v313:
+- Kimenő számlák korlátozott betekintése: akinek NINCS jogosultsága a Kimenő számlák
+  menühöz (pl. Járfás Kitti), az azon projektek számláit láthatja a projekt részletnézet
+  Dokumentumok kártyáján, ahol Ő a felelős. A számlára kattintva csak-olvasható részletező
+  modal nyílik (adatok + tételek + PDF link) — a Kimenő számlák oldal továbbra sem érhető el.
+- A "＋ Kimenő számla kiállítása" link csak a kimeno-szamlak jogosultsággal rendelkezőknek
+  jelenik meg; jogosultság és felelősség hiányában a számlalista sem látszik.
 
 CHANGES v312:
 - Ajánlat + Projekt napló: ha egy megjegyzéshez értesítés ment ki ("Értesítést küldök ...nak"
@@ -572,7 +588,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v312</title>
+<title>Zalner ERP v314</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -765,7 +781,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v312</div>
+    <div class="nav-logo-sub">v314</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1590,6 +1606,17 @@ select.form-control{cursor:pointer}
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px">
         <div style="font-weight:600;margin-bottom:14px;font-size:15px">31 napos cashflow előrejelzés</div>
         <div style="position:relative;height:380px"><canvas id="pkChart"></canvas></div>
+      </div>
+
+      <!-- Havi eredmény diagram -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-weight:600;font-size:15px">Havi eredmény — <span id="pkEredmenyEv"></span>
+            <span style="font-weight:400;font-size:12px;color:var(--text-muted)">nettó · teljesítés dátuma szerint · fix költségekkel (bér, járulék, hitel)</span>
+          </div>
+          <div id="pkEredmenyOsszesen" style="font-size:13.5px;font-weight:600"></div>
+        </div>
+        <div style="position:relative;height:340px"><canvas id="pkEredmenyChart"></canvas></div>
       </div>
 
       <!-- Részletes táblázat -->
@@ -8689,6 +8716,11 @@ async function showProjektReszlet(id) {
           })()}
           ${f.Szamla_link ? linkHtml('Számla', f.Szamla_link) : ''}
           ${(() => {
+            // Kimenő számlák láthatósága: teljes jogosultság VAGY a projekt felelőse
+            // (pl. Járfás Kitti a saját projektjei számláit megnézheti, kiállítani nem tud)
+            const kszJog = hasPerm('kimeno-szamlak');
+            const sajatProjekt = (f.Felelos || '').toLowerCase() === (getCurrentUserAirtableName() || '').toLowerCase();
+            if (!kszJog && !sajatProjekt) return '';
             const invList = kszInvoices.filter(i => i.projektId === id);
             if (!invList.length && !f.Szamla_link) return '<span style="color:var(--text-light);font-size:13px">Számla: —</span>';
             return invList.map(inv => {
@@ -8711,7 +8743,7 @@ async function showProjektReszlet(id) {
               </div>`;
             }).join('');
           })()}
-          <a href="#" onclick="event.preventDefault();openKszModalFromProjekt('${id}')" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">＋ Kimenő számla kiállítása</a>
+          ${hasPerm('kimeno-szamlak') ? `<a href="#" onclick="event.preventDefault();openKszModalFromProjekt('${id}')" style="color:var(--accent);font-size:13px;display:block;margin-bottom:4px">＋ Kimenő számla kiállítása</a>` : ''}
           ${(() => { try { const e = JSON.parse(f.Dokumentumok_extra || '{}'); const links = Array.isArray(e) ? e : (e._links || []); return links.map(l => linkHtml(l.nev, l.url)).join(''); } catch(e) { return ''; } })()}
         </div>
       </div>
@@ -9857,7 +9889,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v312 · Belső rendszer
+          Zalner ERP v314 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -13364,8 +13396,11 @@ function openKszModal(id = null) {
   calcKszOssz();
 }
 
-// Projekt részletnézetből: ugrás a kimenő számlák oldalra, az adott számlára szűrve
+// Projekt részletnézetből: ugrás a kimenő számlák oldalra, az adott számlára szűrve.
+// Ha a felhasználónak nincs jogosultsága a Kimenő számlák menühöz (de a projekt felelőseként
+// láthatja a számlát), csak-olvasható részletező modal nyílik.
 function showKszInvoiceFromProjekt(invId) {
+  if (!hasPerm('kimeno-szamlak')) { showKszReadonlyModal(invId); return; }
   const inv = kszInvoices.find(i => i._id === invId);
   showPage('kimeno-szamlak');
   const search = document.getElementById('kszSearch');
@@ -13373,6 +13408,65 @@ function showKszInvoiceFromProjekt(invId) {
     search.value = inv?.invoiceNumber || '';
     filterKimenoSzamlak();
   }
+}
+
+// Csak-olvasható kimenő számla nézet (jogosultság nélküli felhasználóknak, saját projekthez)
+function showKszReadonlyModal(invId) {
+  const inv = kszInvoices.find(i => i._id === invId);
+  if (!inv) { toast('A számla nem található.', 'error'); return; }
+  const fmt2 = n => (Number(n) || 0).toLocaleString('hu-HU', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const isDraft = inv.statusz === 'Piszkozat' || inv.tipus === 'Piszkozat';
+  const statuszLabel = inv.statusz === 'Fizetett' ? 'Fizetett ✓'
+    : inv.statusz === 'Storno' ? 'Sztornó'
+    : isDraft ? 'Piszkozat' : 'Fizetésre vár';
+  const statuszSzin = inv.statusz === 'Fizetett' ? '#15803d' : inv.statusz === 'Storno' ? '#dc2626' : isDraft ? '#6b7280' : '#b45309';
+  const tetelSorok = (inv.tetelek && inv.tetelek.length) ? inv.tetelek.map(t => `
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${t.megnevezes || ''}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap">${t.mennyiseg || ''} ${t.egyseg || ''}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center">${t.afa || ''}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">${fmt2(t.egyseg_ar)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${fmt2((Number(t.mennyiseg) || 0) * (Number(t.egyseg_ar) || 0))}</td>
+    </tr>`).join('') : '<tr><td colspan="5" style="padding:14px;text-align:center;color:var(--text-muted)">Nincs tétel adat</td></tr>';
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header">
+        <div class="modal-title">🧾 ${inv.invoiceNumber || ((inv.tipus || 'Számla') + ' (piszkozat)')}</div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:13px">
+          <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Ügyfél</div><div>${inv.ugyfelNev || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Típus</div><div>${inv.tipus || 'Számla'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Státusz</div><div style="font-weight:600;color:${statuszSzin}">${statuszLabel}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Deviza</div><div>${inv.currency || 'HUF'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Teljesítés dátuma</div><div>${inv.teljesitesDatum || '—'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">Fizetési határidő</div><div>${inv.fizetesiHatarido || '—'}</div></div>
+          ${inv.poSzam ? `<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:2px">PO szám</div><div style="font-family:'DM Mono',monospace">${inv.poSzam}</div></div>` : ''}
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead><tr style="background:var(--surface)">
+            <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text-muted)">Megnevezés</th>
+            <th style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text-muted)">Menny.</th>
+            <th style="padding:8px 10px;text-align:center;font-size:11px;color:var(--text-muted)">ÁFA</th>
+            <th style="padding:8px 10px;text-align:right;font-size:11px;color:var(--text-muted)">Egységár</th>
+            <th style="padding:8px 10px;text-align:right;font-size:11px;color:var(--text-muted)">Nettó</th>
+          </tr></thead>
+          <tbody>${tetelSorok}</tbody>
+        </table>
+        <div style="text-align:right;margin-top:12px;font-size:13px">
+          Nettó: <strong style="font-family:'DM Mono',monospace">${fmt2(inv.nettoOssz)} ${inv.currency}</strong>
+          &nbsp;·&nbsp; Bruttó: <strong style="font-family:'DM Mono',monospace">${fmt2(inv.bruttoOssz)} ${inv.currency}</strong>
+        </div>
+      </div>
+      <div class="modal-footer">
+        ${inv.pdfUrl ? `<a href="${inv.pdfUrl}" target="_blank" class="btn btn-primary">📄 PDF megnyitása</a>` : ''}
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Bezárás</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 function openKszModalFromProjekt(projektId) {
@@ -14753,6 +14847,7 @@ async function loadMnbArfolyam(dateStr) {
 
 // ===== PÉNZÜGYI KIMUTATÁS (CASHFLOW) =====
 let _pkChart = null;
+let _pkEredmenyChart = null;
 let _pkEurHuf = 400; // fallback árfolyam, betöltéskor frissül
 
 async function initPenzugyiKimutatas() {
@@ -14828,6 +14923,7 @@ async function renderPenzugyiKimutatas() {
           invoiceNumber: r.fields.Szamlaszam || '',
           supplierName: r.fields.Szallito_nev || '',
           paymentDate: r.fields.Fizetesi_hatarido || '',
+          invoiceDeliveryDate: r.fields.Teljesites_datum || '',
           invoiceNetAmount: r.fields.Netto_osszeg || 0,
           invoiceVatAmount: r.fields.Afa_osszeg || 0,
           currency: r.fields.Deviza || 'HUF',
@@ -14843,8 +14939,11 @@ async function renderPenzugyiKimutatas() {
           invoiceNumber: r.fields.Szamlaszam || '',
           ugyfelNev: r.fields.Ugyfel_nev || '',
           fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
+          teljesitesDatum: r.fields.Teljesites_datum || '',
+          nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
           bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
           currency: r.fields.Deviza || 'HUF',
+          arfolyam: r.fields.Arfolyam || null,
           statusz: r.fields.Statusz || 'Fizetesre_var',
           tipus: kszTipusFromRecord(r.fields),
         }));
@@ -14978,6 +15077,9 @@ async function renderPenzugyiKimutatas() {
     // 9. Diagram (oszlop: napi be/ki + vonal: egyenleg)
     pkRenderChart(napok, napiBevetel, napiKiadas, egyenlegGorbe);
 
+    // 9b. Havi eredmény diagram (aktuális év, nettó, teljesítés dátuma szerint)
+    pkRenderHaviEredmeny(kszData);
+
     // 10. Tételek táblázat (dátum szerint rendezve)
     pkRenderTetelek(tetelek);
 
@@ -15042,6 +15144,121 @@ function pkRenderChart(napok, napiBevetel, napiKiadas, egyenlegGorbe) {
           grid: { color: 'rgba(0,0,0,0.05)' },
         },
         x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+      },
+    },
+  });
+}
+
+// Összeg HUF-ra váltása a számlán mentett árfolyammal (ha van), különben az aktuálissal
+function pkToHufArf(amount, currency, arfolyam) {
+  const a = parseFloat(amount) || 0;
+  if (!currency || currency === 'HUF') return a;
+  if (arfolyam && parseFloat(arfolyam) > 0) return a * parseFloat(arfolyam);
+  return pkToHuf(a, currency);
+}
+
+// Havi eredmény diagram: aktuális év, nettó összegek, teljesítés dátuma szerint.
+// Bevétel: kimenő számlák (kivéve sztornó, piszkozat, díjbekérő).
+// Kiadás: bejövő számlák (kivéve sztornó) + havi fix költségek (bér, járulék, hitel).
+function pkRenderHaviEredmeny(kszData) {
+  const ctx = document.getElementById('pkEredmenyChart');
+  if (!ctx) return;
+  if (_pkEredmenyChart) { _pkEredmenyChart.destroy(); _pkEredmenyChart = null; }
+
+  const most = new Date();
+  const ev = most.getFullYear();
+  const utolsoHonap = most.getMonth(); // 0-index: aktuális hónapig
+  const evEl = document.getElementById('pkEredmenyEv');
+  if (evEl) evEl.textContent = ev;
+
+  const bev = Array(utolsoHonap + 1).fill(0);
+  const kiad = Array(utolsoHonap + 1).fill(0);
+  const evPrefix = String(ev) + '-';
+
+  // Bevétel: kimenő számlák nettó, teljesítés dátuma szerint
+  for (const inv of (kszData || [])) {
+    if (inv.statusz === 'Storno') continue;
+    const tip = inv.tipus || 'Számla';
+    if (tip === 'Piszkozat' || tip === 'Díjbekérő') continue;
+    const d = inv.teljesitesDatum || '';
+    if (!d.startsWith(evPrefix)) continue;
+    const m = parseInt(d.slice(5, 7), 10) - 1;
+    if (isNaN(m) || m < 0 || m > utolsoHonap) continue;
+    bev[m] += pkToHufArf(inv.nettoOssz, inv.currency, inv.arfolyam);
+  }
+
+  // Kiadás: bejövő számlák nettó, teljesítés dátuma szerint
+  for (const inv of bszInvoices) {
+    if (inv._airtableStatus === 'Storno') continue;
+    const d = inv.invoiceDeliveryDate || '';
+    if (!d.startsWith(evPrefix)) continue;
+    const m = parseInt(d.slice(5, 7), 10) - 1;
+    if (isNaN(m) || m < 0 || m > utolsoHonap) continue;
+    kiad[m] += pkToHufArf(inv.invoiceNetAmount, inv.currency, inv.arfolyam);
+  }
+
+  // Havi fix kiadások: bér + járulék + hitel minden hónapra
+  const bj = getBerJarulekCache();
+  const fixHavi = (parseFloat(bj.ber) || 0) + (parseFloat(bj.jarulek) || 0) + (parseFloat(bj.hitel) || 0);
+  for (let m = 0; m <= utolsoHonap; m++) kiad[m] += fixHavi;
+
+  const eredmeny = [];
+  let evesOsszeg = 0;
+  for (let m = 0; m <= utolsoHonap; m++) {
+    const e = Math.round(bev[m] - kiad[m]);
+    eredmeny.push(e);
+    evesOsszeg += e;
+  }
+
+  // Éves összesítő a fejlécben
+  const osszEl = document.getElementById('pkEredmenyOsszesen');
+  if (osszEl) {
+    osszEl.style.color = evesOsszeg < 0 ? '#dc2626' : '#16a34a';
+    osszEl.textContent = `${ev} összesen: ${evesOsszeg >= 0 ? '+' : '−'}${Math.abs(evesOsszeg).toLocaleString('hu-HU')} Ft`;
+  }
+
+  const HONAP_NEVEK = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
+  const cimkek = HONAP_NEVEK.slice(0, utolsoHonap + 1);
+
+  _pkEredmenyChart = new Chart(ctx, {
+    data: {
+      labels: cimkek,
+      datasets: [
+        {
+          type: 'bar', label: 'Bevétel (nettó)', order: 2,
+          data: bev.map(v => Math.round(v)),
+          backgroundColor: 'rgba(22,163,74,0.35)', borderRadius: 3,
+        },
+        {
+          type: 'bar', label: 'Kiadás (nettó + fix)', order: 2,
+          data: kiad.map(v => -Math.round(v)),
+          backgroundColor: 'rgba(220,38,38,0.35)', borderRadius: 3,
+        },
+        {
+          type: 'bar', label: 'Eredmény', order: 1,
+          data: eredmeny,
+          backgroundColor: eredmeny.map(v => v >= 0 ? 'rgba(22,163,74,0.95)' : 'rgba(220,38,38,0.95)'),
+          borderRadius: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: (c) => `${c.dataset.label}: ${Math.round(Math.abs(c.parsed.y)).toLocaleString('hu-HU')} Ft${c.dataset.label === 'Eredmény' && c.parsed.y < 0 ? ' veszteség' : c.dataset.label === 'Eredmény' ? ' nyereség' : ''}`,
+          },
+        },
+      },
+      scales: {
+        y: {
+          ticks: { callback: (v) => (v / 1000000).toFixed(1) + 'M' },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+        x: { grid: { display: false } },
       },
     },
   });

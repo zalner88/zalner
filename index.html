@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v314
+     ZALNER ERP - VERZIÓ: v315
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v315:
+- JAVÍTVA — ÁFA bevallás / "Összes csatolmány" letöltés: a "bejövő számlák" mappába eddig
+  MINDEN bejövő számla PDF-je bekerült, hónapszűrés nélkül. Mostantól csak a kiválasztott
+  hónap TELJESÍTÉS dátumú bejövő számlái kerülnek a zipbe (ha egy számlán nincs teljesítés
+  dátum, a kiállítás dátuma számít tartalékként). A kimenő és vám szűrés változatlan.
 
 CHANGES v314:
 - Pénzügyi kimutatás: ÚJ "Havi eredmény" diagram az aktuális évre (január → aktuális hónap).
@@ -588,7 +594,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v314</title>
+<title>Zalner ERP v315</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -781,7 +787,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v314</div>
+    <div class="nav-logo-sub">v315</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -9889,7 +9895,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v314 · Belső rendszer
+          Zalner ERP v315 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -15982,8 +15988,12 @@ async function afaOsszesCsatolmanyLetoltes() {
   const idoszak = ev && honap ? `${ev}_${honap}` : 'osszes';
   const prefix = ev && honap ? `${ev}-${honap}` : '';
 
-  // Bejövő számlák PDF-jei (Airtable csatolmány URL)
-  const bejovoPdfek = bszInvoices.filter(i => i._pdfUrl);
+  // Bejövő számlák PDF-jei (Airtable csatolmány URL) — CSAK a szűrt hónap
+  // TELJESÍTÉS dátumú számlái (ha nincs teljesítés dátum, a kiállítás dátuma számít)
+  const bejovoPdfek = (prefix
+    ? bszInvoices.filter(i => ((i.invoiceDeliveryDate || i.invoiceIssueDate || '')).startsWith(prefix))
+    : bszInvoices.slice()
+  ).filter(i => i._pdfUrl);
 
   // Kimenő számlák (nem storno/piszkozat, van Billingo azonosító) az adott időszakra
   const kimenoScope = (prefix

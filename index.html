@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v315
+     ZALNER ERP - VERZIÓ: v316
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v316:
+- Ajánlat szerkesztése: a Kiállítás dátuma mostantól mindig az AZNAPI dátumra áll be (eddig
+  az eredeti létrehozás dátuma maradt), és az Érvényesség is ebből számolódik automatikusan
+  (+30 nap). A dátumok mentés előtt kézzel továbbra is módosíthatók.
 
 CHANGES v315:
 - JAVÍTVA — ÁFA bevallás / "Összes csatolmány" letöltés: a "bejövő számlák" mappába eddig
@@ -594,7 +599,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v315</title>
+<title>Zalner ERP v316</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -787,7 +792,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v315</div>
+    <div class="nav-logo-sub">v316</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -5997,8 +6002,9 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
     loadVevoiKontaktok(uid);
   };
   sel.value = f.Ugyfel ? f.Ugyfel[0] : '';
-  document.getElementById('fKiallitas').value = f.Kiallitas_datum || '';
-  document.getElementById('fErvenyesseg').value = f.Ervenyesseg_datum || '';
+  // Szerkesztésnél a kiállítás dátuma mindig a MAI nap, az érvényesség ebből számolódik (+30 nap)
+  document.getElementById('fKiallitas').value = new Date().toISOString().split('T')[0];
+  autoErvenyesseg();
   document.getElementById('fSzallitasiHatarido').value = f.Szallitasi_hatarido ? parseInt(f.Szallitasi_hatarido) || '' : '';
   document.getElementById('fDeviza').value = f.Deviza || 'HUF';
   document.getElementById('fAfa').value = f.Afa || '27%';
@@ -9895,7 +9901,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v315 · Belső rendszer
+          Zalner ERP v316 · Belső rendszer
         </div>
       </div>
     </div>`;

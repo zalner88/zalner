@@ -1,12 +1,57 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v316
+     ZALNER ERP - VERZIÓ: v321
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v321:
+- JAVÍTVA — Bejövő számla több dokumentum (v320 folytatás): a v320-as védelem nem működött,
+  mert a rekord-szintű GET (recordId + fields[] paraméter) 422-es hibát ad a proxyn, így a
+  meglévő csatolmányok lekérése mindig üresen tért vissza, és a visszafűzés sosem futott le.
+  Mostantól a csatolmány-lekérés filterByFormula RECORD_ID() lekérdezéssel megy (ezt a proxy
+  támogatja), plusz védelem: ha az állapot-lekérés mégis üres, a visszafűzés kimarad, hogy a
+  frissen feltöltött fájl ne veszhessen el.
+
+CHANGES v320:
+- JAVÍTVA — Bejövő számla több dokumentum: a proxy /api/upload végpontja FELÜLÍRJA a
+  Szamla_PDF mezőt (nem hozzáfűz), ezért a 2. feltöltésnél az 1. fájl elveszett, és mindig
+  csak az utolsó dokumentum látszott. Mostantól feltöltés előtt a kliens kimenti a meglévő
+  csatolmányokat, és ha a feltöltés után eltűntek, visszafűzi őket az új fájl mellé
+  (Airtable PATCH, URL alapú újra-csatolással). Így a 2. és 3. dokumentum a meglévők MELLÉ
+  kerül. (Tartósabb megoldás: a proxy upload kódjában a PATCH előtt a meglévő attachment
+  lista lekérése és összefűzése — ha azt módosítod, ez a kliens oldali védelem
+  automatikusan tétlen marad, mert a hozzáfűzést érzékeli.)
+
+CHANGES v319:
+- Bejövő számlák: számlánként AKÁR 3 DOKUMENTUM csatolható (Airtable Szamla_PDF attachment
+  mező, több fájllal). A listában számozott 📄 1 / 📄 2 / 📄 3 gombok nyitják a fájlokat,
+  a ＋ gombbal tölthető fel további dokumentum (3-nál a gomb eltűnik), a ✕ az összes
+  csatolmányt törli.
+- ÁFA bevallás letöltések (Összes csatolmány + bejövő PDF-ek): számlánként minden
+  dokumentum bekerül a zipbe; ha egy számlához több fájl tartozik, a fájlnév
+  SZAMLASZAM_1.pdf, SZAMLASZAM_2.pdf, SZAMLASZAM_3.pdf formátumú, így látszik az
+  összetartozás. Egyetlen dokumentumnál a név változatlan (SZAMLASZAM.pdf).
+- FONTOS: a proxy /api/upload végpontja az Airtable uploadAttachment API-t használja, ami
+  HOZZÁFŰZI az új fájlt a meglévőkhöz. Ha a 2. feltöltés felülírná az elsőt, a proxy
+  upload kódját kell ellenőrizni.
+
+CHANGES v318:
+- Bejövő számlák: kézi fizetési határidő megadás. A lista Fiz. határidő cellájában ✎ gombbal
+  dátumválasztó nyílik, a mentés az Airtable Fizetesi_hatarido mezőbe kerül. Azokhoz a
+  beszállítókhoz kell, akik NEM adják meg a határidőt a NAV adatszolgáltatásban (a NAV-nál
+  ez opcionális mező — pl. MOL, Media Markt, Mixvill, Merkantil Bank, DACHSER), így ott a
+  szinkron soha nem tudja pótolni. A NAV szinkron a kézzel megadott értéket nem írja felül.
+
+CHANGES v317:
+- JAVÍTVA — Bejövő számlák / NAV szinkron: a már Airtable-ben lévő számláknál a szinkron
+  eddig SEMMIT nem frissített (csak új számlákat mentett), ezért a korábban fizetési
+  határidő nélkül bekerült számláknál az adat sosem pótlódott. Mostantól a szinkron a
+  meglévő rekordoknál pótolja a hiányzó Fizetesi_hatarido, Teljesites_datum és
+  Kiallitas_datum mezőket a NAV adataiból (a már kitöltött mezőkhöz nem nyúl).
 
 CHANGES v316:
 - Ajánlat szerkesztése: a Kiállítás dátuma mostantól mindig az AZNAPI dátumra áll be (eddig
@@ -599,7 +644,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v316</title>
+<title>Zalner ERP v321</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -792,7 +837,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v316</div>
+    <div class="nav-logo-sub">v321</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -9901,7 +9946,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v316 · Belső rendszer
+          Zalner ERP v321 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -10276,7 +10321,7 @@ async function initBevoSzamlak() {
       _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
       _airtableKategoria: r.fields.Kategoria || '',
       _airtableId: r.id,
-      _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
+      _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null, _pdfUrls: (r.fields.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename })),
     }));
     document.getElementById('bszSubtitle').textContent = bszInvoices.length ? `Utolsó ${bszInvoices.length} számla` : 'Nincs még számla — kattints a NAV szinkron gombra';
     filterBevoSzamlak();
@@ -10413,6 +10458,31 @@ async function saveBszToAirtable(invoices) {
   try { existing = await atGet('Bejovo_Szamlak'); } catch(e) {}
 
   const existingNums = new Set(existing.map(r => r.fields.Szamlaszam));
+
+  // MEGLÉVŐ rekordok hiányzó dátumainak pótlása (fizetési határidő, teljesítés, kiállítás).
+  // Eddig a szinkron a már bent lévő számlákat teljesen kihagyta, ezért ha egy számla
+  // korábban határidő nélkül került be, a NAV-ból később elérhető adat SOSEM pótlódott.
+  const navByNum = new Map();
+  for (const inv of invoices) { if (inv.invoiceNumber) navByNum.set(inv.invoiceNumber, inv); }
+  let potolva = 0;
+  for (const r of existing) {
+    const nav = navByNum.get(r.fields.Szamlaszam);
+    if (!nav) continue;
+    const potlas = {};
+    if (!r.fields.Fizetesi_hatarido && nav.paymentDate) potlas.Fizetesi_hatarido = nav.paymentDate;
+    if (!r.fields.Teljesites_datum && nav.invoiceDeliveryDate) potlas.Teljesites_datum = nav.invoiceDeliveryDate;
+    if (!r.fields.Kiallitas_datum && nav.invoiceIssueDate) potlas.Kiallitas_datum = nav.invoiceIssueDate;
+    if (!Object.keys(potlas).length) continue;
+    try {
+      const resp = await fetch(atUrl('Bejovo_Szamlak', r.id), {
+        method: 'PATCH', headers: getAuthHeaders(),
+        body: JSON.stringify({ fields: potlas }),
+      });
+      if (resp.ok) potolva++;
+      else console.warn('Dátum pótlás hiba:', r.fields.Szamlaszam, await resp.text());
+    } catch(e) { console.warn('Dátum pótlás hiba:', r.fields.Szamlaszam, e); }
+  }
+  if (potolva) toast(`${potolva} meglévő számla hiányzó dátuma pótolva a NAV adatokból`, 'success');
 
   // Csak az újakat mentjük
   const newInvoices = invoices.filter(inv => !existingNums.has(inv.invoiceNumber));
@@ -10597,16 +10667,63 @@ function renderBevoSzamlak() {
       <td style="text-align:right;font-weight:600">${brutto.toLocaleString('hu-HU')}</td>
       <td class="td-muted">${inv.currency || 'HUF'}</td>
       <td class="td-muted">${inv.invoiceIssueDate || '—'}</td>
-      <td class="td-muted">${inv.paymentDate || '—'}</td>
+      <td class="td-muted" style="white-space:nowrap">${inv.paymentDate || '—'} <button style="background:none;border:none;cursor:pointer;color:var(--text-light);font-size:11px;padding:0 2px" title="Fizetési határidő kézi megadása" onclick="event.stopPropagation();editBszHatarido('${inv._airtableId||''}','${(inv.invoiceNumber||'').replace(/'/g,'')}','${inv.paymentDate||''}')">✎</button></td>
       <td>${statusSelect(inv)}</td>
       <td>${kategoriasSelect(inv)}</td>
       <td>${tipusBadge(inv.invoiceOperation)}</td>
-      <td style="white-space:nowrap">${inv._pdfUrl
-        ? `<a href="${inv._pdfUrl}" target="_blank" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 10px">📄 Megnyitás</a> <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 6px;color:#e74c3c" onclick="event.stopPropagation();deleteBszPdf('${inv._airtableId||''}','${(inv.invoiceNumber||'').replace(/'/g,'')}')" title="PDF törlése">✕</button>`
-        : `<label class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;cursor:pointer;margin:0">📎 Feltöltés<input type="file" accept=".pdf" style="display:none" onchange="uploadBszPdf(this,'${inv._airtableId||''}','${(inv.invoiceNumber||'').replace(/'/g,'')}')" /></label>`
-      } <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 6px;color:#e74c3c;margin-left:4px" onclick="event.stopPropagation();deleteBszRecord('${inv._airtableId}','${(inv.invoiceNumber||'').replace(/'/g,'')}')">&#x1F5D1;</button></td>
+      <td style="white-space:nowrap">${(() => {
+        const docs = (inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : (inv._pdfUrl ? [{ url: inv._pdfUrl }] : []);
+        const safeNum = (inv.invoiceNumber||'').replace(/'/g,'');
+        let h = docs.map((d, ix) => `<a href="${d.url}" target="_blank" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px" title="${(d.filename||'').replace(/"/g,'')}">📄${docs.length > 1 ? ' ' + (ix+1) : ' Megnyitás'}</a>`).join(' ');
+        if (docs.length < 3) h += (h ? ' ' : '') + `<label class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;cursor:pointer;margin:0" title="Dokumentum csatolása (max 3 db)">${docs.length ? '＋' : '📎 Feltöltés'}<input type="file" accept=".pdf" style="display:none" onchange="uploadBszPdf(this,'${inv._airtableId||''}','${safeNum}')" /></label>`;
+        if (docs.length) h += ` <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 6px;color:#e74c3c" onclick="event.stopPropagation();deleteBszPdf('${inv._airtableId||''}','${safeNum}')" title="Összes csatolmány törlése">✕</button>`;
+        return h;
+      })()} <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 6px;color:#e74c3c;margin-left:4px" onclick="event.stopPropagation();deleteBszRecord('${inv._airtableId}','${(inv.invoiceNumber||'').replace(/'/g,'')}')">&#x1F5D1;</button></td>
     </tr>`;
   }).join('');
+}
+
+// Fizetési határidő kézi megadása/módosítása — azokhoz a számlákhoz, ahol a beszállító
+// nem adja meg a határidőt a NAV adatszolgáltatásban (pl. MOL, Mixvill, bankok).
+function editBszHatarido(airtableId, szamlaszam, current) {
+  if (!airtableId) { toast('A számlának még nincs Airtable rekordja — futtass NAV szinkront!', 'error'); return; }
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header"><div class="modal-title">Fizetési határidő — ${szamlaszam}</div><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Fizetési határidő *</label>
+          <input class="form-control" type="date" id="fBszHatarido" value="${current || ''}">
+        </div>
+        <div style="font-size:12px;color:var(--text-muted)">A dátum az Airtable-be mentődik; a NAV szinkron a kézzel megadott értéket nem írja felül.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Mégse</button>
+        <button class="btn btn-primary" onclick="saveBszHatarido('${airtableId}','${szamlaszam}',this)">Mentés</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveBszHatarido(airtableId, szamlaszam, btn) {
+  const datum = document.getElementById('fBszHatarido')?.value;
+  if (!datum) { toast('Adj meg dátumot!', 'error'); return; }
+  btn.disabled = true;
+  try {
+    const r = await fetch(atUrl('Bejovo_Szamlak', airtableId), {
+      method: 'PATCH', headers: getAuthHeaders(),
+      body: JSON.stringify({ fields: { Fizetesi_hatarido: datum } }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    cacheInvalidate('Bejovo_Szamlak');
+    const inv = bszInvoices.find(i => i._airtableId === airtableId);
+    if (inv) inv.paymentDate = datum;
+    btn.closest('.modal-overlay').remove();
+    toast(`Fizetési határidő mentve: ${szamlaszam} → ${datum}`, 'success');
+    filterBevoSzamlak();
+  } catch(e) { toast('Mentési hiba: ' + e.message, 'error'); btn.disabled = false; }
 }
 
 function bszGoToPage(page) {
@@ -10646,7 +10763,7 @@ async function reloadBszFromAirtable() {
       invoiceOperation: r.fields.Tipus || 'CREATE',
       _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
       _airtableId: r.id,
-      _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
+      _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null, _pdfUrls: (r.fields.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename })),
     }));
     document.getElementById('bszSubtitle').textContent = `${bszInvoices.length} számla`;
     filterBevoSzamlak();
@@ -10669,17 +10786,28 @@ function deleteBszRecord(airtableId, invoiceNumber) {
 
 async function deleteBszPdf(airtableId, invoiceNumber) {
   if (!airtableId) { toast('Nincs Airtable rekord!', 'error'); return; }
-  showConfirm('PDF törlése', `Biztosan törlöd a csatolmányt: "${invoiceNumber}"?`, async () => {
+  showConfirm('Csatolmányok törlése', `Biztosan törlöd a számla ÖSSZES csatolmányát: "${invoiceNumber}"?`, async () => {
     try {
       await atPatch('Bejovo_Szamlak', airtableId, { Szamla_PDF: [] });
       const inv = bszInvoices.find(i => i._airtableId === airtableId);
-      if (inv) inv._pdfUrl = null;
+      if (inv) { inv._pdfUrl = null; inv._pdfUrls = []; }
       filterBevoSzamlak();
       toast('PDF törölve!', 'success');
     } catch(e) {
       toast('Törlési hiba: ' + e.message, 'error');
     }
   });
+}
+
+// Egy bejövő számla aktuális csatolmány-listájának lekérése.
+// A recordId+fields[] paraméteres GET-et a proxy NEM támogatja (422-t ad), ezért
+// filterByFormula RECORD_ID() lekérdezést használunk, amit a proxy bizonyítottan kezel.
+async function bszFetchCsatolmanyok(airtableId) {
+  try {
+    cacheInvalidate('Bejovo_Szamlak');
+    const recs = await atGet('Bejovo_Szamlak', 'filterByFormula=' + encodeURIComponent(`RECORD_ID()="${airtableId}"`));
+    return (recs?.[0]?.fields?.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename }));
+  } catch(e) { console.warn('Csatolmány lekérés hiba:', e); return []; }
 }
 
 async function uploadBszPdf(input, airtableId, invoiceNumber) {
@@ -10695,15 +10823,37 @@ async function uploadBszPdf(input, airtableId, invoiceNumber) {
     input.value = '';
     return;
   }
+  const _inv = bszInvoices.find(i => i._airtableId === airtableId);
+  if (_inv && _inv._pdfUrls && _inv._pdfUrls.length >= 3) {
+    toast('Egy számlához legfeljebb 3 dokumentum csatolható!', 'error');
+    input.value = '';
+    return;
+  }
   toast('Feltöltés...', '');
   try {
+    // A proxy /api/upload FELÜLÍRJA a Szamla_PDF mezőt (nem hozzáfűz), ezért a meglévő
+    // csatolmányokat feltöltés ELŐTT kimentjük (friss, még érvényes URL-ekkel), és ha a
+    // feltöltés után eltűntek, visszafűzzük őket az új fájl mellé.
+    const elozoek = await bszFetchCsatolmanyok(airtableId);
+
     await atUploadAttachment('Bejovo_Szamlak', airtableId, 'Szamla_PDF', file);
-    // Frissítjük a lokális PDF URL-t
-    const refreshed = await fetch(`${atUrl('Bejovo_Szamlak', airtableId)}&fields%5B%5D=Szamla_PDF`, { headers: getAuthHeaders() });
-    if (refreshed.ok) {
-      const rd = await refreshed.json();
-      const inv = bszInvoices.find(i => i._airtableId === airtableId);
-      if (inv) inv._pdfUrl = rd.fields?.Szamla_PDF?.[0]?.url || null;
+
+    // Aktuális állapot lekérése
+    let aktualis = await bszFetchCsatolmanyok(airtableId);
+
+    // Ha a korábbi csatolmányok eltűntek (a proxy felülírta a mezőt), visszafűzzük
+    // őket az új fájl elé. Csak akkor, ha az aktuális állapot lekérése sikerült
+    // (aktualis nem üres), különben a friss fájlt veszítenénk el.
+    if (elozoek.length && aktualis.length >= 1 && aktualis.length < elozoek.length + 1) {
+      await atPatch('Bejovo_Szamlak', airtableId, { Szamla_PDF: [...elozoek, ...aktualis] });
+      aktualis = await bszFetchCsatolmanyok(airtableId);
+    }
+
+    cacheInvalidate('Bejovo_Szamlak');
+    const inv = bszInvoices.find(i => i._airtableId === airtableId);
+    if (inv) {
+      inv._pdfUrl = aktualis[0]?.url || null;
+      inv._pdfUrls = aktualis;
     }
     const _savedPage = bszCurrentPage;
     filterBevoSzamlak();
@@ -14766,7 +14916,7 @@ function initAfaBevallas() {
             _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
             _airtableKategoria: r.fields.Kategoria || '',
             _airtableId: r.id,
-            _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
+            _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null, _pdfUrls: (r.fields.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename })),
           }));
         }).catch(() => {})
     );
@@ -15341,7 +15491,7 @@ async function loadAfaData(force = false) {
       _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
       _airtableKategoria: r.fields.Kategoria || '',
       _airtableId: r.id,
-      _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
+      _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null, _pdfUrls: (r.fields.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename })),
     }));
   } catch(e) { console.warn('ÁFA bejövő betöltés hiba:', e); }
   // Kimenő számlák
@@ -15742,7 +15892,7 @@ async function exportAfaExcel() {
         _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
         _airtableKategoria: r.fields.Kategoria || '',
         _airtableId: r.id,
-        _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null,
+        _pdfUrl: r.fields.Szamla_PDF?.[0]?.url || null, _pdfUrls: (r.fields.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename })),
       }));
     } catch(e) { console.warn('bsz betöltés hiba:', e); }
   }
@@ -15970,11 +16120,18 @@ async function zipEsLetolt(pdfek, zipNev) {
   toast(`${pdfek.length} PDF zip-elése folyamatban...`, '');
   try {
     const zip = new JSZip();
-    await Promise.all(pdfek.map(async (inv) => {
-      const resp = await fetch(inv._pdfUrl);
-      if (!resp.ok) throw new Error(`Nem sikerült letölteni: ${inv.invoiceNumber}`);
-      const blob = await resp.blob();
-      zip.file((inv.invoiceNumber || 'szamla').replace(/[/\\:*?"<>|]/g, '_') + '.pdf', blob);
+    let fajlDb = 0;
+    await Promise.all(pdfek.flatMap((inv) => {
+      const docs = (inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : [{ url: inv._pdfUrl }];
+      return docs.map(async (d, ix) => {
+        const resp = await fetch(d.url);
+        if (!resp.ok) throw new Error(`Nem sikerült letölteni: ${inv.invoiceNumber}`);
+        const blob = await resp.blob();
+        // Több dokumentum esetén a fájlnévben _1, _2, _3 utótag jelzi az összetartozást
+        const nev = (inv.invoiceNumber || 'szamla').replace(/[/\\:*?"<>|]/g, '_') + (docs.length > 1 ? `_${ix+1}` : '');
+        zip.file(nev + '.pdf', blob);
+        fajlDb++;
+      });
     }));
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
@@ -15982,7 +16139,7 @@ async function zipEsLetolt(pdfek, zipNev) {
     a.download = zipNev + '.zip';
     a.click();
     URL.revokeObjectURL(a.href);
-    toast(`✓ ${pdfek.length} PDF letöltve: ${zipNev}.zip`, 'success');
+    toast(`✓ ${fajlDb} PDF letöltve (${pdfek.length} számla): ${zipNev}.zip`, 'success');
   } catch(e) {
     toast('Hiba: ' + e.message, 'error');
   }
@@ -15999,7 +16156,7 @@ async function afaOsszesCsatolmanyLetoltes() {
   const bejovoPdfek = (prefix
     ? bszInvoices.filter(i => ((i.invoiceDeliveryDate || i.invoiceIssueDate || '')).startsWith(prefix))
     : bszInvoices.slice()
-  ).filter(i => i._pdfUrl);
+  ).filter(i => (i._pdfUrls && i._pdfUrls.length) || i._pdfUrl);
 
   // Kimenő számlák (nem storno/piszkozat, van Billingo azonosító) az adott időszakra
   const kimenoScope = (prefix
@@ -16090,13 +16247,18 @@ async function afaOsszesCsatolmanyLetoltes() {
       if (blob) { kimMappa.file(safe(inv.invoiceNumber || inv._id) + '.pdf', blob); kimOk++; }
     });
 
+    // Bejövő: számlánként AKÁR 3 dokumentum — több fájlnál _1/_2/_3 utótag jelzi az összetartozást
+    const bejovoFajlDb = bejovoPdfek.reduce((n, i) => n + ((i._pdfUrls && i._pdfUrls.length) || 1), 0);
     await Promise.all([
-      ...bejovoPdfek.map(inv => fetchPdfUrl(inv._pdfUrl, inv.invoiceNumber || 'szamla', bejMappa)),
+      ...bejovoPdfek.flatMap(inv => {
+        const docs = (inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : [{ url: inv._pdfUrl }];
+        return docs.map((d, ix) => fetchPdfUrl(d.url, (inv.invoiceNumber || 'szamla') + (docs.length > 1 ? `_${ix+1}` : ''), bejMappa));
+      }),
       ...kimTasks,
       ...vamPdfek.map(inv => fetchPdfUrl(inv._pdfUrl, inv.invoiceNumber || 'vam', vamMappa)),
     ]);
 
-    const total = bejovoPdfek.length + kimOk + vamPdfek.length;
+    const total = bejovoFajlDb + kimOk + vamPdfek.length;
     if (!total) { toast('Nem sikerült egyetlen PDF-et sem letölteni.', 'error'); return; }
 
     const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -16105,14 +16267,14 @@ async function afaOsszesCsatolmanyLetoltes() {
     a.download = `csatolmanyok_${idoszak}.zip`;
     a.click();
     URL.revokeObjectURL(a.href);
-    toast(`✓ ${total} PDF letöltve (bejövő: ${bejovoPdfek.length}, kimenő: ${kimOk}/${kimenoScope.length}, vám: ${vamPdfek.length})`, 'success');
+    toast(`✓ ${total} PDF letöltve (bejövő: ${bejovoFajlDb}, kimenő: ${kimOk}/${kimenoScope.length}, vám: ${vamPdfek.length})`, 'success');
   } catch(e) {
     toast('Hiba a zip generálásakor: ' + e.message, 'error');
   }
 }
 
 async function afaCsatolmanyLetoltes(szamlak) {
-  const pdfek = (szamlak || bszInvoices).filter(i => i._pdfUrl);
+  const pdfek = (szamlak || bszInvoices).filter(i => (i._pdfUrls && i._pdfUrls.length) || i._pdfUrl);
   const ev = document.getElementById('afaEv')?.value || '';
   const honap = document.getElementById('afaHonap')?.value || '';
   await zipEsLetolt(pdfek, `szamlak_${ev}_${honap}`);

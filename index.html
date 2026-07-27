@@ -1,12 +1,31 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v321
+     ZALNER ERP - VERZIÓ: v323
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v323:
+- JAVÍTVA — Billingo import: a mentés az Arfolyam mezőt is küldte, ami NEM létezik a
+  Kimeno_Szamlak táblában, ezért az Airtable az összes importot elutasította (0/3).
+  Az árfolyam mostantól a Megjegyzés szövegébe kerül (pl. "árfolyam: 362.45").
+- Billingo import: a cancellation (sztornó) bizonylatok Sztornó típussal és Storno
+  státusszal mentődnek; mentési hibánál látható piros toast is megjelenik (nem csak
+  console figyelmeztetés).
+
+CHANGES v322:
+- Kimenő számlák: ÚJ "⬇ Billingo import" — a Billingo-ban közvetlenül (ERP-t megkerülve)
+  kiállított számlák behúzása az Airtable-be. A dátum-tól/-ig mezőkkel TE adod meg az
+  időablakot (kiállítási dátum szerint; alapértelmezés: utolsó 31 nap), így régi számlák
+  nem jönnek be véletlenül. Duplikátum-védelem Billingo_id ÉS számlaszám alapján — ami már
+  megvan az ERP-ben, azt sosem importálja újra. Importált adatok: számlaszám, vevő neve,
+  nettó/bruttó, deviza, árfolyam, dátumok, fizetési státusz, típus, PDF link; a Megjegyzés
+  mezőbe "Billingo importból" jelölés kerül. A projektet nem tudja automatikusan hozzákötni
+  — igény esetén utólag, kézzel rendelhető hozzá. Ha a Billingo nem ad vissza tételeket,
+  a nettó a bruttóval egyezik meg és a Megjegyzés jelzi, hogy ellenőrizendő.
 
 CHANGES v321:
 - JAVÍTVA — Bejövő számla több dokumentum (v320 folytatás): a v320-as védelem nem működött,
@@ -644,7 +663,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v321</title>
+<title>Zalner ERP v323</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -837,7 +856,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v321</div>
+    <div class="nav-logo-sub">v323</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1516,6 +1535,9 @@ select.form-control{cursor:pointer}
         <div class="page-subtitle" id="kszSubtitle">Billingo e-számlák</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
+        <input type="date" class="form-control" id="bilImpFrom" style="width:140px;padding:6px 8px" title="Billingo import — ettől a kiállítási dátumtól">
+        <input type="date" class="form-control" id="bilImpTo" style="width:140px;padding:6px 8px" title="Billingo import — eddig a kiállítási dátumig">
+        <button class="btn btn-secondary" onclick="importBillingoSzamlak()" id="bilImpBtn" title="A Billingo-ban közvetlenül kiállított, ERP-ből hiányzó számlák behúzása a megadott időablakból">⬇ Billingo import</button>
         <button class="btn btn-secondary" onclick="syncKimenoSzamlak()" id="syncKszBtn">🔄 Frissítés</button>
         <button class="btn btn-primary" onclick="openKszModal()">＋ Új számla</button>
       </div>
@@ -9946,7 +9968,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v321 · Belső rendszer
+          Zalner ERP v323 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -12858,6 +12880,10 @@ async function billingoApi(method, path, body = null) {
 
 // --- Oldal inicializálás ---
 async function initKimenoSzamlak() {
+  // Billingo import időablak alapértelmezés: utolsó 31 nap (ha még üres)
+  const _bf = document.getElementById('bilImpFrom'), _bt = document.getElementById('bilImpTo');
+  if (_bf && !_bf.value) _bf.value = new Date(Date.now() - 31*24*60*60*1000).toISOString().split('T')[0];
+  if (_bt && !_bt.value) _bt.value = new Date().toISOString().split('T')[0];
   // Először betölti az Airtable-ből a megosztott API kulcsot
   await loadBillingoApiKey();
   const apiKey = getBillingoApiKey();
@@ -12875,6 +12901,108 @@ function kszTipusFromRecord(fields) {
   const sz = (fields.Szamlaszam || '').toUpperCase();
   if (/\bDK\d|_DK|E-DÍJBEKÉRŐ|E-DIJBEKERO|DÍJBEK|DIJBEK/i.test(sz)) return 'Díjbekérő';
   return 'Számla';
+}
+
+// Billingo-ban közvetlenül kiállított (ERP-t megkerülő) számlák importja.
+// A felhasználó által megadott időablakban (kiállítási dátum szerint) lekéri a Billingo
+// dokumentumokat, és ami Billingo_id / számlaszám alapján nincs meg az Airtable-ben,
+// azt beimportálja. A projektet nem tudja automatikusan hozzákötni — az utólag, kézzel
+// rendelhető hozzá az Airtable-ben.
+async function importBillingoSzamlak() {
+  const btn = document.getElementById('bilImpBtn');
+  const dFrom = document.getElementById('bilImpFrom')?.value;
+  const dTo = document.getElementById('bilImpTo')?.value;
+  if (!dFrom || !dTo) { toast('Add meg az import időablakát (dátumtól–dátumig)!', 'error'); return; }
+  if (dFrom > dTo) { toast('A kezdő dátum nem lehet későbbi a záró dátumnál!', 'error'); return; }
+  const apiKey = getBillingoApiKey();
+  if (!apiKey) { toast('Nincs Billingo API kulcs! Menj a Rendszer → Felhasználók oldalra.', 'error'); return; }
+  btn.disabled = true; btn.textContent = '⏳ Import...';
+  try {
+    // 1. Billingo dokumentumok lekérése az időablakra (lapozva)
+    let docs = [], page = 1, lastPage = 1;
+    do {
+      const resp = await billingoApiDirect('GET', `documents?start_date=${dFrom}&end_date=${dTo}&per_page=100&page=${page}`, null, apiKey);
+      docs = docs.concat(resp?.data || []);
+      lastPage = resp?.last_page || 1;
+      page++;
+    } while (page <= lastPage && page <= 20);
+
+    // 2. Meglévő ERP számlák — duplikátum-szűrés Billingo_id ÉS számlaszám alapján
+    cacheInvalidate('Kimeno_Szamlak');
+    const existing = await atGet('Kimeno_Szamlak');
+    const megvanBilId = new Set(existing.map(r => String(r.fields.Billingo_id || '')).filter(Boolean));
+    const megvanSzam = new Set(existing.map(r => r.fields.Szamlaszam || '').filter(Boolean));
+
+    const tipusMap = { proforma: 'Díjbekérő', advance: 'Előlegszámla', final: 'Végszámla' };
+    const hianyzok = docs.filter(d =>
+      d.type !== 'draft' && d.invoice_number &&
+      !megvanBilId.has(String(d.id)) && !megvanSzam.has(d.invoice_number)
+    );
+
+    if (!hianyzok.length) {
+      toast(`Nincs importálandó számla — a(z) ${dFrom} – ${dTo} időszak minden Billingo számlája megvan az ERP-ben.`, 'success');
+      return;
+    }
+
+    let importalt = 0;
+    for (const d of hianyzok) {
+      try {
+        // Részletek lekérése a nettó összeghez (a listaválasz nem mindig tartalmaz tételeket)
+        let reszlet = d;
+        try { const rd = await billingoApiDirect('GET', `documents/${d.id}`, null, apiKey); if (rd && rd.id) reszlet = rd; } catch(e) {}
+        const brutto = parseFloat(reszlet.gross_total ?? d.gross_total) || 0;
+        let netto = 0;
+        const tetelek = Array.isArray(reszlet.items) ? reszlet.items : [];
+        if (tetelek.length) {
+          netto = Math.round(tetelek.reduce((sum, t) => sum + ((parseFloat(t.net_unit_amount) || 0) * (parseFloat(t.quantity) || 0)), 0) * 100) / 100;
+        }
+        let megjegyzes = `Billingo importból (${new Date().toISOString().split('T')[0]})`;
+        const deviza0 = reszlet.currency || d.currency || 'HUF';
+        if (deviza0 !== 'HUF' && parseFloat(reszlet.conversion_rate)) megjegyzes += ` · árfolyam: ${reszlet.conversion_rate}`;
+        if (!netto) { netto = brutto; megjegyzes += ' — NETTÓ ELLENŐRIZENDŐ (a Billingo nem adott vissza tételeket)'; }
+
+        // PDF publikus link (best effort)
+        let pdfUrl = null;
+        try {
+          const pu = await billingoApiDirect('GET', `documents/${d.id}/public-url`, null, apiKey);
+          pdfUrl = pu?.public_url || pu?.url || pu?.download_url || pu?.pdf_url || null;
+        } catch(e) {}
+
+        // Sztornó bizonylat (cancellation) → Sztornó típus + Storno státusz
+        const isCancellation = d.type === 'cancellation';
+        // FIGYELEM: csak a Kimeno_Szamlak táblában TÉNYLEGESEN létező mezők küldhetők
+        // (ismeretlen mezőnél az Airtable a teljes rekordot elutasítja — 422)!
+        const fields = {
+          Szamlaszam: d.invoice_number,
+          Billingo_id: String(d.id),
+          Ugyfel_nev: reszlet.partner?.name || d.partner?.name || '',
+          Netto_osszeg: netto,
+          Brutto_osszeg: brutto,
+          Deviza: deviza0,
+          Kiallitas_datum: reszlet.invoice_date || d.invoice_date || null,
+          Teljesites_datum: reszlet.fulfillment_date || d.fulfillment_date || null,
+          Fizetesi_hatarido: reszlet.due_date || d.due_date || null,
+          Statusz: (isCancellation || d.cancelled) ? 'Storno' : ((reszlet.payment_status || d.payment_status) === 'paid' ? 'Fizetett' : 'Fizetesre_var'),
+          Tipus: isCancellation ? 'Sztornó' : (tipusMap[d.type] || 'Számla'),
+          Megjegyzes: megjegyzes,
+          PDF_url: pdfUrl,
+        };
+        Object.keys(fields).forEach(k => (fields[k] === null || fields[k] === '') && delete fields[k]);
+        await atPost('Kimeno_Szamlak', fields);
+        importalt++;
+      } catch(e) {
+        console.warn('Billingo import hiba:', d.invoice_number, e);
+        toast(`Import hiba (${d.invoice_number}): ${e.message}`, 'error');
+      }
+    }
+    cacheInvalidate('Kimeno_Szamlak');
+    toast(`✓ ${importalt}/${hianyzok.length} Billingo számla importálva`, 'success');
+    await syncKimenoSzamlak();
+  } catch(e) {
+    toast('Billingo import hiba: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '⬇ Billingo import';
+  }
 }
 
 async function syncKimenoSzamlak() {

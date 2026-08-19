@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v323
+     ZALNER ERP - VERZIÓ: v324
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v324:
+- ÁFA bevallás letöltések: a bejövő számlák PDF-jei mostantól "Cégnév_számlaszám.pdf"
+  néven kerülnek a zipbe (eddig csak a számlaszám volt a fájlnév), így nem kell kézzel
+  elnevezni a feltöltött fájlokat, és a zip tartalma cégnév szerint rendezett. Több
+  dokumentumos számlánál a _1/_2/_3 utótag változatlanul jelzi az összetartozást
+  (pl. "Rubix Magyarország Kft._232600758_1.pdf"). Visszamenőleg is érvényes: a korábban
+  feltöltött fájlok is az új néven jönnek le. Érintett: "⬇ Összes csatolmány" és a havi
+  bejövő PDF letöltés is (új bszFajlNev() helper; tiltott karakterek és 120 karakternél
+  hosszabb nevek kezelve).
 
 CHANGES v323:
 - JAVÍTVA — Billingo import: a mentés az Arfolyam mezőt is küldte, ami NEM létezik a
@@ -663,7 +673,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v323</title>
+<title>Zalner ERP v324</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -856,7 +866,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v323</div>
+    <div class="nav-logo-sub">v324</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -9968,7 +9978,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v323 · Belső rendszer
+          Zalner ERP v324 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -16243,6 +16253,19 @@ function updateTotalAfa() {
   }
 }
 
+// Bejövő számla csatolmány fájlnevének generálása: "Cégnév_számlaszám".
+// Így nem kell kézzel elnevezni a feltöltött fájlokat, a zip tartalma egységes és
+// cégnév szerint rendezett lesz. Több dokumentum esetén a hívó fűz _1/_2/_3 utótagot.
+function bszFajlNev(inv) {
+  const ceg = (inv.supplierName || '').trim();
+  const szam = (inv.invoiceNumber || '').trim();
+  let nev = (ceg && szam) ? `${ceg}_${szam}` : (ceg || szam || 'szamla');
+  // Tiltott karakterek + túl hosszú név kezelése (Windows/zip kompatibilitás)
+  nev = nev.replace(/[/\\:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
+  if (nev.length > 120) nev = nev.slice(0, 120);
+  return nev;
+}
+
 async function zipEsLetolt(pdfek, zipNev) {
   if (!pdfek.length) { toast('Nincs letölthető PDF csatolmány!', 'error'); return; }
   toast(`${pdfek.length} PDF zip-elése folyamatban...`, '');
@@ -16255,8 +16278,8 @@ async function zipEsLetolt(pdfek, zipNev) {
         const resp = await fetch(d.url);
         if (!resp.ok) throw new Error(`Nem sikerült letölteni: ${inv.invoiceNumber}`);
         const blob = await resp.blob();
-        // Több dokumentum esetén a fájlnévben _1, _2, _3 utótag jelzi az összetartozást
-        const nev = (inv.invoiceNumber || 'szamla').replace(/[/\\:*?"<>|]/g, '_') + (docs.length > 1 ? `_${ix+1}` : '');
+        // Fájlnév: Cégnév_számlaszám; több dokumentumnál _1, _2, _3 utótag jelzi az összetartozást
+        const nev = bszFajlNev(inv) + (docs.length > 1 ? `_${ix+1}` : '');
         zip.file(nev + '.pdf', blob);
         fajlDb++;
       });
@@ -16380,7 +16403,7 @@ async function afaOsszesCsatolmanyLetoltes() {
     await Promise.all([
       ...bejovoPdfek.flatMap(inv => {
         const docs = (inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : [{ url: inv._pdfUrl }];
-        return docs.map((d, ix) => fetchPdfUrl(d.url, (inv.invoiceNumber || 'szamla') + (docs.length > 1 ? `_${ix+1}` : ''), bejMappa));
+        return docs.map((d, ix) => fetchPdfUrl(d.url, bszFajlNev(inv) + (docs.length > 1 ? `_${ix+1}` : ''), bejMappa));
       }),
       ...kimTasks,
       ...vamPdfek.map(inv => fetchPdfUrl(inv._pdfUrl, inv.invoiceNumber || 'vam', vamMappa)),

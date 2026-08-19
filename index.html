@@ -1,12 +1,76 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v326
+     ZALNER ERP - VERZIÓ: v332
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v332:
+- Ajánlatok: ÚJ "📥 Excel export" gomb (CSAK ADMIN jogosultsággal látszik és futtatható) —
+  az ELKÜLDÖTT státuszú ajánlatokat exportálja xlsx-be. Munkalapok: első az "Összes elküldött",
+  majd FELELŐSÖNKÉNT (Kapcsolattarto) egy-egy külön lap.
+  Oszlopok: Ajánlatszám, Ügyfél, Tárgy, Nettó érték, Deviza, Kiállítás, Érvényesség,
+  Vevői kapcsolattartó, Telefon, E-mail (a telefon/e-mail a Kapcsolattartok táblából jön;
+  ha nincs adat, a cella üres). Minden lapon: fejléc-kiemelés, fixált fejlécsor, autoszűrő,
+  és devizánkénti nettó összesítés (nincs árfolyamos összevonás). Rendezés kiállítás szerint
+  csökkenő. Fájlnév: elkuldott_ajanlatok_<dátum>.xlsx
+
+CHANGES v331:
+- Dashboard / Éves árbevétel kártya: a deviza szerinti sorok alatt pici, kiemelés nélküli
+  szövegként megjelenik a HUF-ba átszámított összesen is (az aktuális EKB EUR/HUF árfolyammal;
+  az árfolyam a szövegre mutatva látszik). Csak akkor jelenik meg, ha van nem-HUF tétel.
+
+CHANGES v330:
+- Dashboard: ÚJ "Éves árbevétel · <év>" KPI kártya (az E havi árbevétel mellett). Az idei év
+  KIMENŐ számláinak nettó összege, HUF és EUR KÜLÖN feltüntetve (nincs árfolyamos összevonás;
+  egyéb deviza is megjelenik, ha van). Kihagyva: sztornó, piszkozat, díjbekérő — ezek nem
+  árbevétel; duplikált számlaszámok szűrve. A hónap/év a TELJESÍTÉS dátuma szerint számít
+  (ennek híján a kiállítás dátuma), egyezően a Pénzügyi kimutatás havi eredmény diagramjával.
+  A kártyára kattintva a Kimenő számlák oldal nyílik. Csak penzugy_dashboard joggal látszik
+  (mint a Kintlévőség kártya).
+- A dashboard mostantól a Kimeno_Szamlak táblát is betölti, a Kimenő számlák oldallal MEGEGYEZŐ
+  paraméterrel, tehát közös cache-ből — nem tud elavult árbevétel-adatot mutatni.
+
+CHANGES v329:
+- JAVÍTVA — a dashboard 31 lejárt számlát írt, a szűrt lista viszont csak 5-öt. Két oka volt:
+  1) A "Fizetett" státusz beállítása (Bejövő számlák oldal legördülője) NEM érvénytelenítette
+     a Bejovo_Szamlak 24 ÓRÁS cache-ét, ezért a dashboard akár egy napig a régi, kifizetés
+     előtti állapotot számolta, míg a lista a friss adatot mutatta.
+  2) A dashboard más paraméterrel kérte le a táblát (rendezés nélkül), mint a Bejövő számlák
+     oldal (rendezéssel) — így KÉT külön cache-bejegyzés jött létre, eltérő időpontból, ami
+     akkor is eltérést okozott, ha a cache egyébként érvényes volt.
+  Mostantól a dashboard ugyanazzal a paraméterrel (közös cache) olvas, és minden számlát
+  érintő módosítás (státusz, törlés, kézi fizetési határidő, NAV szinkron) érvényteleníti a
+  cache-t és a dashboard adatait, tehát a kártyán látott darabszám és a lista mindig egyezik.
+
+CHANGES v328:
+- Bejövő számlák "🔴 Lejárt" szűrő: MINDEN lejárt számlát listáz, dátumtól és teljesítéstől
+  függetlenül. (A Dátum-tól/-ig mezők egyébként sem szűrték soha a listát — azok CSAK a NAV
+  szinkron intervallumát adják meg; a szűrő bekapcsolásakor ezért elhalványulnak, és egy
+  jelzés is kiírja ezt, hogy ne legyen félreértés.)
+- A Lejárt szűrő bekapcsolásakor a rendezés automatikusan fizetési határidő szerint NÖVEKVŐ
+  lesz, így a legrégebben lejárt (legkritikusabb) számla áll a lista élén — eddig teljesítés
+  dátuma szerint csökkenő volt, ezért a régi lejárt számlák a hátsó oldalakra kerültek.
+- Rendezés javítás: a fizetési határidő nélküli számlák növekvő rendezésnél is a lista
+  végére kerülnek (eddig üres értékkel az elejére ugrottak).
+
+CHANGES v327:
+- JAVÍTVA — Dashboard "Lejárt bejövő számla" és "Fizetés 7 napon belül" kártyák rossz értéket
+  mutattak. Három hibája volt a számításnak:
+  1) NEM szűrte a duplikátumokat (a Bejovo_Szamlak táblában ugyanaz a számlaszám többször is
+     szerepelhet — a Bejövő számlák oldal deduplikál, a dashboard nem, ezért felül számolt),
+  2) csak a Statusz='Fizetesre_var' rekordokat vette (az ÜRES Statuszúakat kihagyta, pedig a
+     lista azokat is fizetésre várónak tekinti → alul számolt), és a Storno számlákat nem
+     zárta ki,
+  3) NETTÓ összeget adott össze, holott a fizetendő a BRUTTÓ.
+  Mostantól: duplikátum-szűrés számlaszám alapján, üres Statusz = fizetésre vár, Fizetett és
+  Storno kizárva, összeg bruttóban (a kártyán "bruttó" jelöléssel).
+- Dashboard: a két kártyára kattintva mostantól a SZŰRT lista nyílik meg (eddig az összes
+  bejövő számla). Új szűrő pillek a Bejövő számlák oldalon: "🔴 Lejárt" és "🟡 7 napon belül",
+  amik önállóan is használhatók.
 
 CHANGES v326:
 - Kimenő számlák: ÚJ "🗑 Számla törlése az ERP-ből" a ⋯ menüben (legalsó tétel). CSAK az
@@ -689,7 +753,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v326</title>
+<title>Zalner ERP v332</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -882,7 +946,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v326</div>
+    <div class="nav-logo-sub">v332</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -952,6 +1016,7 @@ select.form-control{cursor:pointer}
       <div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:28px 0 12px">Hogyan állunk?</div>
       <div class="stats-grid" id="dashKpiGrid">
         <div class="stat-card"><div class="stat-label">E havi árbevétel</div><div class="stat-value" id="kpiArbevetel">—</div><div class="stat-sub" id="kpiArbevetelSub">betöltés...</div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="showPage('kimeno-szamlak')"><div class="stat-label" id="kpiEvesArbevetelLabel">Éves árbevétel</div><div class="stat-value" id="kpiEvesArbevetel">—</div><div class="stat-sub" id="kpiEvesArbevetelSub">kimenő számlák</div></div>
         <div class="stat-card"><div class="stat-label">Backlog (nyitott rendelések)</div><div class="stat-value" id="kpiBacklog">—</div><div class="stat-sub" id="kpiBacklogSub">betöltés...</div></div>
         <div class="stat-card"><div class="stat-label">Pipeline (ajánlatállomány)</div><div class="stat-value" id="kpiPipeline">—</div><div class="stat-sub" id="kpiPipelineSub">betöltés...</div></div>
         <div class="stat-card"><div class="stat-label">Ajánlat → projekt konverzió</div><div class="stat-value" id="kpiKonverzio">—</div><div class="stat-sub" id="kpiKonverzioSub">utolsó 90 nap</div></div>
@@ -1071,7 +1136,10 @@ select.form-control{cursor:pointer}
   <div class="page" id="page-ajanlatok">
     <div class="page-header">
       <div><div class="page-title">Ajánlatok</div><div class="page-subtitle" id="ajanlatCount">Betöltés...</div></div>
-      <button class="btn btn-primary" onclick="ujAjanlat()">＋ Új ajánlat</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" id="ajExcelExportBtn" onclick="exportElkuldottAjanlatokExcel()" style="display:none" title="Elküldött ajánlatok Excel export — felelősök szerint külön lapokra">📥 Excel export</button>
+        <button class="btn btn-primary" onclick="ujAjanlat()">＋ Új ajánlat</button>
+      </div>
     </div>
     <div class="page-content">
       <div class="search-bar">
@@ -1475,7 +1543,9 @@ select.form-control{cursor:pointer}
     <div class="page-content">
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
         <div class="filter-pills" style="margin-bottom:0">
-          <button class="pill active" onclick="setBszFilter('fizetesre_var',this)">Fizetésre vár</button>
+          <button class="pill active" id="bszPillFizetesreVar" onclick="setBszFilter('fizetesre_var',this)">Fizetésre vár</button>
+          <button class="pill" id="bszPillLejart" onclick="setBszFilter('lejart',this)">🔴 Lejárt</button>
+          <button class="pill" id="bszPillHamarosan" onclick="setBszFilter('hamarosan',this)">🟡 7 napon belül</button>
           <button class="pill" onclick="setBszFilter('szamla_hiany',this)">Számla hiányzik</button>
           <button class="pill" onclick="setBszFilter('fizetett',this)">Fizetett</button>
           <button class="pill" onclick="setBszFilter('kat_hianyzik',this)">⚠️ Kategória hiányzik</button>
@@ -1494,6 +1564,9 @@ select.form-control{cursor:pointer}
         <div class="form-group" style="margin:0">
           <label class="form-label" style="font-size:12px">Dátum-ig</label>
           <input class="form-control" type="date" id="bszDateTo" style="width:160px">
+        </div>
+        <div id="bszDateHint" style="display:none;font-size:12px;color:var(--text-muted);align-self:flex-end;padding-bottom:8px">
+          A dátum a NAV szinkronra vonatkozik — a <strong>Lejárt</strong> szűrő minden lejárt számlát listáz, dátumtól és teljesítéstől függetlenül.
         </div>
       </div>
       <div class="table-wrap" style="overflow-x:hidden">
@@ -4538,7 +4611,8 @@ let dashScope = 'sajat'; // 'sajat' | 'csapat'
 let dashChartDeviza = 'EUR'; // EUR | HUF
 let _chartArbevetel = null;
 let _chartAjanlat = null;
-let _dashCache = null; // { bszek, vamok, naplok } — kiegészítő adatok
+let _dashCache = null; // { bszek, kszek, vamok, naplok } — kiegészítő adatok
+let _dashEurHuf = null; // EUR/HUF árfolyam az éves árbevétel HUF-os átszámításához
 const HUF_FMT = n => Math.round(n).toLocaleString('hu-HU');
 const EUR_FMT = n => n.toLocaleString('hu-HU', {minimumFractionDigits:0, maximumFractionDigits:0});
 
@@ -4594,14 +4668,22 @@ async function loadDashboard() {
 
     // Kiegészítő adatok — Bejovo_Szamlak 24h cache-ből jön, napló max 30 sor
     try {
-      const [bszek, vamok, projNaplok, ajNaplok] = await Promise.all([
-        atGet('Bejovo_Szamlak').catch(() => []),   // 24h cache
+      const [bszek, kszek, vamok, projNaplok, ajNaplok] = await Promise.all([
+        // FONTOS: ugyanazokkal a paraméterekkel, mint a Bejövő számlák oldal (initBevoSzamlak),
+        // különben KÉT külön cache-bejegyzés keletkezik, amik eltérő időpontból származnak,
+        // és a dashboard elavult adatot mutat a listához képest.
+        atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => []),   // 24h cache
+        // Kimenő számlák az éves árbevétel KPI-hez (ugyanaz a paraméter, mint a Kimenő
+        // számlák oldalon → közös cache, nincs elavult állapot)
+        atGet('Kimeno_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => []),
         atGet('Vamkezeles').catch(() => []),         // 60 perces cache
         atGet('Projekt_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => []),
         atGet('Ajanlat_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => [])
       ]);
-      _dashCache = { bszek, vamok, projNaplok: projNaplok.slice(0, 30), ajNaplok: ajNaplok.slice(0, 30) };
-    } catch (e) { _dashCache = { bszek: [], vamok: [], projNaplok: [], ajNaplok: [] }; }
+      _dashCache = { bszek, kszek, vamok, projNaplok: projNaplok.slice(0, 30), ajNaplok: ajNaplok.slice(0, 30) };
+      // EUR/HUF árfolyam (EKB) az éves árbevétel tájékoztató HUF-os összegéhez
+      try { _dashEurHuf = await pkFetchEurHuf(); } catch(e) {}
+    } catch (e) { _dashCache = { bszek: [], kszek: [], vamok: [], projNaplok: [], ajNaplok: [] }; }
 
     renderDashboard();
   } catch (e) { toast('Dashboard hiba: ' + e.message, 'error'); }
@@ -4622,26 +4704,45 @@ function renderDashActions() {
   const today = new Date().toISOString().split('T')[0];
   const plus7 = new Date(Date.now() + 7*86400000).toISOString().split('T')[0];
 
-  // 1. Lejárt fizetésű bejövő számlák
-  const lejartBsz = (cache.bszek || []).filter(b => {
+  // Bejövő számlák előkészítése — ugyanaz a logika, mint a Bejövő számlák oldalon:
+  //  a) duplikátumok kiszűrése számlaszám alapján (a NAV/Airtable többször is tárolhatja),
+  //  b) üres Statusz = 'Fizetesre_var' (a lista is így értelmezi),
+  //  c) a Fizetett ÉS a Storno számlák nem tartoznak a fizetendők közé,
+  //  d) az összeg BRUTTÓ (azt kell kifizetni), nem nettó.
+  const _seenBszNum = new Set();
+  const bszNyitott = (cache.bszek || []).filter(b => {
     const f = b.fields;
-    return f.Statusz === 'Fizetesre_var' && f.Fizetesi_hatarido && f.Fizetesi_hatarido < today;
+    const num = f.Szamlaszam || '';
+    if (num) { if (_seenBszNum.has(num)) return false; _seenBszNum.add(num); }
+    const st = f.Statusz || 'Fizetesre_var';
+    return st !== 'Fizetett' && st !== 'Storno';
+  });
+  const bszBrutto = (f) => {
+    const br = parseFloat(f.Brutto_osszeg);
+    if (br) return br;
+    return (parseFloat(f.Netto_osszeg) || 0) + (parseFloat(f.Afa_osszeg) || 0);
+  };
+
+  // 1. Lejárt fizetésű bejövő számlák
+  const lejartBsz = bszNyitott.filter(b => {
+    const f = b.fields;
+    return f.Fizetesi_hatarido && f.Fizetesi_hatarido < today;
   });
   const lejartByDev = {};
   lejartBsz.forEach(b => {
     const dev = b.fields.Deviza || 'HUF';
-    lejartByDev[dev] = (lejartByDev[dev] || 0) + (parseFloat(b.fields.Netto_osszeg) || 0);
+    lejartByDev[dev] = (lejartByDev[dev] || 0) + bszBrutto(b.fields);
   });
 
   // 2. Hamarosan lejár (7 napon belül)
-  const hamarosanBsz = (cache.bszek || []).filter(b => {
+  const hamarosanBsz = bszNyitott.filter(b => {
     const f = b.fields;
-    return f.Statusz === 'Fizetesre_var' && f.Fizetesi_hatarido && f.Fizetesi_hatarido >= today && f.Fizetesi_hatarido <= plus7;
+    return f.Fizetesi_hatarido && f.Fizetesi_hatarido >= today && f.Fizetesi_hatarido <= plus7;
   });
   const hamarosanByDev = {};
   hamarosanBsz.forEach(b => {
     const dev = b.fields.Deviza || 'HUF';
-    hamarosanByDev[dev] = (hamarosanByDev[dev] || 0) + (parseFloat(b.fields.Netto_osszeg) || 0);
+    hamarosanByDev[dev] = (hamarosanByDev[dev] || 0) + bszBrutto(b.fields);
   });
 
   // 3. Lejárt szállítási határidejű projektek (saját szűréssel)
@@ -4670,21 +4771,21 @@ function renderDashActions() {
 
   // Lejárt bejövő (csak penzugy_dashboard joggal)
   if (lejartBsz.length && hasPerm('penzugy_dashboard')) {
-    const sub = Object.entries(lejartByDev).map(([d,v]) => `${d==='HUF' ? HUF_FMT(v) : EUR_FMT(v)} ${d}`).join(' · ');
+    const sub = Object.entries(lejartByDev).map(([d,v]) => `${d==='HUF' ? HUF_FMT(v) : EUR_FMT(v)} ${d}`).join(' · ') + ' bruttó';
     cards.push({
       cls: 'danger', icon: '🔴', label: 'Lejárt bejövő számla',
       value: lejartBsz.length + ' db', sub: sub,
-      onclick: `showPage('bejovo-szamlak')`
+      onclick: `dashOpenBsz('lejart')`
     });
   }
 
   // Hamarosan lejár (csak penzugy_dashboard joggal)
   if (hamarosanBsz.length && hasPerm('penzugy_dashboard')) {
-    const sub = Object.entries(hamarosanByDev).map(([d,v]) => `${d==='HUF' ? HUF_FMT(v) : EUR_FMT(v)} ${d}`).join(' · ');
+    const sub = Object.entries(hamarosanByDev).map(([d,v]) => `${d==='HUF' ? HUF_FMT(v) : EUR_FMT(v)} ${d}`).join(' · ') + ' bruttó';
     cards.push({
       cls: 'warn', icon: '🟡', label: 'Fizetés 7 napon belül',
       value: hamarosanBsz.length + ' db', sub: sub,
-      onclick: `showPage('bejovo-szamlak')`
+      onclick: `dashOpenBsz('hamarosan')`
     });
   }
 
@@ -4829,6 +4930,59 @@ function renderDashKpis() {
   // Kintlévőség kártya elrejtése ha nincs penzugy_dashboard jog
   const kintCard = document.getElementById('kpiKintlevoseg').closest('.stat-card');
   if (kintCard) kintCard.style.display = hasPerm('penzugy_dashboard') ? '' : 'none';
+
+  // 6. Éves árbevétel — az idei évben kiállított KIMENŐ számlák nettó összege,
+  // devizánként külön (HUF és EUR nem kerül összevonásra árfolyamon).
+  // Kihagyva: sztornó, piszkozat, díjbekérő (ezek nem árbevétel).
+  // A hónap/év a TELJESÍTÉS dátuma szerint számít (ennek híján a kiállítás dátuma),
+  // egyezően a Pénzügyi kimutatás havi eredmény diagramjával.
+  const evPrefix = String(ev) + '-';
+  const _seenKszNum = new Set();
+  const arbSzamlak = (cache.kszek || []).filter(r => {
+    const f = r.fields;
+    const num = f.Szamlaszam || '';
+    if (!num) return false;                       // piszkozat (nincs számlaszám)
+    if (_seenKszNum.has(num)) return false;       // duplikátum
+    _seenKszNum.add(num);
+    const st = f.Statusz || '';
+    if (st === 'Storno' || st === 'Piszkozat' || st === 'Dijbekero') return false;
+    const tip = kszTipusFromRecord(f);
+    if (['Sztornó','Piszkozat','Díjbekérő'].includes(tip)) return false;
+    const d = f.Teljesites_datum || f.Kiallitas_datum || '';
+    return d.startsWith(evPrefix);
+  });
+  const arbByDev = {};
+  arbSzamlak.forEach(r => {
+    const f = r.fields;
+    const dev = f.Deviza || 'HUF';
+    arbByDev[dev] = (arbByDev[dev] || 0) + (parseFloat(f.Netto_osszeg) || 0);
+  });
+  const evesLabel = document.getElementById('kpiEvesArbevetelLabel');
+  if (evesLabel) evesLabel.textContent = `Éves árbevétel · ${ev}`;
+  // Megjelenítés: EUR elöl, majd HUF, majd egyéb devizák
+  const devSorrend = ['EUR','HUF', ...Object.keys(arbByDev).filter(d => !['EUR','HUF'].includes(d))];
+  const evesParts = devSorrend
+    .filter(d => arbByDev[d])
+    .map(d => `<div style="font-size:18px">${d === 'HUF' ? HUF_FMT(arbByDev[d]) : EUR_FMT(arbByDev[d])} ${d}</div>`);
+  // Tájékoztató összesítés HUF-ban (pici, kiemelés nélküli szöveg) — az aktuális EKB
+  // EUR/HUF árfolyammal átszámítva. Csak akkor, ha van nem-HUF tétel is.
+  let hufOsszHtml = '';
+  const vanNemHuf = Object.keys(arbByDev).some(d => d !== 'HUF' && arbByDev[d]);
+  if (evesParts.length && vanNemHuf && _dashEurHuf) {
+    let hufOssz = arbByDev['HUF'] || 0;
+    hufOssz += (arbByDev['EUR'] || 0) * _dashEurHuf;
+    if (arbByDev['USD']) hufOssz += arbByDev['USD'] * (_dashEurHuf / 1.08);
+    hufOsszHtml = `<div style="font-size:11px;font-weight:400;color:var(--text-light);margin-top:3px" title="Tájékoztató átszámítás az aktuális EKB árfolyammal: 1 EUR = ${_dashEurHuf} HUF">${HUF_FMT(hufOssz)} HUF összesen (átszámítva)</div>`;
+  }
+  document.getElementById('kpiEvesArbevetel').innerHTML = evesParts.length
+    ? evesParts.join('') + hufOsszHtml
+    : '<span style="color:var(--text-light)">—</span>';
+  document.getElementById('kpiEvesArbevetelSub').textContent =
+    `${arbSzamlak.length} kimenő számla · nettó · teljesítés szerint`;
+
+  // Éves árbevétel kártya elrejtése ha nincs penzugy_dashboard jog
+  const evesCard = document.getElementById('kpiEvesArbevetel').closest('.stat-card');
+  if (evesCard) evesCard.style.display = hasPerm('penzugy_dashboard') ? '' : 'none';
 }
 
 // ===== CHART: HAVI ÁRBEVÉTEL =====
@@ -5240,6 +5394,9 @@ function deleteCurrentUgyfel() {
 
 // ===== AJÁNLATOK LISTA =====
 async function loadAjanlatok() {
+  // Excel export gomb: csak admin jogosultsággal
+  const _ajExpBtn = document.getElementById('ajExcelExportBtn');
+  if (_ajExpBtn) _ajExpBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
   try {
     await getUgyfelek();
     await getAjanlatok();
@@ -10014,7 +10171,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v326 · Belső rendszer
+          Zalner ERP v332 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -10341,12 +10498,50 @@ const BSZ_PER_PAGE = 25;
 let bszSortField = 'invoiceDeliveryDate';  // alapértelmezett: teljesítés dátuma
 let bszSortDir = 'desc';               // alapértelmezett: csökkenő
 
+// Dashboard KPI kártyáról a Bejövő számlák oldal megnyitása ELŐRE BEÁLLÍTOTT szűrővel
+// ('lejart' vagy 'hamarosan'), hogy pontosan a kártyán látott számlák jelenjenek meg.
+async function dashOpenBsz(mode) {
+  showPage('bejovo-szamlak');
+  bszFilter = mode;
+  bszCurrentPage = 1;
+  // A pill kiemelése (a lista betöltése aszinkron, a szűrő állapotát előre beállítjuk)
+  const pillId = mode === 'lejart' ? 'bszPillLejart' : mode === 'hamarosan' ? 'bszPillHamarosan' : 'bszPillFizetesreVar';
+  document.querySelectorAll('#page-bejovo-szamlak .pill').forEach(b => b.classList.remove('active'));
+  document.getElementById(pillId)?.classList.add('active');
+  applyBszLejartNezet();
+  // Ha a lista már betöltött, azonnal újraszűrünk (az initBevoSzamlak is meghívja)
+  if (bszInvoices.length) filterBevoSzamlak();
+}
+
 function setBszFilter(filter, btn) {
   bszFilter = filter;
   bszCurrentPage = 1;
   document.querySelectorAll('#page-bejovo-szamlak .pill').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  applyBszLejartNezet();
   filterBevoSzamlak();
+}
+
+// "Lejárt" szűrő nézete: a lista MINDEN lejárt számlát mutat (a dátum mezők csak a NAV
+// szinkront állítják, a listát nem szűrik) — ezt jelzés is megerősíti, és a rendezés
+// fizetési határidő szerint NÖVEKVŐ lesz, így a legrégebben lejárt számla áll az élen.
+function applyBszLejartNezet() {
+  const lejartNezet = bszFilter === 'lejart';
+  const hint = document.getElementById('bszDateHint');
+  if (hint) hint.style.display = lejartNezet ? 'block' : 'none';
+  ['bszDateFrom','bszDateTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.opacity = lejartNezet ? '0.45' : '';
+  });
+  if (lejartNezet) {
+    bszSortField = 'paymentDate';
+    bszSortDir = 'asc';
+    // Rendezés-nyilak szinkronizálása a fejlécben
+    document.querySelectorAll('.bsz-sort-btn').forEach(b => {
+      const arrow = b.querySelector('.sort-arrow');
+      if (arrow) arrow.textContent = b.dataset.field === 'paymentDate' ? '▲' : '⇅';
+    });
+  }
 }
 
 async function initBevoSzamlak() {
@@ -10439,6 +10634,7 @@ async function syncBevoSzamlak() {
     await saveBszToAirtable(allInvoices);
     // Újratöltés Airtable-ből hogy legyen _airtableId minden rekordhoz
     await reloadBszFromAirtable();
+    _dashCache = null;   // dashboard KPI-k újraszámolása a friss számlaadatokból
     // Wise párosítás: elmentett tranzakciók párosítása az új számlákkal
     const wisePaired = await wiseMatchPending();
     const wiseMsg = wisePaired > 0 ? ` (${wisePaired} Wise tranzakció párosítva! 💳)` : '';
@@ -10596,7 +10792,13 @@ async function saveBszToAirtable(invoices) {
 function filterBevoSzamlak() {
   const search = (document.getElementById('bszSearch').value || '').toLowerCase();
   bszCurrentPage = 1;
+  const _ma = new Date().toISOString().split('T')[0];
+  const _plus7 = new Date(Date.now() + 7*86400000).toISOString().split('T')[0];
   bszFiltered = bszInvoices.filter(inv => {
+    // Nyitott = még fizetendő (sem kifizetve, sem sztornózva)
+    const _nyitott = inv._airtableStatus !== 'Fizetett' && inv._airtableStatus !== 'Storno';
+    if (bszFilter === 'lejart' && !(_nyitott && inv.paymentDate && inv.paymentDate < _ma)) return false;
+    if (bszFilter === 'hamarosan' && !(_nyitott && inv.paymentDate && inv.paymentDate >= _ma && inv.paymentDate <= _plus7)) return false;
     if (bszFilter === 'fizetesre_var' && (inv._airtableStatus === 'Fizetett')) return false;
   if (bszFilter === 'kat_hianyzik' && inv._airtableKategoria) return false;
     if (bszFilter === 'szamla_hiany' && inv._pdfUrl) return false;
@@ -10622,8 +10824,9 @@ function filterBevoSzamlak() {
         vb = parseFloat(b.invoiceVatAmount) || 0;
         break;
       case 'paymentDate':
-        va = a.paymentDate || '';
-        vb = b.paymentDate || '';
+        // Üres határidő mindig a lista végére (növekvő rendezésnél is)
+        va = a.paymentDate || '9999-12-31';
+        vb = b.paymentDate || '9999-12-31';
         break;
       case 'supplierName':
         va = (a.supplierName || '').toLowerCase();
@@ -10786,6 +10989,7 @@ async function saveBszHatarido(airtableId, szamlaszam, btn) {
     });
     if (!r.ok) throw new Error(await r.text());
     cacheInvalidate('Bejovo_Szamlak');
+    _dashCache = null;   // a dashboard KPI-k újraszámolása (lejárt / 7 napon belüli)
     const inv = bszInvoices.find(i => i._airtableId === airtableId);
     if (inv) inv.paymentDate = datum;
     btn.closest('.modal-overlay').remove();
@@ -10846,6 +11050,8 @@ function deleteBszRecord(airtableId, invoiceNumber) {
   showConfirm('Számla törlése', `Biztosan törlöd a számlát: "${invoiceNumber}"? Ez nem visszavonható!`, async () => {
     try {
       await atDelete('Bejovo_Szamlak', airtableId);
+      cacheInvalidate('Bejovo_Szamlak');
+      _dashCache = null;
       toast('Számla törölve!', 'success');
       await reloadBszFromAirtable();
     } catch(e) { toast('Hiba: ' + e.message, 'error'); }
@@ -10938,6 +11144,11 @@ async function updateBszStatus(airtableId, invoiceNumber, newStatus) {
   if (airtableId) {
     try {
       await atPatch('Bejovo_Szamlak', airtableId, { Statusz: newStatus });
+      // A 24 órás cache-t és a dashboard adatait is érvényteleníteni kell, különben a
+      // dashboard KPI-k (lejárt / 7 napon belüli számlák) elavult állapotot mutatnak,
+      // és nem egyeznek a listával.
+      cacheInvalidate('Bejovo_Szamlak');
+      _dashCache = null;
       // Lokálisan is frissítjük
       const inv = bszInvoices.find(i => i._airtableId === airtableId);
       if (inv) inv._airtableStatus = newStatus;
@@ -16279,6 +16490,110 @@ async function exportAfaExcel() {
   } catch(e) {
     console.error('Excel export hiba:', e);
     toast('Hiba az Excel generálása közben: ' + e.message, 'error');
+  }
+}
+
+// ===== ELKÜLDÖTT AJÁNLATOK EXCEL EXPORT (csak admin) =====
+// Felelősök (Kapcsolattarto) szerint külön munkalapokra gyűjtve.
+async function exportElkuldottAjanlatokExcel() {
+  if (!isAdmin()) { toast('Ehhez a funkcióhoz admin jogosultság kell.', 'error'); return; }
+  const btn = document.getElementById('ajExcelExportBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generálás...'; }
+  try {
+    if (!ajanlatok.length) await getAjanlatok();
+    if (!ugyfelek.length) await getUgyfelek();
+    const kAll = await getKapcsolattartok();
+    const kById = {};
+    kAll.forEach(k => { kById[k.id] = k.fields; });
+
+    const elkuldott = ajanlatok.filter(a => a.fields.Statusz === 'Elkuldve');
+    if (!elkuldott.length) { toast('Nincs elküldött státuszú ajánlat.', 'error'); return; }
+
+    const XLSX = await importGetXLSX();
+    const wb = XLSX.utils.book_new();
+    const fejlec = ['Ajánlatszám','Ügyfél','Tárgy','Nettó érték','Deviza','Kiállítás','Érvényesség',
+                    'Vevői kapcsolattartó','Telefon','E-mail'];
+    const headerStyle = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1E3A5F' } }, alignment: { horizontal: 'center' } };
+    const colWidths = [{wch:16},{wch:30},{wch:38},{wch:14},{wch:8},{wch:12},{wch:12},{wch:24},{wch:18},{wch:30}];
+
+    // Ajánlat → sor
+    const sorMap = (a) => {
+      const f = a.fields;
+      const ugyfelNev = f.Ugyfel ? (ugyfelek.find(u => u.id === f.Ugyfel[0])?.fields?.Cegnev || '') : '';
+      const kf = f.Vevoi_kapcsolattarto ? (kById[f.Vevoi_kapcsolattarto] || null) : null;
+      const kNev = kf ? ((kf.Vezeteknev || '') + ' ' + (kf.Keresztnev || '')).trim() : '';
+      return [
+        f.Ajanlat_szam || '',
+        ugyfelNev,
+        f.Targy || '',
+        parseFloat(f.Netto_osszeg) || 0,
+        f.Deviza || 'HUF',
+        f.Kiallitas_datum || '',
+        f.Ervenyesseg_datum || '',
+        kNev,
+        kf?.Telefon || '',
+        kf?.Email || '',
+      ];
+    };
+
+    // Csoportosítás felelős (Kapcsolattarto) szerint
+    const csoportok = {};
+    elkuldott.forEach(a => {
+      const felelos = DISPLAY_NAME_MAP[a.fields.Kapcsolattarto] || a.fields.Kapcsolattarto || 'Nincs felelős';
+      (csoportok[felelos] = csoportok[felelos] || []).push(a);
+    });
+
+    // Munkalap név: Excel max 31 karakter, és nem tartalmazhat : \ / ? * [ ]
+    const lapNev = (nev) => {
+      let n = String(nev).replace(/[:\\/?*\[\]]/g, '-').trim();
+      return n.length > 31 ? n.slice(0, 31) : (n || 'Ismeretlen');
+    };
+
+    const lapKeszit = (cim, lista) => {
+      const rendezett = [...lista].sort((a, b) => (b.fields.Kiallitas_datum || '').localeCompare(a.fields.Kiallitas_datum || ''));
+      const sorok = rendezett.map(sorMap);
+      // Devizánkénti összesítés (nincs árfolyamos összevonás)
+      const devizak = [...new Set(rendezett.map(a => a.fields.Deviza || 'HUF'))].sort();
+      const osszSorok = devizak.map(dev => {
+        const cs = rendezett.filter(a => (a.fields.Deviza || 'HUF') === dev);
+        const ossz = cs.reduce((sum, a) => sum + (parseFloat(a.fields.Netto_osszeg) || 0), 0);
+        return [`${dev} összesen (${cs.length} db)`, '', '', ossz, dev, '', '', '', '', ''];
+      });
+      const data = [fejlec, ...sorok, [], ...osszSorok];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws['!cols'] = colWidths;
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: sorok.length, c: fejlec.length - 1 } }) };
+      ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+      // Fejléc stílus
+      for (let c = 0; c < fejlec.length; c++) {
+        const ref = XLSX.utils.encode_cell({ r: 0, c });
+        if (ws[ref]) ws[ref].s = headerStyle;
+      }
+      // Összesítő sorok stílusa
+      osszSorok.forEach((_, ri) => {
+        for (let c = 0; c < fejlec.length; c++) {
+          const ref = XLSX.utils.encode_cell({ r: sorok.length + 2 + ri, c });
+          if (ws[ref]) ws[ref].s = { font: { bold: true }, fill: { fgColor: { rgb: 'E8F0FE' } } };
+        }
+      });
+      XLSX.utils.book_append_sheet(wb, ws, lapNev(cim));
+    };
+
+    // 1) Összesítő lap (minden elküldött ajánlat), majd felelősönként egy-egy lap
+    lapKeszit('Összes elküldött', elkuldott);
+    Object.keys(csoportok).sort((a, b) => a.localeCompare(b, 'hu')).forEach(felelos => {
+      lapKeszit(felelos, csoportok[felelos]);
+    });
+
+    const ma = new Date().toISOString().split('T')[0];
+    const fileName = `elkuldott_ajanlatok_${ma}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast(`✓ ${elkuldott.length} elküldött ajánlat exportálva (${Object.keys(csoportok).length} felelős): ${fileName}`, 'success');
+  } catch(e) {
+    console.error('Ajánlat Excel export hiba:', e);
+    toast('Hiba az Excel generálása közben: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Excel export'; }
   }
 }
 

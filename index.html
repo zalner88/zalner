@@ -1,12 +1,28 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v324
+     ZALNER ERP - VERZIÓ: v326
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v326:
+- Kimenő számlák: ÚJ "🗑 Számla törlése az ERP-ből" a ⋯ menüben (legalsó tétel). CSAK az
+  Airtable rekordot törli — a Billingóban SEMMILYEN műveletet nem hajt végre, a számla ott
+  érintetlenül megmarad. Azokhoz a számlákhoz, amiket nem akarunk az ERP összesítésekben
+  (pénzügyi kimutatás, ÁFA bevallás, projekt nézet) szerepeltetni. Megerősítő kérdés
+  előzi meg, ami kiírja, hogy a Billingót nem érinti; utólag Billingo importtal visszahozható.
+- A ⋯ menü mostantól MINDEN számlasornál megjelenik (eddig csak akkor, ha sztornó /
+  díjbekérőből számla / végszámla művelet elérhető volt), hogy a törlés mindig kézre álljon.
+
+CHANGES v325:
+- Projektek lista: ÚJ "Nettó" oszlop az Ügyfél és az Ajánlat oszlop között — a projekthez
+  bekötött árajánlat nettó értéke. Ha több ajánlat van a projektbe csatolva, az összegük
+  jelenik meg, mellette Σ2 / Σ3 jelzéssel (rámutatva látszik, hány ajánlatból áll).
+  Eltérő devizájú ajánlatoknál devizánként bontva ("1 000 EUR + 350 000 HUF"), így nincs
+  hibás árfolyam-összemosás.
 
 CHANGES v324:
 - ÁFA bevallás letöltések: a bejövő számlák PDF-jei mostantól "Cégnév_számlaszám.pdf"
@@ -673,7 +689,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v324</title>
+<title>Zalner ERP v326</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -866,7 +882,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v324</div>
+    <div class="nav-logo-sub">v326</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1310,10 +1326,10 @@ select.form-control{cursor:pointer}
       </div>
       <div class="table-wrap">
         <table><thead><tr>
-          <th>Sorszám</th><th>Projekt neve</th><th>Ügyfél</th><th>Ajánlat</th>
+          <th>Sorszám</th><th>Projekt neve</th><th>Ügyfél</th><th style="text-align:right">Nettó</th><th>Ajánlat</th>
           <th>Felelős</th><th>Szállítási határidő</th><th>Státusz</th><th></th>
         </tr></thead>
-        <tbody id="projektTable"><tr><td colspan="8"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
+        <tbody id="projektTable"><tr><td colspan="9"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
         <div class="pagination" id="projektPagination" style="display:none"><span id="projektPagInfo"></span><div class="page-btns" id="projektPagBtns"></div></div>
       </div>
     </div>
@@ -8604,7 +8620,7 @@ async function loadProjektek() {
     filterProjektek();
     document.getElementById('projektCount').textContent = `${projektek.length} projekt összesen`;
   } catch(e) {
-    document.getElementById('projektTable').innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
+    document.getElementById('projektTable').innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
   }
 }
 
@@ -8637,17 +8653,37 @@ function renderProjektek() {
   const start = (projektCurrentPage - 1) * PAGE_SIZE;
   const items = filteredProjektek.slice(start, start + PAGE_SIZE);
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">◈</div><div class="empty-title">Nincs találat</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">◈</div><div class="empty-title">Nincs találat</div></div></td></tr>';
     document.getElementById('projektPagination').style.display = 'none'; return;
   }
   tbody.innerHTML = items.map(p => {
     const f = p.fields;
     const un = f.Ugyfel ? (ugyfelek.find(u => u.id === f.Ugyfel[0])?.fields?.Cegnev || '—') : '—';
     const an = f.Ajanlat ? (ajanlatok.find(a => a.id === f.Ajanlat[0])?.fields?.Ajanlat_szam || '—') : '—';
+    // Bekötött ajánlat(ok) nettó értéke — több ajánlatnál összegezve, devizánként külön
+    const nettoCella = (() => {
+      const ids = f.Ajanlat || [];
+      if (!ids.length) return '—';
+      const perDeviza = {};
+      let db = 0;
+      ids.forEach(aid => {
+        const af = ajanlatok.find(a => a.id === aid)?.fields;
+        if (!af) return;
+        const dev = af.Deviza || 'HUF';
+        perDeviza[dev] = (perDeviza[dev] || 0) + (parseFloat(af.Netto_osszeg) || 0);
+        db++;
+      });
+      const kulcsok = Object.keys(perDeviza);
+      if (!kulcsok.length) return '—';
+      const szoveg = kulcsok.map(d => Math.round(perDeviza[d]).toLocaleString('hu-HU') + ' ' + d).join(' + ');
+      // Több ajánlat esetén jelezzük, hogy összeg
+      return db > 1 ? `${szoveg} <span style="font-size:10px;color:var(--text-light)" title="${db} ajánlat összege">Σ${db}</span>` : szoveg;
+    })();
     return `<tr onclick="showProjektReszlet('${p.id}')">
       <td class="td-name" style="font-family:'DM Mono',monospace;font-size:13px">${f.Projekt_szam||'—'}${f.Van_csatolmany ? ' <span title="Van csatolmány" style="font-size:13px">📎</span>' : ''}</td>
       <td class="td-name">${f.Projekt_neve||'—'}</td>
       <td class="td-muted">${un}</td>
+      <td class="td-muted" style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap">${nettoCella}</td>
       <td class="td-muted" style="font-family:'DM Mono',monospace;font-size:12px">${an}</td>
       <td class="td-muted">${f.Felelos||'—'}</td>
       <td class="td-muted">${f.Szallitasi_hatarido||'—'}</td>
@@ -9978,7 +10014,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v324 · Belső rendszer
+          Zalner ERP v326 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -13219,7 +13255,7 @@ function kszSzarmaztatottGomb(inv) {
   const szamlaFromDijb = isDijbekero;
   const vegszamla = tipus === 'Előlegszámla' && inv.statusz !== 'Storno';
 
-  if (!storno && !szamlaFromDijb && !vegszamla) return '';
+  // A ⋯ menü MINDIG megjelenik, mert az "ERP-ből törlés" minden számlánál elérhető kell legyen
 
   const id = `kszDd_${inv._id.replace(/[^a-zA-Z0-9]/g,'_')}`;
   let items = '';
@@ -13227,6 +13263,8 @@ function kszSzarmaztatottGomb(inv) {
   if (szamlaFromDijb) items += `<div class="ksz-dd-item" onclick="kszSzamlaFromDijbekero('${inv._id}')">🧾 Számla kiállítása ebből</div>`;
   if (vegszamla)      items += `<div class="ksz-dd-item" onclick="kszVegszamlaFromElolег('${inv._id}')">✅ Végszámla kiállítása</div>`;
   if (storno)         items += `<div class="ksz-dd-item" style="color:#e74c3c" onclick="kszStornoFromRow('${inv._id}','${inv._billingoId||''}','${(inv.invoiceNumber||'').replace(/'/g,'')}')">❌ Sztornó</div>`;
+  // Csak az ERP-ből (Airtable) töröl — a Billingóban SEMMI nem történik
+  items += `<div class="ksz-dd-item" style="color:#e74c3c;border-top:1px solid var(--border)" onclick="deleteKszFromErp('${inv._id}','${(inv.invoiceNumber||'').replace(/'/g,'')}')">🗑 Számla törlése az ERP-ből</div>`;
 
   return `<div style="position:relative;display:inline-block">
     <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px" onclick="toggleKszDd('${id}')">⋯</button>
@@ -14735,6 +14773,30 @@ async function deleteKszDraft(airtableId, billingoId) {
       toast('Törlési hiba: ' + e.message, 'error');
     }
   });
+}
+
+// Kimenő számla törlése CSAK az ERP-ből (Airtable). A Billingóban semmilyen műveletet
+// nem hajt végre — a számla ott érintetlenül megmarad. Azokhoz a számlákhoz, amiket nem
+// akarunk az ERP összesítésekben (pénzügyi kimutatás, ÁFA, projekt lista) szerepeltetni.
+async function deleteKszFromErp(airtableId, invoiceNumber) {
+  document.querySelectorAll('.ksz-dropdown').forEach(d => d.style.display = 'none');
+  if (!airtableId) { toast('Nincs Airtable rekord!', 'error'); return; }
+  showConfirm(
+    'Számla törlése az ERP-ből',
+    `Biztosan törlöd az ERP-ből: "${invoiceNumber || airtableId}"?\n\nA Billingóban SEMMI nem történik — a számla ott megmarad. Az ERP összesítésekből (pénzügyi kimutatás, ÁFA bevallás, projekt nézet) viszont kikerül. A művelet nem vonható vissza; Billingo importtal utólag visszahozható.`,
+    async () => {
+      try {
+        await atDelete('Kimeno_Szamlak', airtableId);
+        cacheInvalidate('Kimeno_Szamlak');
+        kszInvoices = kszInvoices.filter(i => i._id !== airtableId);
+        document.getElementById('kszSubtitle').textContent = `${kszInvoices.length} számla`;
+        filterKimenoSzamlak();
+        toast(`Törölve az ERP-ből: ${invoiceNumber || airtableId} (a Billingóban megmaradt)`, 'success');
+      } catch(e) {
+        toast('Törlési hiba: ' + e.message, 'error');
+      }
+    }
+  );
 }
 
 async function downloadKszPdf(airtableId, billingoId) {

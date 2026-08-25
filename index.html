@@ -1,12 +1,38 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v332
+     ZALNER ERP - VERZIÓ: v334
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v334:
+- JAVÍTVA — Dashboard "Havi árbevétel" diagram rossz értéket mutatott (pl. júliusra csak
+  14 124 EUR-t, a valós árbevétel töredékét). Oka: a diagram eddig a PROJEKTEK "Szamlazott"
+  státuszából és Szamlazas_datum mezőjéből számolt, nem a tényleges kimenő számlákból —
+  ha egy projekt nem lett "Szamlazott"-ra állítva, vagy a Szamlazas_datum nem volt kitöltve,
+  a hozzá tartozó számla teljesen kimaradt az oszlopból.
+  Mostantól a diagram a TÉNYLEGES kimenő számlákból számol (ugyanaz az adatforrás és
+  szűrés, mint az Éves árbevétel KPI-nál): duplikátum-, sztornó-, piszkozat- és
+  díjbekérő-mentesen, kiállítás dátuma szerint.
+- A diagram TÖBBÉ NEM bont EUR/HUF szerint külön nézetre (az EUR/HUF váltógomb megszűnt) —
+  mindig egyetlen HUF oszlopot mutat hónaponta. A nem-HUF számlák a saját mentett
+  árfolyamukkal (ha van), ennek híján az aktuális EKB EUR/HUF árfolyammal HUF-ra átváltva
+  adódnak hozzá.
+- Az oszlopra kattintva megnyíló számlalista is a fentiek szerint frissült: minden devizájú
+  számla egy listában, "Nettó (eredeti)" és "Nettó HUF-ban" oszloppal, alul HUF-os
+  végösszeggel.
+
+CHANGES v333:
+- Dashboard "Havi árbevétel" diagram: az oszlopok mostantól KATTINTHATÓK. Egy hónap
+  oszlopára kattintva megnyílik az adott hónap (és a diagramon épp aktív EUR/HUF deviza)
+  kimenő számláinak listája egy modalban: számlaszám, ügyfél, típus, kiállítás dátuma,
+  nettó és bruttó összeg, plusz a lista alján nettó/bruttó összesítés. A listában egy
+  sorra kattintva a Kimenő számlák oldal nyílik meg, az adott számlára szűrve.
+  A számítás ugyanazt a szűrést használja, mint az Éves árbevétel KPI (duplikátum-,
+  sztornó-, piszkozat- és díjbekérő-mentes, kiállítás dátuma szerint).
 
 CHANGES v332:
 - Ajánlatok: ÚJ "📥 Excel export" gomb (CSAK ADMIN jogosultsággal látszik és futtatható) —
@@ -753,7 +779,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v332</title>
+<title>Zalner ERP v334</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -946,7 +972,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v332</div>
+    <div class="nav-logo-sub">v334</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1028,11 +1054,7 @@ select.form-control{cursor:pointer}
       <div class="dash-charts-grid">
         <div class="detail-card" style="margin-bottom:0">
           <div class="detail-card-header" style="display:flex;justify-content:space-between;align-items:center">
-            <span>Havi árbevétel · utolsó 12 hónap</span>
-            <div style="display:flex;gap:4px">
-              <span class="pill chart-deviza-pill active" data-dev="EUR" onclick="setChartDeviza('EUR',this)">EUR</span>
-              <span class="pill chart-deviza-pill" data-dev="HUF" onclick="setChartDeviza('HUF',this)">HUF</span>
-            </div>
+            <span>Havi árbevétel (HUF) · utolsó 12 hónap <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(kattints egy oszlopra a számlákért)</span></span>
           </div>
           <div style="padding:20px"><canvas id="chartArbevetel" height="220"></canvas></div>
         </div>
@@ -4608,7 +4630,6 @@ function showPage(name) {
 
 // ===== DASHBOARD =====
 let dashScope = 'sajat'; // 'sajat' | 'csapat'
-let dashChartDeviza = 'EUR'; // EUR | HUF
 let _chartArbevetel = null;
 let _chartAjanlat = null;
 let _dashCache = null; // { bszek, kszek, vamok, naplok } — kiegészítő adatok
@@ -4621,13 +4642,6 @@ function setDashScope(val, el) {
   document.querySelectorAll('#dashScopeFilter .pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   renderDashboard();
-}
-
-function setChartDeviza(dev, el) {
-  dashChartDeviza = dev;
-  document.querySelectorAll('.chart-deviza-pill').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  renderDashChartArbevetel();
 }
 
 // Adott projekt nettó összege a kapcsolódó ajánlat alapján
@@ -4986,6 +5000,106 @@ function renderDashKpis() {
 }
 
 // ===== CHART: HAVI ÁRBEVÉTEL =====
+// Dashboard havi árbevétel diagram — oszlopra kattintva az adott hónap (és a diagramon
+// épp aktív deviza) kimenő számláinak listája nyílik meg, releváns adatokkal.
+// A _dashCache.kszek nyers Airtable rekordokat tartalmaz (ugyanaz, mint az Éves árbevétel
+// KPI-nál), ezért ugyanazt a szűrést alkalmazzuk: duplikátum-, sztornó-, piszkozat- és
+// díjbekérő-mentesen, kiállítás dátuma szerint az adott hónapra.
+function dashOpenHaviSzamlak(honapKulcs, honapCimke) {
+  const lista = dashHaviKszLista(honapKulcs)
+    .sort((a, b) => (b.fields.Kiallitas_datum || '').localeCompare(a.fields.Kiallitas_datum || ''));
+
+  const nettoHufOssz = lista.reduce((s, r) => s + dashKszNettoHuf(r.fields), 0);
+
+  const sorok = lista.map(r => {
+    const f = r.fields;
+    const netto = parseFloat(f.Netto_osszeg) || 0;
+    const dev = f.Deviza || 'HUF';
+    const nettoHuf = dashKszNettoHuf(f);
+    const szam = (f.Szamlaszam || '').replace(/'/g, "\'");
+    return `<tr style="cursor:pointer" onclick="dashOpenKszFromChart('${szam}')" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
+      <td style="font-family:'DM Mono',monospace;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--border)">${f.Szamlaszam || '—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${f.Ugyfel_nev || '—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px">${kszTipusFromRecord(f)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${f.Kiallitas_datum || '—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace">${netto.toLocaleString('hu-HU')} ${dev}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;font-weight:600">${dev === 'HUF' ? '—' : Math.round(nettoHuf).toLocaleString('hu-HU') + ' HUF'}</td>
+    </tr>`;
+  }).join('');
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:800px">
+      <div class="modal-header">
+        <div class="modal-title">🧾 Kimenő számlák — ${honapCimke}</div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body" style="max-height:60vh;overflow-y:auto;padding:0">
+        ${lista.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:var(--surface);position:sticky;top:0">
+            <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text-muted)">Számlaszám</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text-muted)">Ügyfél</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text-muted)">Típus</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text-muted)">Kiállítás</th>
+            <th style="padding:8px 10px;text-align:right;font-size:11px;color:var(--text-muted)">Nettó (eredeti)</th>
+            <th style="padding:8px 10px;text-align:right;font-size:11px;color:var(--text-muted)">Nettó HUF-ban</th>
+          </tr></thead>
+          <tbody>${sorok}</tbody>
+        </table>` : `<div style="text-align:center;color:var(--text-muted);padding:30px">Nincs kimenő számla ${honapCimke} hónapban</div>`}
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;align-items:center">
+        <div style="font-size:12px;color:var(--text-muted)">${lista.length} számla · kattints egy sorra a megnyitáshoz</div>
+        <div style="font-size:14px">Nettó összesen: <strong>${Math.round(nettoHufOssz).toLocaleString('hu-HU')} HUF</strong></div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// A havi árbevétel diagram listájából egy sorra kattintva a Kimenő számlák oldal nyílik meg,
+// a kiválasztott számlára szűrve (ugyanaz a minta, mint a projekt-részletnézet számlalistájánál).
+function dashOpenKszFromChart(szamlaszam) {
+  document.querySelectorAll('.modal-overlay.open').forEach(m => m.remove());
+  showPage('kimeno-szamlak');
+  const search = document.getElementById('kszSearch');
+  if (search) { search.value = szamlaszam; filterKimenoSzamlak(); }
+}
+
+// Kimenő számla nettó összegének HUF-ra váltása. Elsőként a számlán mentett árfolyamot
+// használjuk (Arfolyam mező — a kiállításkori tényleges árfolyam), ennek híján az aktuális
+// EKB EUR/HUF árfolyammal (_dashEurHuf) számolunk. USD-nél EUR-on át közelítünk (mint a
+// Pénzügyi kimutatás oldal pkToHuf függvénye).
+function dashKszNettoHuf(f) {
+  const netto = parseFloat(f.Netto_osszeg) || 0;
+  const dev = f.Deviza || 'HUF';
+  if (dev === 'HUF') return netto;
+  const arf = parseFloat(f.Arfolyam);
+  if (arf > 0) return netto * arf;
+  if (!_dashEurHuf) return netto; // nincs árfolyam adat — ritka eset, változatlan érték
+  if (dev === 'EUR') return netto * _dashEurHuf;
+  if (dev === 'USD') return netto * (_dashEurHuf / 1.08);
+  return netto;
+}
+
+// Egy hónap kimenő számláinak listája (mind: sztornó/piszkozat/díjbekérő nélkül,
+// duplikátum-szűrve) — a diagram oszlopadatával és a kattintásra nyíló modallal osztott logika.
+function dashHaviKszLista(honapKulcs) {
+  const cache = _dashCache || { kszek: [] };
+  const seen = new Set();
+  return (cache.kszek || []).filter(r => {
+    const f = r.fields;
+    const num = f.Szamlaszam || '';
+    if (!num) return false;               // piszkozatnak nincs számlaszáma
+    if (seen.has(num)) return false;       // duplikátum-szűrés
+    seen.add(num);
+    const st = f.Statusz || '';
+    if (st === 'Storno' || st === 'Piszkozat' || st === 'Dijbekero') return false;
+    const tip = kszTipusFromRecord(f);
+    if (['Sztornó', 'Piszkozat', 'Díjbekérő'].includes(tip)) return false;
+    return (f.Kiallitas_datum || '').startsWith(honapKulcs);
+  });
+}
+
 function renderDashChartArbevetel() {
   const ctx = document.getElementById('chartArbevetel');
   if (!ctx || typeof Chart === 'undefined') return;
@@ -5001,11 +5115,12 @@ function renderDashChartArbevetel() {
     });
   }
 
-  const projSajat = projektek.filter(isSajatProjekt).filter(p => p.fields.Statusz === 'Szamlazott' && (p.fields.Deviza || 'HUF') === dashChartDeviza);
-
+  // A diagram a TÉNYLEGES kimenő számlákból számol (nem a projektek "Szamlazott" státuszából),
+  // devizától függetlenül, mindig HUF-ra átszámítva — így nem hiányoznak a más devizájú
+  // számlák, és a hónap valós árbevétele látszik egy oszlopban.
   const havi = honapok.map(h => {
-    const ezek = projSajat.filter(p => (p.fields.Szamlazas_datum || '').startsWith(h.kulcs));
-    const ossz = ezek.reduce((s,p) => s + projektNetto(p), 0);
+    const ezek = dashHaviKszLista(h.kulcs);
+    const ossz = ezek.reduce((s, r) => s + dashKszNettoHuf(r.fields), 0);
     return Math.round(ossz);
   });
 
@@ -5015,10 +5130,10 @@ function renderDashChartArbevetel() {
     data: {
       labels: honapok.map(h => h.cimke),
       datasets: [{
-        label: dashChartDeviza,
+        label: 'HUF',
         data: havi,
-        backgroundColor: dashChartDeviza === 'EUR' ? 'rgba(124, 58, 237, 0.7)' : 'rgba(79, 127, 255, 0.7)',
-        borderColor: dashChartDeviza === 'EUR' ? '#7c3aed' : '#4f7fff',
+        backgroundColor: 'rgba(79, 127, 255, 0.7)',
+        borderColor: '#4f7fff',
         borderWidth: 1,
         borderRadius: 4
       }]
@@ -5030,7 +5145,7 @@ function renderDashChartArbevetel() {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (ctx) => `${ctx.parsed.y.toLocaleString('hu-HU')} ${dashChartDeviza}`
+            label: (ctx) => `${ctx.parsed.y.toLocaleString('hu-HU')} HUF`
           }
         }
       },
@@ -5039,11 +5154,7 @@ function renderDashChartArbevetel() {
           beginAtZero: true,
           ticks: {
             callback: v => {
-              if (dashChartDeviza === 'HUF') {
-                if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
-                if (v >= 1e3) return (v/1e3).toFixed(0) + 'k';
-                return v;
-              }
+              if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
               if (v >= 1e3) return (v/1e3).toFixed(0) + 'k';
               return v;
             },
@@ -5055,6 +5166,16 @@ function renderDashChartArbevetel() {
           ticks: { font: { size: 11 } },
           grid: { display: false }
         }
+      },
+      // Oszlopra kattintva megnyílik az adott hónap kimenő számláinak listája
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const idx = elements[0].index;
+        const h = honapok[idx];
+        if (h) dashOpenHaviSzamlak(h.kulcs, h.cimke);
+      },
+      onHover: (evt, elements) => {
+        if (evt.native && evt.native.target) evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
       }
     }
   });
@@ -10171,7 +10292,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v332 · Belső rendszer
+          Zalner ERP v334 · Belső rendszer
         </div>
       </div>
     </div>`;

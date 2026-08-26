@@ -1,12 +1,55 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v334
+     ZALNER ERP - VERZIÓ: v338
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v338:
+- Bejövő számlák: ÚJ figyelemfelhívó sáv a szűrők/dátummezők és a táblázat között — azokat
+  a vámhatározatokat listázza, amikhez MÉG NINCS csatolva bejövő számla (Vámkezelés
+  Bejovo_szamla_szam mezője üres). Piros háttér, dátum + MRN szám + megjegyzés soronként;
+  egy sorra kattintva a Vámkezelés oldal nyílik meg, egyből az adott rekord szerkesztőjével,
+  ahol a bejövő számla csatolható. Ha nincs hiányzó párosítás, a sáv nem jelenik meg.
+  A cél: az import ÁFA mielőbb a megfelelő bejövő számlához legyen párosítva.
+
+CHANGES v337:
+- JAVÍTVA — Vámkezelés menüpont elcsúszott, összenyomott megjelenítés. Oka: a
+  "page-vamkezeles" HTML blokk a fő tartalom-konténeren (<main>) KÍVÜLRE, a modalok közé
+  keveredett (feltehetően egy korábbi szerkesztés mellékhatásaként), ezért az oldal nem
+  kapta meg az alkalmazás elrendezését (sidebar melletti teljes szélesség, page-header,
+  page-content stílusok). Mostantól a Vámkezelés lap a <main> elemen belül, a többi
+  menüponttal azonos helyen, a Jutalék (számlázott) lap után található — a megjelenés
+  ugyanolyan, mint a többi listaoldalé (Bejövő számlák, Szállítólevelek stb.).
+  A funkcionalitás (szűrés, új vámhatározat, PDF) nem változott, csak a helyes elhelyezés
+  került vissza.
+
+CHANGES v336:
+- JAVÍTVA (a v335-ös javítás gyökér-oka) — Visszaigazolás/Szállítólevél: a v335 már minden
+  csatolt ajánlat tételét próbálta összegyűjteni, mégis csak az első ajánlaté jött be.
+  Az igazi ok: ajánlat mentésekor/törlésekor az AjanlatTetelek Airtable tábla CACHE-e
+  (max. 5 perc) sosem lett érvénytelenítve, ezért ha a tábla korábban már bekerült a
+  cache-be (pl. egy másik ajánlat megnyitásakor), egy frissen létrehozott vagy módosított
+  ajánlat tételei "láthatatlanok" maradtak a cache lejártáig.
+  Mostantól: (1) ajánlat mentésekor/törlésekor a rendszer az AjanlatTetelek cache-t is
+  érvényteleníti, (2) a getProjektAjanlatTetelekMerged() — amit a VRV és a Szállítólevél
+  kiállítás használ — védőhálóként MINDIG friss adatot kér le, függetlenül attól, hogy
+  máshol elmaradt-e az invalidálás.
+
+CHANGES v335:
+- JAVÍTVA — Visszaigazolás és Szállítólevél kiállítás projektből: ha egy projekthez TÖBB
+  ajánlat volt csatolva ("+ Ajánlat hozzáadása"), a rendszer eddig csak az ELSŐ csatolt
+  ajánlat tételeit húzta be. Mostantól MINDEN csatolt ajánlat tételét behúzza (sorrendben,
+  ajánlatonként rendezve) — új közös getProjektAjanlatTetelekMerged() függvény, amit a
+  Visszaigazolás és a Szállítólevél kiállítás/projekt-váltás mindkét ága használ.
+  A már felhasznált (korábbi visszaigazolás/szállítólevél slotban szereplő) tételek
+  kiszűrése változatlanul működik.
+  Megjegyzés: a Visszaigazolás devizáját és ÁFA kulcsát továbbra is az ELSŐ csatolt
+  ajánlat határozza meg — ha egy projekthez eltérő devizájú ajánlatok tartoznak, az árakat
+  kiállítás előtt kézzel ellenőrizni kell.
 
 CHANGES v334:
 - JAVÍTVA — Dashboard "Havi árbevétel" diagram rossz értéket mutatott (pl. júliusra csak
@@ -779,7 +822,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v334</title>
+<title>Zalner ERP v338</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -972,7 +1015,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v334</div>
+    <div class="nav-logo-sub">v338</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1591,6 +1634,10 @@ select.form-control{cursor:pointer}
           A dátum a NAV szinkronra vonatkozik — a <strong>Lejárt</strong> szűrő minden lejárt számlát listáz, dátumtól és teljesítéstől függetlenül.
         </div>
       </div>
+
+      <!-- Figyelmeztetés: vámhatározatok, amikhez még nincs csatolva bejövő számla -->
+      <div id="bszVamFigyelmezetes" style="display:none"></div>
+
       <div class="table-wrap" style="overflow-x:hidden">
         <table class="data-table" style="table-layout:fixed;width:100%;font-size:12px" id="bszTable">
           <thead>
@@ -2302,6 +2349,49 @@ select.form-control{cursor:pointer}
   </div>
 </div>
 
+<!-- VÁMKEZELÉS PAGE -->
+<div class="page" id="page-vamkezeles">
+  <div class="page-header">
+    <div><div class="page-title">Vámkezelés</div><div class="page-subtitle" id="vamCount">Betöltés...</div></div>
+    <button class="btn btn-primary" onclick="openVamModal()">＋ Új vámhatározat</button>
+  </div>
+  <div class="page-content">
+    <div class="search-bar">
+      <div class="search-wrap"><span class="search-icon">⌕</span>
+        <input class="search-input" type="text" placeholder="Keresés MRN szám vagy szállítólevél alapján..." id="vamSearch" oninput="filterVam()">
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <div class="form-group" style="margin:0">
+        <label class="form-label" style="font-size:12px">Dátum-tól</label>
+        <input class="form-control" type="date" id="vamDateFrom" style="width:160px" oninput="filterVam()">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label" style="font-size:12px">Dátum-ig</label>
+        <input class="form-control" type="date" id="vamDateTo" style="width:160px" oninput="filterVam()">
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Vámhatározat időpontja</th>
+          <th>Megjegyzés</th>
+          <th>MRN szám</th>
+          <th>Szállítólevél szám</th>
+          <th>Bejövő számla</th>
+          <th style="text-align:right">Számla értéke</th>
+          <th>Deviza</th>
+          <th style="text-align:right">Import ÁFA</th>
+          <th>PDF</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="vamTable"><tr><td colspan="9"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody>
+      </table>
+      <div class="pagination" id="vamPagination" style="display:none"><span id="vamPagInfo"></span><div class="page-btns" id="vamPagBtns"></div></div>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- BEJÖVŐ SZÁMLA MANUÁLIS MODAL -->
@@ -2650,49 +2740,6 @@ select.form-control{cursor:pointer}
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeKontaktModal()">Mégse</button><button class="btn btn-primary" onclick="saveKontakt()">💾 Mentés</button></div>
-  </div>
-</div>
-
-<!-- VÁMKEZELÉS PAGE -->
-<div class="page" id="page-vamkezeles">
-  <div class="page-header">
-    <div><div class="page-title">Vámkezelés</div><div class="page-subtitle" id="vamCount">Betöltés...</div></div>
-    <button class="btn btn-primary" onclick="openVamModal()">＋ Új vámhatározat</button>
-  </div>
-  <div class="page-content">
-    <div class="search-bar">
-      <div class="search-wrap"><span class="search-icon">⌕</span>
-        <input class="search-input" type="text" placeholder="Keresés MRN szám vagy szállítólevél alapján..." id="vamSearch" oninput="filterVam()">
-      </div>
-    </div>
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
-      <div class="form-group" style="margin:0">
-        <label class="form-label" style="font-size:12px">Dátum-tól</label>
-        <input class="form-control" type="date" id="vamDateFrom" style="width:160px" oninput="filterVam()">
-      </div>
-      <div class="form-group" style="margin:0">
-        <label class="form-label" style="font-size:12px">Dátum-ig</label>
-        <input class="form-control" type="date" id="vamDateTo" style="width:160px" oninput="filterVam()">
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Vámhatározat időpontja</th>
-          <th>Megjegyzés</th>
-          <th>MRN szám</th>
-          <th>Szállítólevél szám</th>
-          <th>Bejövő számla</th>
-          <th style="text-align:right">Számla értéke</th>
-          <th>Deviza</th>
-          <th style="text-align:right">Import ÁFA</th>
-          <th>PDF</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="vamTable"><tr><td colspan="9"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody>
-      </table>
-      <div class="pagination" id="vamPagination" style="display:none"><span id="vamPagInfo"></span><div class="page-btns" id="vamPagBtns"></div></div>
-    </div>
   </div>
 </div>
 
@@ -5942,6 +5989,7 @@ let vamRecords = [], vamFiltered = [], editingVamId = null, vamPdfFile = null, v
 
 async function loadVamkezeles() {
   try {
+    cacheInvalidate('Vamkezeles');
     vamRecords = await atGet('Vamkezeles', 'sort%5B0%5D%5Bfield%5D=Vamhatarozat_datum&sort%5B0%5D%5Bdirection%5D=desc');
     document.getElementById('vamCount').textContent = `${vamRecords.length} vámhatározat összesen`;
     filterVam();
@@ -6711,6 +6759,7 @@ async function saveAjanlat() {
     }
     toast(editingAjanlatId ? 'Ajánlat frissítve!' : 'Ajánlat mentve!', 'success');
     cacheInvalidate('ajanlatok');
+    cacheInvalidate('AjanlatTetelek'); // különben a Visszaigazolás/Szállítólevél a régi (cache-elt) tételeket látja
     await loadAjanlatok();
     currentAjanlat = ajanlatok.find(a => a.id === ajanlatId) || null;
     showPage('ajanlatok');
@@ -6732,6 +6781,7 @@ function deleteCurrentAjanlat() {
       await atDelete('Ajanlatok', ajanlatId);
       currentAjanlat = null;
       cacheInvalidate('ajanlatok');
+      cacheInvalidate('AjanlatTetelek');
       toast('Ajánlat törölve!', 'success');
       showPage('ajanlatok');
       await loadAjanlatok();
@@ -6751,6 +6801,7 @@ function deleteAjanlatById(ajanlatId, ajanlatSzam) {
       await atDelete('Ajanlatok', ajanlatId);
       if (currentAjanlat && currentAjanlat.id === ajanlatId) currentAjanlat = null;
       cacheInvalidate('ajanlatok');
+      cacheInvalidate('AjanlatTetelek');
       toast('Ajánlat törölve!', 'success');
       await loadAjanlatok();
       filterAjanlatok();
@@ -7747,6 +7798,23 @@ async function setVrvSlotValue(projektId, slot, value) {
   if (proj) proj.fields.Dokumentumok_extra = newJson;
 }
 
+// Egy projekthez csatolt ÖSSZES ajánlat tételeinek összegyűjtése (nem csak az elsőé).
+// Minden linkelt ajánlat AjanlatTetelek listáját lekérdezi (soraiban rendezve), majd
+// sorrendben összefűzi — így a Visszaigazolás és a Szállítólevél kiállításnál a projekthez
+// később hozzáadott ("+ Ajánlat hozzáadása") ajánlatok tételei sem maradnak ki.
+async function getProjektAjanlatTetelekMerged(p) {
+  const ajIds = p?.fields?.Ajanlat || [];
+  if (!ajIds.length) return [];
+  // Védőháló: mindig FRISS AjanlatTetelek adatot kérünk le, nem a (max 5 perces) cache-elt
+  // állapotot — így egy nemrég létrehozott/módosított ajánlat tételei sosem maradnak ki,
+  // akkor sem, ha valahol elmaradna a cache érvénytelenítés.
+  cacheInvalidate('AjanlatTetelek');
+  const listak = await Promise.all(
+    ajIds.map(ajId => atGetLinked('AjanlatTetelek', 'Ajanlat', ajId).then(sortTetelek).catch(() => []))
+  );
+  return listak.flat();
+}
+
 function openVrvModal(id = null, preselectedProjektId = null, slot = 1) {
   vrvSlot = slot;
   editingVrvId = id;
@@ -7792,7 +7860,7 @@ function openVrvModal(id = null, preselectedProjektId = null, slot = 1) {
       if (p?.fields?.Szallitasi_hatarido) document.getElementById('fVrvHatarido').value = p.fields.Szallitasi_hatarido;
       loadVrvTetelek([]);
       if (p?.fields?.Ajanlat?.length) {
-        atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek);
+        getProjektAjanlatTetelekMerged(p).then(tetelek => {
           if (tetelek.length) {
             const usedNames = new Set();
             for (let i = 1; i < slot; i++) {
@@ -7934,10 +8002,12 @@ async function onVrvProjektChange() {
   if (p.fields.Szallitasi_hatarido) document.getElementById('fVrvHatarido').value = p.fields.Szallitasi_hatarido;
   if (p.fields.Ajanlat?.length) {
     try {
+      // Deviza az ELSŐ csatolt ajánlatból (a projekt ajánlatai jellemzően azonos devizájúak;
+      // ha ez nem áll fenn, a tételek árait kézzel kell ellenőrizni kiállítás előtt).
       const ajanlat = ajanlatok.find(a => a.id === p.fields.Ajanlat[0]);
       const deviza = ajanlat?.fields?.Deviza || 'EUR';
       document.querySelectorAll('.vrv-deviza').forEach(el => el.textContent = deviza);
-      const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]));
+      const tetelek = await getProjektAjanlatTetelekMerged(p);
       if (tetelek.length) {
         const usedNames = new Set();
         for (let i = 1; i < vrvSlot; i++) {
@@ -10292,7 +10362,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v334 · Belső rendszer
+          Zalner ERP v338 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -10665,6 +10735,52 @@ function applyBszLejartNezet() {
   }
 }
 
+// Vámhatározatok, amikhez még nincs csatolva bejövő számla (Vamkezeles.Bejovo_szamla_szam üres).
+// A Bejövő számlák oldal tetején jelenít meg egy figyelemfelhívó sávot, hogy minél
+// hamarabb pótolható legyen a hiányzó kapcsolat (ÁFA bevallásnál az import ÁFA levonása
+// ehhez a párosításhoz kötött).
+async function renderBszVamFigyelmezetes() {
+  const el = document.getElementById('bszVamFigyelmezetes');
+  if (!el) return;
+  try {
+    if (!vamRecords.length) {
+      vamRecords = await atGet('Vamkezeles', 'sort%5B0%5D%5Bfield%5D=Vamhatarozat_datum&sort%5B0%5D%5Bdirection%5D=desc');
+    }
+  } catch(e) { console.warn('Vámkezelés betöltési hiba:', e); el.style.display = 'none'; return; }
+
+  const hianyzo = vamRecords.filter(r => !(r.fields.Bejovo_szamla_szam || '').trim());
+  if (!hianyzo.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  const sorok = hianyzo
+    .sort((a, b) => (b.fields.Vamhatarozat_datum || '').localeCompare(a.fields.Vamhatarozat_datum || ''))
+    .map(r => {
+      const f = r.fields;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #fecaca;cursor:pointer" onclick="bszOpenVamRecord('${r.id}')">
+        <span style="font-family:'DM Mono',monospace;font-size:12px;min-width:90px">${f.Vamhatarozat_datum || '—'}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:12px;color:#991b1b;font-weight:600">${f.MRN_szam || '—'}</span>
+        <span style="font-size:12px;color:#7f1d1d">${f.Megjegyzes || ''}</span>
+        <span style="margin-left:auto;font-size:11px;color:#991b1b;text-decoration:underline">Csatolás →</span>
+      </div>`;
+    }).join('');
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:#991b1b;font-weight:600;margin-bottom:${hianyzo.length ? '8px' : '0'}">
+        ⚠️ ${hianyzo.length} vámhatározathoz még nincs csatolva bejövő számla — minél hamarabb pótold, hogy az import ÁFA a megfelelő számlához legyen párosítva!
+      </div>
+      <div>${sorok}</div>
+    </div>`;
+}
+
+// A figyelmeztető sávból egy vámhatározatra kattintva a Vámkezelés oldal nyílik meg,
+// egyből az adott rekord szerkesztő modaljával (a bejövő számla ott csatolható).
+async function bszOpenVamRecord(id) {
+  showPage('vamkezeles');
+  try { await loadVamkezeles(); } catch(e) {}
+  editVam(id);
+}
+
 async function initBevoSzamlak() {
   // Alapértelmezett dátum: aktuális hónap
   const now = new Date();
@@ -10677,6 +10793,10 @@ async function initBevoSzamlak() {
   if (!document.getElementById('bszDateTo').value) {
     document.getElementById('bszDateTo').value = `${y}-${m}-${d}`;
   }
+  // Vámhatározatok betöltése a figyelmeztető sávhoz (a bejövő számla lista betöltésétől
+  // függetlenül, nem blokkolja azt)
+  renderBszVamFigyelmezetes();
+
   // Auto-betöltés: utolsó 25 számla az Airtable-ből
   try {
     const records = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
@@ -12998,9 +13118,9 @@ function openSzlModal(id = null, preselectedProjektId = null, slot = 1) {
       }
       if (p?.fields?.Szallitasi_hatarido) document.getElementById('fSzlSzallitasDatum').value = p.fields.Szallitasi_hatarido;
       loadSzlTetelek([]);
-      // Betöltjük az ajánlat tételeit ha van
+      // Betöltjük az ÖSSZES csatolt ajánlat tételeit, ha van
       if (p?.fields?.Ajanlat?.length) {
-        atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek);
+        getProjektAjanlatTetelekMerged(p).then(tetelek => {
           if (tetelek.length) {
             // Kizárjuk az előző szállítólevelek tételeit
             const usedNames = new Set();
@@ -13064,11 +13184,10 @@ async function onSzlProjektChange() {
   }
   if (p.fields.Szallitasi_hatarido) document.getElementById('fSzlSzallitasDatum').value = p.fields.Szallitasi_hatarido;
 
-  // Ha van linkelt árajánlat, töltjük a tételeket belőle
+  // Ha van linkelt árajánlat, az ÖSSZES csatolt ajánlat tételeit betöltjük belőle
   if (p.fields.Ajanlat && p.fields.Ajanlat.length) {
     try {
-      const ajanlatId = p.fields.Ajanlat[0];
-      const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId));
+      const tetelek = await getProjektAjanlatTetelekMerged(p);
       if (tetelek.length) {
         const usedNames = new Set();
         for (let i = 1; i < szlSlot; i++) {

@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v338
+     ZALNER ERP - VERZIÓ: v340
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v340:
+- VISSZAVONVA — a v339-ben bevezetett "Havi lízing törlesztés (CIB Bank)" fix költség mező és
+  a hozzá tartozó számítási logika (Beállítások mező, Havi_lizing Airtable mező, 31 napos
+  cashflow tétel, Havi eredmény diagram fix költsége) teljesen eltávolítva. Ok: a lízing
+  számla ugyanúgy, mint a többi beszállítói számla, automatikusan bekerül a bejövő számlák
+  közé és onnan már számít a cashflow-ba — nem kellett hozzá külön, manuálisan karbantartott
+  fix költség tétel.
+- Az "Egyenleg 61 nap múlva" (v339-es funkció) VÁLTOZATLANUL megmaradt az "Egyenleg 31 nap
+  múlva" KPI kártya alatt, kiemelés nélkül.
 
 CHANGES v338:
 - Bejövő számlák: ÚJ figyelemfelhívó sáv a szűrők/dátummezők és a táblázat között — azokat
@@ -822,7 +832,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v338</title>
+<title>Zalner ERP v340</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1015,7 +1025,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v338</div>
+    <div class="nav-logo-sub">v340</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1842,7 +1852,7 @@ select.form-control{cursor:pointer}
         <div class="stat-card"><div class="stat-label">Jelenlegi egyenleg (Wise)</div><div class="stat-value" id="pkEgyenleg">—</div><div class="stat-sub" id="pkEgyenlegSub">betöltés…</div></div>
         <div class="stat-card"><div class="stat-label">Várható bevétel (31 nap)</div><div class="stat-value" style="color:#16a34a" id="pkBevetel">—</div><div class="stat-sub">nyitott kimenő számlák</div></div>
         <div class="stat-card"><div class="stat-label">Várható kiadás (31 nap)</div><div class="stat-value" style="color:#dc2626" id="pkKiadas">—</div><div class="stat-sub">nyitott bejövő számlák</div></div>
-        <div class="stat-card"><div class="stat-label">Egyenleg 31 nap múlva</div><div class="stat-value" id="pkVegEgyenleg">—</div><div class="stat-sub" id="pkVegEgyenlegSub">előrejelzett</div></div>
+        <div class="stat-card"><div class="stat-label">Egyenleg 31 nap múlva</div><div class="stat-value" id="pkVegEgyenleg">—</div><div class="stat-sub" id="pkVegEgyenlegSub">előrejelzett · 61 nap múlva: <span id="pkVegEgyenleg61">—</span></div></div>
       </div>
 
       <!-- Figyelmeztetés ha negatívba fordul -->
@@ -10362,7 +10372,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v338 · Belső rendszer
+          Zalner ERP v340 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -15866,6 +15876,50 @@ async function renderPenzugyiKimutatas() {
       if (futo < minEgyenleg) { minEgyenleg = futo; minNap = n; }
     }
     const vegEgyenleg = futo;
+
+    // 6b. Egyenleg 61 nap múlva — csak kiegészítő infó a KPI kártya alá, a diagramot és a
+    // "Várható tételek" táblázatot (31 napos) NEM módosítja, azok változatlanul 31 naposak maradnak.
+    {
+      const napok61 = [];
+      for (let i = 0; i <= 61; i++) {
+        const d = new Date(ma); d.setDate(d.getDate() + i);
+        napok61.push(d.toISOString().split('T')[0]);
+      }
+      const vegDatum61 = napok61[napok61.length - 1];
+      let ki61 = 0, be61 = 0;
+      for (const inv of bszInvoices) {
+        if (inv._airtableStatus === 'Fizetett' || inv._airtableStatus === 'Storno') continue;
+        const hatarido = inv.paymentDate;
+        if (!hatarido) continue;
+        const brutto = (parseFloat(inv.invoiceNetAmount)||0) + (parseFloat(inv.invoiceVatAmount)||0);
+        const hufOssz = pkToHuf(brutto, inv.currency);
+        if (hufOssz === 0) continue;
+        const nap = hatarido < maStr ? maStr : hatarido;
+        if (nap > vegDatum61) continue;
+        ki61 += Math.abs(hufOssz);
+      }
+      for (const inv of kszData) {
+        if (inv.statusz === 'Fizetett' || inv.statusz === 'Storno') continue;
+        if (inv.tipus === 'Piszkozat' || inv.tipus === 'Díjbekérő') continue;
+        const hatarido = inv.fizetesiHatarido;
+        if (!hatarido) continue;
+        const hufOssz = pkToHuf(inv.bruttoOssz, inv.currency);
+        if (hufOssz === 0) continue;
+        const nap = hatarido < maStr ? maStr : hatarido;
+        if (nap > vegDatum61) continue;
+        be61 += Math.abs(hufOssz);
+      }
+      for (const n of napok61) {
+        if (n.split('-')[2] === '10') {
+          if (bj.ber > 0) ki61 += Math.abs(bj.ber);
+          if (bj.jarulek > 0) ki61 += Math.abs(bj.jarulek);
+          if (bj.hitel > 0) ki61 += Math.abs(bj.hitel);
+        }
+      }
+      const vegEgyenleg61 = kezdoEgyenleg + be61 - ki61;
+      const el61 = document.getElementById('pkVegEgyenleg61');
+      if (el61) el61.textContent = Math.round(vegEgyenleg61).toLocaleString('hu-HU') + ' Ft';
+    }
 
     // 7. KPI-k kitöltése
     document.getElementById('pkBevetel').textContent = '+' + Math.round(osszBevetel).toLocaleString('hu-HU') + ' Ft';

@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v340
+     ZALNER ERP - VERZIÓ: v341
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v341:
+- JAVÍTVA — Kimenő számlák listában egy sztornózott (Storno státuszú) számla, illetve a hozzá
+  tartozó sztornó számla is "Fizetésre vár" (esetleg "Lejárt") jelzést kapott a Státusz
+  oszlopban, holott egyik sincs ténylegesen fizetésre várva. Mostantól Storno státusznál
+  külön "Sztornó" jelzés jelenik meg (a Projektek oldal számla-listája és a csak-olvasható
+  nézet ezt már korábban is helyesen kezelte). A lista alján megjelenő összesített "Nettó"
+  érték is kihagyja a Storno státuszú számlákat, hogy azok ne torzítsák a látott összeget.
+  A cashflow-t és a dashboard KPI-kat érintő számítások (Pénzügyi kimutatás, éves árbevétel
+  stb.) már korábban is helyesen kizárták a sztornózott számlákat, ott nem volt hiba.
 
 CHANGES v340:
 - VISSZAVONVA — a v339-ben bevezetett "Havi lízing törlesztés (CIB Bank)" fix költség mező és
@@ -832,7 +842,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v340</title>
+<title>Zalner ERP v341</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1025,7 +1035,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v340</div>
+    <div class="nav-logo-sub">v341</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10372,7 +10382,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v340 · Belső rendszer
+          Zalner ERP v341 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -13664,7 +13674,7 @@ function renderKimenoSzamlak() {
   if (kszCurrentPage > totalPages) kszCurrentPage = totalPages;
   const start = (kszCurrentPage - 1) * KSZ_PER_PAGE;
   const items = kszFiltered.slice(start, start + KSZ_PER_PAGE);
-  const totalNetto = kszFiltered.reduce((s, i) => s + (i.nettoOssz || 0), 0);
+  const totalNetto = kszFiltered.reduce((s, i) => s + (i.statusz === 'Storno' ? 0 : (i.nettoOssz || 0)), 0);
   count.textContent = `${start + 1}–${Math.min(start + KSZ_PER_PAGE, kszFiltered.length)} / ${kszFiltered.length} számla | Nettó: ${Math.round(totalNetto).toLocaleString('hu-HU')}`;
 
   if (totalPages > 1) {
@@ -13681,9 +13691,11 @@ function renderKimenoSzamlak() {
     const overdue = inv.statusz !== 'Fizetett' && inv.fizetesiHatarido && inv.fizetesiHatarido < today;
     const statuszBadge = inv.statusz === 'Fizetett'
       ? `<span class="badge badge-elfogadva">Fizetett ✓</span>`
-      : overdue
-        ? `<span class="badge badge-elutasitva">Lejárt ⚠️</span>`
-        : `<span class="badge" style="background:#fef3c7;color:#92400e">Fizetésre vár</span>`;
+      : inv.statusz === 'Storno'
+        ? `<span class="badge" style="background:#fee2e2;color:#dc2626">Sztornó</span>`
+        : overdue
+          ? `<span class="badge badge-elutasitva">Lejárt ⚠️</span>`
+          : `<span class="badge" style="background:#fef3c7;color:#92400e">Fizetésre vár</span>`;
     return `<tr>
       <td style="font-family:'DM Mono',monospace;font-size:12px">${inv.invoiceNumber || '—'}</td>
       <td><div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${inv.ugyfelNev || '—'}</span>${renderKszStatuszBadges(inv)}</div></td>

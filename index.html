@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v344
+     ZALNER ERP - VERZIÓ: v345
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v345:
+- ÚJ — Kontaktok menüpont: "📥 Export" gomb az Import gomb mellett. Egy kattintással letölti
+  Excelbe (.xlsx) az ÖSSZES kontaktot (nem csak a szűrt/megjelenített listát), vezetéknév
+  szerint rendezve, oszlopok: Vezetéknév, Keresztnév, Cégnév, Beosztás, Email, Telefon, Fő
+  kapcsolattartó, Megjegyzés.
 
 CHANGES v344:
 - JAVÍTVA — Projektek/Kimenő számla: ha egy ajánlat (vagy szállítólevél) tétele nevében " jel
@@ -870,7 +876,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v344</title>
+<title>Zalner ERP v345</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1063,7 +1069,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v344</div>
+    <div class="nav-logo-sub">v345</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1223,6 +1229,7 @@ select.form-control{cursor:pointer}
     <div class="page-header">
       <div><div class="page-title">Kontaktok</div><div class="page-subtitle" id="kontaktCount">Betöltés...</div></div>
       <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="kontaktExcelExportBtn" onclick="exportKontaktokExcel()" title="Az összes kontakt letöltése Excelbe">📥 Export</button>
         <button class="btn btn-secondary" onclick="openImportModal()">⬆ Import</button>
         <button class="btn btn-secondary" onclick="openDuplikacioModal()" title="Duplikációk keresése és összevonása">⊕ Duplikációk</button>
         <button class="btn btn-primary" onclick="openKontaktModal()">＋ Új kontakt</button>
@@ -10410,7 +10417,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v344 · Belső rendszer
+          Zalner ERP v345 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -12548,6 +12555,65 @@ function renderKontaktok() {
       </td>
     </tr>`;
   }).join('');
+}
+
+// ===== KONTAKTOK EXCEL EXPORT (összes kontakt, egy lapra) =====
+async function exportKontaktokExcel() {
+  const btn = document.getElementById('kontaktExcelExportBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generálás...'; }
+  try {
+    if (!kontaktok.length) await loadKontaktok();
+    if (!ugyfelek.length) await getUgyfelek();
+    if (!kontaktok.length) { toast('Nincs exportálható kontakt.', 'error'); return; }
+
+    const beosztasLabel = {
+      'Ugyvezeto': 'Ügyvezető', 'Dontehozo': 'Döntéshozó', 'Mernok': 'Mérnök',
+      'Beszerzo': 'Beszerző', 'Penzugy': 'Pénzügy', 'Szamlazas': 'Számlázás', 'Egyeb': 'Egyéb'
+    };
+
+    const XLSX = await importGetXLSX();
+    const fejlec = ['Vezetéknév','Keresztnév','Cégnév','Beosztás','Email','Telefon','Fő kapcsolattartó','Megjegyzés'];
+    const headerStyle = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1E3A5F' } }, alignment: { horizontal: 'center' } };
+    const colWidths = [{wch:18},{wch:18},{wch:32},{wch:16},{wch:28},{wch:16},{wch:16},{wch:40}];
+
+    const sorokRendezve = [...kontaktok].sort((a, b) =>
+      (a.fields.Vezeteknev || '').localeCompare(b.fields.Vezeteknev || '', 'hu'));
+    const sorok = sorokRendezve.map(k => {
+      const f = k.fields;
+      const cegnev = f.Ugyfel ? (ugyfelek.find(u => u.id === f.Ugyfel[0])?.fields?.Cegnev || '') : '';
+      return [
+        f.Vezeteknev || '',
+        f.Keresztnev || '',
+        cegnev,
+        beosztasLabel[f.Beosztas] || f.Beosztas || '',
+        f.Email || '',
+        f.Telefon || '',
+        f.Fo_kapcsolattarto ? 'Igen' : '',
+        f.Megjegyzes || '',
+      ];
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([fejlec, ...sorok]);
+    ws['!cols'] = colWidths;
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: sorok.length, c: fejlec.length - 1 } }) };
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+    for (let c = 0; c < fejlec.length; c++) {
+      const ref = XLSX.utils.encode_cell({ r: 0, c });
+      if (ws[ref]) ws[ref].s = headerStyle;
+    }
+    XLSX.utils.book_append_sheet(wb, ws, 'Kontaktok');
+
+    const ma = new Date().toISOString().split('T')[0];
+    const fileName = `kontaktok_${ma}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast(`✓ ${sorok.length} kontakt exportálva: ${fileName}`, 'success');
+  } catch(e) {
+    console.error('Kontakt Excel export hiba:', e);
+    toast('Hiba az Excel generálása közben: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Export'; }
+  }
 }
 
 function toggleKontaktEmlekeztetok(kontaktId, kontaktNev, rowEl) {

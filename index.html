@@ -1,12 +1,40 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v341
+     ZALNER ERP - VERZIÓ: v344
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v344:
+- JAVÍTVA — Projektek/Kimenő számla: ha egy ajánlat (vagy szállítólevél) tétele nevében " jel
+  szerepelt, a tételek üresen maradtak a számlázásnál, kézzel kellett átmásolni. Gyökér-ok: a
+  tétel-sor felépítésekor a megnevezés (és mértékegység) simán bekerült egy HTML
+  value="..." attribútumba escapelés nélkül — egy " karakter idő előtt lezárta az attribútumot,
+  ami a teljes sor HTML-jét szétverte, és a mező (a rá következőkkel együtt) nem jelent meg
+  helyesen a számla tételei között. Javítva a kimenő számla tétel-sorainál (addKszTetel).
+  Mivel ugyanez a hiba a Visszaigazolás (addVrvTetel) és a Szállítólevél (addSzlTetel)
+  tétel-soraiban is megvolt — azok is ugyanabból az ajánlat-adatból töltődnek —, ott is
+  kijavítva, hogy egy " jelet tartalmazó tétel sehol ne okozzon üres/hibás sort.
+
+CHANGES v343:
+- Módosítva — ÁFA bevallás, "Összes csatolmány" letöltésénél a "vámhatározatok" mappa
+  szerkezete átalakítva: mostantól MINDEN, az adott hónapra eső vámhatározathoz külön almappa
+  készül, "Vámhatározat időpontja_Megjegyzés" névvel. Az almappában van a vámhatározat PDF-je
+  (ha több is tartozik hozzá, mindegyik _1/_2 utótaggal), ÉS egy "osszefoglalo.xlsx" táblázat
+  az összes mezővel: MRN szám, szállítólevél szám, bejövő számla szám, számla érték, deviza,
+  import ÁFA, megjegyzés. Ha egy vámhatározathoz nincs feltöltött PDF, az almappa akkor is
+  létrejön, csak az összefoglaló táblázattal — így az is látszik, ha hiányzik a dokumentum.
+
+CHANGES v342:
+- JAVÍTVA — ÁFA bevallás, "Összes csatolmány" letöltésénél a zip-ben a "vámhatározatok" mappa
+  mindig üres volt. Oka: a kód egy nem létező "PDF_url" Airtable mezőt keresett a Vamkezeles
+  táblában, miközben a vámhatározat PDF-je valójában a "Vam_PDF" csatolmány mezőben van
+  (ugyanaz, amit a Vámkezelés lista 📄 gombja is használ). Mostantól a helyes mezőt olvassa,
+  így az adott hónap vámhatározatainak PDF-jei bekerülnek a mappába (ha egy vámhatározathoz
+  több PDF is tartozna, mindegyik lementődik, _1/_2 utótaggal).
 
 CHANGES v341:
 - JAVÍTVA — Kimenő számlák listában egy sztornózott (Storno státuszú) számla, illetve a hozzá
@@ -842,7 +870,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v341</title>
+<title>Zalner ERP v344</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1035,7 +1063,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v341</div>
+    <div class="nav-logo-sub">v344</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -7935,9 +7963,9 @@ function addVrvTetel(data = {}) {
   const ar = data.ar !== undefined && data.ar !== '' ? data.ar : '';
   const menny = data.menny !== undefined && data.menny !== '' ? data.menny : '1';
   tr.innerHTML = `
-    <td class="col-megnevezes"><input class="vrv-nev" placeholder="Termék neve" value="${data.nev||''}" oninput="recalcVrv()"><input class="vrv-leiras" placeholder="Leírás (opcionális)" value="${(data.leiras||'').replace(/"/g,'&quot;')}" style="display:block;margin-top:4px;width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text-muted);font-family:'DM Sans',sans-serif"></td>
+    <td class="col-megnevezes"><input class="vrv-nev" placeholder="Termék neve" value="${(data.nev||'').replace(/"/g,'&quot;')}" oninput="recalcVrv()"><input class="vrv-leiras" placeholder="Leírás (opcionális)" value="${(data.leiras||'').replace(/"/g,'&quot;')}" style="display:block;margin-top:4px;width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text-muted);font-family:'DM Sans',sans-serif"></td>
     <td style="width:65px"><input class="vrv-menny" type="number" min="0" step="1" placeholder="0" value="${menny}" oninput="recalcVrv()" style="width:58px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
-    <td style="width:52px"><input class="vrv-egyseg" placeholder="db" value="${data.egyseg||'db'}" style="width:46px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
+    <td style="width:52px"><input class="vrv-egyseg" placeholder="db" value="${(data.egyseg||'db').replace(/"/g,'&quot;')}" style="width:46px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif"></td>
     <td style="white-space:nowrap;width:115px"><input class="vrv-ar" type="number" min="0" step="any" placeholder="0" value="${ar}" style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif" oninput="recalcVrv()"> <span class="vrv-deviza" style="font-size:11px;color:var(--text-muted)"></span></td>
     <td class="readonly-cell vrv-bruttoar" style="text-align:right;white-space:nowrap;width:110px;font-size:12px;padding:6px 8px">—</td>
     <td class="readonly-cell vrv-ossz" style="text-align:right;white-space:nowrap;width:110px;font-size:12px;font-weight:600;padding:6px 8px">—</td>
@@ -10382,7 +10410,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v341 · Belső rendszer
+          Zalner ERP v344 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -13243,9 +13271,9 @@ function addSzlTetel(data = {}) {
   const tr = document.createElement('tr');
   tr.dataset.tid = id;
   tr.innerHTML = `
-    <td class="col-megnevezes"><input class="szl-nev" placeholder="Termék neve" value="${data.nev||''}"></td>
+    <td class="col-megnevezes"><input class="szl-nev" placeholder="Termék neve" value="${(data.nev||'').replace(/"/g,'&quot;')}"></td>
     <td class="col-menny"><input class="szl-menny" type="number" min="0" step="1" placeholder="0" value="${data.menny!==undefined && data.menny!=='' ? data.menny : '1'}"></td>
-    <td class="col-egyseg"><input class="szl-egyseg" placeholder="db" value="${data.egyseg||'db'}"></td>
+    <td class="col-egyseg"><input class="szl-egyseg" placeholder="db" value="${(data.egyseg||'db').replace(/"/g,'&quot;')}"></td>
     <td class="col-del"><button type="button" onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:#e74c3c;font-size:16px;padding:4px">✕</button></td>`;
   document.getElementById('szlTetelek').appendChild(tr);
 }
@@ -14637,9 +14665,9 @@ function addKszTetel(data = null) {
   tr.id = `kszTetel_${id}`;
   const afaOpts = ['27%','5%','0%','AAM'].map(v => `<option value="${v}" ${(data?.afa||'27%')===v?'selected':''}>${v}</option>`).join('');
   tr.innerHTML = `
-    <td class="col-megnevezes"><input type="text" name="megnevezes" placeholder="Megnevezés..." value="${data?.megnevezes||''}" oninput="calcKszOssz()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
+    <td class="col-megnevezes"><input type="text" name="megnevezes" placeholder="Megnevezés..." value="${(data?.megnevezes||'').replace(/"/g,'&quot;')}" oninput="calcKszOssz()" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
     <td class="col-menny"><input type="number" name="mennyiseg" value="${data?.mennyiseg??1}" min="0" step="1" oninput="calcKszTetel(${id});calcKszOssz()" style="width:60px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
-    <td><input type="text" name="egyseg" value="${data?.egyseg||'db'}" oninput="calcKszOssz()" style="width:56px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
+    <td><input type="text" name="egyseg" value="${(data?.egyseg||'db').replace(/"/g,'&quot;')}" oninput="calcKszOssz()" style="width:56px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"></td>
     <td><select name="afa" onchange="calcKszTetel(${id});calcKszOssz()" style="padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:70px">${afaOpts}</select></td>
     <td class="col-ar"><input type="number" name="egyseg_ar" value="${data?.egyseg_ar||''}" min="0" step="1" oninput="calcKszTetel(${id});calcKszOssz()" style="width:100px;padding:6px 4px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);text-align:right"></td>
     <td class="col-osszeg" id="kszTetelOssz_${id}" style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;padding:0 8px">—</td>
@@ -16998,17 +17026,18 @@ async function afaOsszesCsatolmanyLetoltes() {
     : kszInvoices.slice()
   ).filter(i => i.statusz !== 'Storno' && i.statusz !== 'Piszkozat' && i._billingoId);
 
-  // Vámhatározatok PDF-jei
+  // Vámhatározatok (Airtable "Vam_PDF" csatolmány mező). Minden, az adott hónapra eső
+  // vámhatározat-rekordot feldolgozunk — PDF-fel vagy anélkül is; ha nincs hozzá PDF, a
+  // mappájába csak az összefoglaló táblázat kerül, hogy a hiány is látszódjon.
   if (!vamRecords || !vamRecords.length) {
     try { vamRecords = await atGet('Vamkezeles', 'sort%5B0%5D%5Bfield%5D=Vamhatarozat_datum&sort%5B0%5D%5Bdirection%5D=desc'); } catch(e) {}
   }
   const vamHavi = prefix
-    ? (vamRecords||[]).filter(v => (v.fields?.Vamhatarozat_datum||v.fields?.Datum||'').startsWith(prefix) && v.fields?.PDF_url)
-    : (vamRecords||[]).filter(v => v.fields?.PDF_url);
-  const vamPdfek = vamHavi.map(v => ({ invoiceNumber: v.fields?.MRN_szam || v.id, _pdfUrl: v.fields.PDF_url }));
+    ? (vamRecords||[]).filter(v => (v.fields?.Vamhatarozat_datum||'').startsWith(prefix))
+    : (vamRecords||[]).slice();
 
-  if (!bejovoPdfek.length && !kimenoScope.length && !vamPdfek.length) {
-    toast('Nincs letölthető PDF csatolmány!', 'error'); return;
+  if (!bejovoPdfek.length && !kimenoScope.length && !vamHavi.length) {
+    toast('Nincs letölthető csatolmány!', 'error'); return;
   }
 
   toast(`⏳ Csatolmányok előkészítése és zippelése... (kimenő: ${kimenoScope.length} db)`, '');
@@ -17072,7 +17101,8 @@ async function afaOsszesCsatolmanyLetoltes() {
         const resp = await fetch(url);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         mappa.file(safe(fileName) + '.pdf', await resp.blob());
-      } catch(e) { console.warn(`PDF letöltés sikertelen: ${fileName}`, e.message); }
+        return true;
+      } catch(e) { console.warn(`PDF letöltés sikertelen: ${fileName}`, e.message); return false; }
     };
 
     let kimOk = 0;
@@ -17083,17 +17113,60 @@ async function afaOsszesCsatolmanyLetoltes() {
 
     // Bejövő: számlánként AKÁR 3 dokumentum — több fájlnál _1/_2/_3 utótag jelzi az összetartozást
     const bejovoFajlDb = bejovoPdfek.reduce((n, i) => n + ((i._pdfUrls && i._pdfUrls.length) || 1), 0);
+
+    // Vámhatározatok: MINDEN érintett rekordhoz külön mappa "Vámhatározat időpontja_Megjegyzés"
+    // névvel — benne a vámhatározat PDF-je (ha van, akár több is) + egy összefoglaló táblázat
+    // (xlsx) az összes mezővel (MRN szám, szállítólevél szám, bejövő számla szám stb.)
+    let vamPdfOk = 0;
+    const vamTasks = [];
+    if (vamHavi.length) {
+      const XLSX = await importGetXLSX();
+      const usedNev = new Set();
+      vamHavi.forEach(v => {
+        const f = v.fields || {};
+        let mappaNev = safe(`${f.Vamhatarozat_datum || 'datum_nelkul'}_${f.Megjegyzes || f.MRN_szam || v.id}`);
+        while (usedNev.has(mappaNev)) mappaNev += '_2';
+        usedNev.add(mappaNev);
+        const vamAlMappa = vamMappa.folder(mappaNev);
+
+        // Összefoglaló táblázat — minden mező, ami a Vámkezelés rekordon szerepel
+        const sorok = [
+          ['Mező', 'Érték'],
+          ['Vámhatározat időpontja', f.Vamhatarozat_datum || ''],
+          ['MRN szám', f.MRN_szam || ''],
+          ['Szállítólevél szám', f.Szallitolevel_szam || ''],
+          ['Bejövő számla szám', f.Bejovo_szamla_szam || ''],
+          ['Számla érték', f.Szamla_ertek != null ? f.Szamla_ertek : ''],
+          ['Deviza', f.Deviza || ''],
+          ['Import ÁFA', f.Import_afa != null ? f.Import_afa : ''],
+          ['Megjegyzés', f.Megjegyzes || ''],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(sorok);
+        ws['!cols'] = [{ wch: 24 }, { wch: 40 }];
+        const wbVam = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wbVam, ws, 'Összefoglaló');
+        vamAlMappa.file('osszefoglalo.xlsx', XLSX.write(wbVam, { bookType: 'xlsx', type: 'array' }));
+
+        // A vámhatározat PDF-je(i)
+        const atts = f.Vam_PDF || [];
+        atts.forEach((att, ix) => {
+          const fnev = (f.MRN_szam || v.id) + (atts.length > 1 ? `_${ix+1}` : '');
+          vamTasks.push(fetchPdfUrl(att.url, fnev, vamAlMappa).then(ok => { if (ok) vamPdfOk++; }));
+        });
+      });
+    }
+
     await Promise.all([
       ...bejovoPdfek.flatMap(inv => {
         const docs = (inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : [{ url: inv._pdfUrl }];
         return docs.map((d, ix) => fetchPdfUrl(d.url, bszFajlNev(inv) + (docs.length > 1 ? `_${ix+1}` : ''), bejMappa));
       }),
       ...kimTasks,
-      ...vamPdfek.map(inv => fetchPdfUrl(inv._pdfUrl, inv.invoiceNumber || 'vam', vamMappa)),
+      ...vamTasks,
     ]);
 
-    const total = bejovoFajlDb + kimOk + vamPdfek.length;
-    if (!total) { toast('Nem sikerült egyetlen PDF-et sem letölteni.', 'error'); return; }
+    const total = bejovoFajlDb + kimOk + vamHavi.length;
+    if (!total) { toast('Nem sikerült egyetlen csatolmányt sem letölteni.', 'error'); return; }
 
     const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
     const a = document.createElement('a');
@@ -17101,7 +17174,7 @@ async function afaOsszesCsatolmanyLetoltes() {
     a.download = `csatolmanyok_${idoszak}.zip`;
     a.click();
     URL.revokeObjectURL(a.href);
-    toast(`✓ ${total} PDF letöltve (bejövő: ${bejovoFajlDb}, kimenő: ${kimOk}/${kimenoScope.length}, vám: ${vamPdfek.length})`, 'success');
+    toast(`✓ Letöltve (bejövő: ${bejovoFajlDb} PDF, kimenő: ${kimOk}/${kimenoScope.length} PDF, vám: ${vamHavi.length} mappa / ${vamPdfOk} PDF)`, 'success');
   } catch(e) {
     toast('Hiba a zip generálásakor: ' + e.message, 'error');
   }

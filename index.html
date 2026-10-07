@@ -1,12 +1,35 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v345
+     ZALNER ERP - VERZIÓ: v347
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v347:
+- JAVÍTVA — ÁFA bevallás: a díjbekérők (pl. kifizetett, "Fizetett" státuszú díjbekérő)
+  bekerültek a kimenő számlák közé és a kimenő nettó/ÁFA összegbe. Díjbekérő → előlegszámla
+  esetén így ugyanaz az összeg kétszer szerepelt. Mostantól a díjbekérő (típus alapján,
+  kszTipusFromRecord) kimarad: az ÁFA bevallás oldalán, az ÁFA Excel exportban és a havi
+  csatolmány-letöltésben (ZIP) is.
+- JAVÍTVA — ÁFA bevallás: a kimenő számlák hónapját mostantól a TELJESÍTÉS dátuma határozza
+  meg (ennek hiányában a kiállításé), nem a kiállítás dátuma. Pl. a 09-30-i teljesítésű, de
+  októberben kiállított előlegszámla eddig az októberi bevallásba került, most a
+  szeptemberibe. Érinti: ÁFA bevallás oldal, ÁFA Excel export, csatolmány-letöltés (ZIP).
+  A bejövő számlák logikája nem változott. Árbevétel/Pénzügyi kimutatás számításai ezt eddig is
+  helyesen kezelték, ott nem volt változás.
+- JAVÍTVA — Pénzügyi kimutatás: ha ez volt az első oldal, ami a kimenő számlákat betöltötte,
+  egy hiányos (kiállítási dátum, azonosítók nélküli) listával írta felül a közös kimenő
+  számla gyorstárat. Ezután az ÁFA bevallás kimenő számlák nélkül jelenhetett meg. A
+  Pénzügyi kimutatás mostantól csak saját, helyi listát használ.
+
+CHANGES v346:
+- ÚJ — Ért. jutalék → Számlázott jutalékok: minden sor végén "↩ Visszavonás" gomb. Megerősítés
+  után a projekt státuszát visszaállítja "Jutalek_szamlazhato" → "Szamlazott" értékre, így a
+  projekt újra megjelenik az Ért. jutalék havi kimutatásában (a számlázás dátuma szerinti
+  hónapban) a "Számlázva →" gombbal. Csak a Jutalek_szamlazhato státuszú projekteken működik.
 
 CHANGES v345:
 - ÚJ — Kontaktok menüpont: "📥 Export" gomb az Import gomb mellett. Egy kattintással letölti
@@ -876,7 +899,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v345</title>
+<title>Zalner ERP v347</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1069,7 +1092,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v345</div>
+    <div class="nav-logo-sub">v347</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -4459,6 +4482,29 @@ async function jutalekSzamlazva(projektId, btn) {
   }
 }
 
+async function jutalekVisszavonas(projektId, btn) {
+  const p = (projektek || []).find(x => x.id === projektId);
+  const szam = p?.fields?.Projekt_szam || projektId;
+  if (p && p.fields.Statusz !== 'Jutalek_szamlazhato') {
+    toast('A projekt már nem "Jutalék számlázva" státuszú', 'error');
+    renderSzamlazottJutalek();
+    return;
+  }
+  if (!confirm(`Visszaállítod a(z) ${szam} projekt jutalékát nem számlázott állapotba?\n\nA projekt státusza "Számlázott" lesz, és újra megjelenik az Ért. jutalék havi kimutatásában.`)) return;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    await atPatch('Projektek', projektId, { Statusz: 'Szamlazott' });
+    if (p) p.fields.Statusz = 'Szamlazott';
+    toast(`${szam}: visszaállítva nem számlázott jutalékra`, 'success');
+    renderSzamlazottJutalek();
+  } catch(e) {
+    toast('Hiba: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '↩ Visszavonás';
+  }
+}
+
 function jutalekMasolas() {
   const szamok = window._jutalekProjektSzamok || [];
   if (!szamok.length) return;
@@ -4570,6 +4616,14 @@ async function renderSzamlazottJutalek() {
             <td class="td-muted">${f.Felelos || '—'}</td>
             <td class="td-muted">${f.Szamlazas_datum || '—'}</td>
             <td style="text-align:right;">${jutalekStr}</td>
+            <td style="text-align:right;white-space:nowrap;">
+              <button onclick="jutalekVisszavonas('${p.id}', this)" title="Visszaállítás nem számlázott jutalék státuszba" style="
+                background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;
+                padding:2px 8px;font-size:11px;color:#c2410c;cursor:pointer;
+                font-family:'DM Sans',sans-serif;font-weight:500;transition:all 0.15s;"
+                onmouseover="this.style.background='#ffedd5'"
+                onmouseout="this.style.background='#fff7ed'">↩ Visszavonás</button>
+            </td>
           </tr>`;
         }).join('');
 
@@ -4578,10 +4632,12 @@ async function renderSzamlazottJutalek() {
       if (adat.huf) tfootSorok.push(`<tr style="background:#f0f4ff;font-weight:600;border-top:2px solid var(--border);">
         <td colspan="5" style="padding:8px 16px;">${ev}. ${honapNev} · HUF összesen</td>
         <td style="padding:8px 16px;text-align:right;font-family:'DM Mono',monospace;color:#4f7fff;">${fmt(adat.huf)} HUF</td>
+        <td></td>
       </tr>`);
       if (adat.eur) tfootSorok.push(`<tr style="background:#f5f0ff;font-weight:600;${!adat.huf?'border-top:2px solid var(--border);':''}">
         <td colspan="5" style="padding:8px 16px;">${ev}. ${honapNev} · EUR összesen</td>
         <td style="padding:8px 16px;text-align:right;font-family:'DM Mono',monospace;color:#7c3aed;">${fmtEur(adat.eur)} EUR</td>
+        <td></td>
       </tr>`);
 
       return `
@@ -4598,7 +4654,7 @@ async function renderSzamlazottJutalek() {
               <thead><tr>
                 <th>Projektszám</th><th>Projekt neve</th><th>Ügyfél</th>
                 <th>Felelős</th><th>Számlázás dátuma</th>
-                <th style="text-align:right;">Jutalék</th>
+                <th style="text-align:right;">Jutalék</th><th></th>
               </tr></thead>
               <tbody>${sorok}</tbody>
               <tfoot>${tfootSorok.join('')}</tfoot>
@@ -10417,7 +10473,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v345 · Belső rendszer
+          Zalner ERP v347 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -15876,7 +15932,9 @@ async function renderPenzugyiKimutatas() {
           statusz: r.fields.Statusz || 'Fizetesre_var',
           tipus: kszTipusFromRecord(r.fields),
         }));
-        kszInvoices = kszData;
+        // v347: NEM írjuk vissza a globális kszInvoices-ba — ez a lecsupaszított objektum
+        // (nincs benne kiallitasDatum, _id, _billingoId stb.) elrontotta volna az ÁFA
+        // bevallást és a Kimenő számlák nézetet, ha a Pénzügyi kimutatás nyílt meg előbb.
       } catch(e) { console.warn('Kimenő számlák betöltési hiba:', e); }
     }
 
@@ -16404,9 +16462,11 @@ async function renderAfaBevallas() {
         sajatKapcsolattartoEmail: r.fields.Sajat_kapcsolattarto_email || '',
       }));
     }
+    // Kimenő ÁFA időszaka: TELJESÍTÉS dátuma (ennek híján a kiállításé)
     kimSzamlak = kszInvoices.filter(inv =>
-      (inv.kiallitasDatum || '').startsWith(prefix) &&
-      inv.statusz !== 'Storno' && inv.statusz !== 'Piszkozat'
+      (inv.teljesitesDatum || inv.kiallitasDatum || '').startsWith(prefix) &&
+      inv.statusz !== 'Storno' && inv.statusz !== 'Piszkozat' &&
+      inv.statusz !== 'Dijbekero' && inv.tipus !== 'Díjbekérő' && inv.tipus !== 'Piszkozat'
     );
   } catch(e) { console.warn('Kimenő számlák betöltés hiba:', e); }
 
@@ -16731,8 +16791,9 @@ async function exportAfaExcel() {
 
     // ===== 1. LAP: Kimenő számlák =====
     const kimSzamlak = kszInvoices.filter(i =>
-      (i.kiallitasDatum || '').startsWith(prefix) &&
-      i.statusz !== 'Storno' && i.statusz !== 'Piszkozat'
+      (i.teljesitesDatum || i.kiallitasDatum || '').startsWith(prefix) &&
+      i.statusz !== 'Storno' && i.statusz !== 'Piszkozat' &&
+      i.statusz !== 'Dijbekero' && i.tipus !== 'Díjbekérő' && i.tipus !== 'Piszkozat'
     );
     const kimFejlec = ['Számlaszám','Ügyfél','Kiállítás','Típus','Nettó','ÁFA','Bruttó','Deviza','Státusz','PO szám'];
     const kimSorok = kimSzamlak.map(inv => {
@@ -17088,9 +17149,10 @@ async function afaOsszesCsatolmanyLetoltes() {
 
   // Kimenő számlák (nem storno/piszkozat, van Billingo azonosító) az adott időszakra
   const kimenoScope = (prefix
-    ? kszInvoices.filter(i => (i.kiallitasDatum||'').startsWith(prefix))
+    ? kszInvoices.filter(i => (i.teljesitesDatum || i.kiallitasDatum || '').startsWith(prefix))
     : kszInvoices.slice()
-  ).filter(i => i.statusz !== 'Storno' && i.statusz !== 'Piszkozat' && i._billingoId);
+  ).filter(i => i.statusz !== 'Storno' && i.statusz !== 'Piszkozat' &&
+    i.statusz !== 'Dijbekero' && i.tipus !== 'Díjbekérő' && i._billingoId);
 
   // Vámhatározatok (Airtable "Vam_PDF" csatolmány mező). Minden, az adott hónapra eső
   // vámhatározat-rekordot feldolgozunk — PDF-fel vagy anélkül is; ha nincs hozzá PDF, a

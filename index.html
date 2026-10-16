@@ -1,12 +1,69 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v347
+     ZALNER ERP - VERZIÓ: v351
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v351:
+- OPTIMALIZÁLÁS (API-spórolás, 4. lépés — MÉRÉS ALAPJÁN) — Dashboard napló-lekérés. Élő
+  méréssel kiderült, hogy a dashboard hideg betöltésének fő lassítója NEM az adatméret, hanem
+  hogy a naplótáblákat TELJESEN lehúzta, sok lapon át: Ajanlat_Naplo = 1073 sor / 11 lap /
+  ~6,5 mp, Projekt_Naplo = 643 sor. A proxyn egy lap (100 sor) ~500 ms, és a lapozás
+  szekvenciális, ezért az idők összeadódnak. A dashboard viszont mindkét naplóból CSAK a 30
+  legutóbbit jeleníti meg. Mostantól maxRecords=30-cal eleve csak annyit kér le → a két napló
+  együtt ~13 lap / ~10 mp helyett 1-1 lap / ~1 mp. Ez a dashboard (= tipikus első oldal)
+  betöltését érdemben gyorsítja. A számítások nem változnak (a sort dátum szerint csökkenő, a
+  30 legfrissebb jön). A számlatáblákat (Bejovo/Kimeno) SZÁNDÉKOSAN nem korlátoztuk: azok a
+  lista-oldalakkal közös cache-en osztoznak és a KPI-k a teljes évet nézik.
+- MEGJEGYZÉS a field-szűrésről: a mérés szerint a fields[] mezőszűrés alig gyorsítana (egy lap
+  teljes mezőkkel ~485 ms, csak 3 mezővel ~457 ms) — a szűk keresztmetszet a per-kérés fix
+  késleltetés és a lapszám, nem a mezőméret. Ezért a kockázatos (néma adatvesztéssel fenyegető)
+  field-szűrést NEM vezettük be; helyette a felesleges sorok/lapok számát csökkentjük.
+
+CHANGES v350:
+- OPTIMALIZÁLÁS (API-spórolás, 3. lépés) — TARTÓS CACHE: a cache mostantól a memória
+  mellett sessionStorage-ba is menti a betöltött táblákat, így egy OLDALFRISSÍTÉS (F5) vagy
+  új tabnyitás NEM indít hidegindítást — a listák a tárolt adatból rajzolódnak azonnal, új
+  API-hívás nélkül (a TTL lejártáig). Ez a fő orvosság az "első kattintás sokáig tart"
+  tünetre. A perzisztálás best-effort és védett: ha a tároló tele van (nagy tábla, ~5MB
+  kvóta), privát módban van, vagy bármiért hibázik, a memóriacache zavartalanul működik
+  tovább — semmi nem törik el. A cache-invalidálás (státuszváltás, törlés, NAV/Billingo
+  szinkron, kézi fiz. határidő stb.) mostantól a sessionStorage megfelelő kulcsait is üríti,
+  tehát F5 után sem jöhet elavult adat. Kijelentkezéskor (clearSession) a teljes tartós cache
+  törlődik, hogy ugyanazon a gépen másik belépő ne lássa az előző felhasználó adatait.
+  Verziózott tároló-prefix (erpc2:), hogy jövőbeli formátumváltás ne ütközzön.
+
+CHANGES v349:
+- OPTIMALIZÁLÁS (API-spórolás, 1. lépés folyt.) — atGetLinked: kétféle kapcsolómező
+  kezelése. Kiderült, hogy az Emlekeztetok táblában a Kapcsolat_id NEM linked record, hanem
+  SZÖVEGES mező, ami MÁR a kapcsolt rekord record ID-ját tárolja (pl. "rec6Brsd..."). Ehhez
+  nincs szükség lookup mezőre — a szűrés közvetlenül a szöveges mezőn fut. Új LINKED_FILTER_TEXT
+  térkép (Emlekeztetok→Kapcsolat_id) kezeli ezt az esetet; a valódi linked record táblák
+  (AjanlatTetelek, Ajanlat_Naplo, Projekt_Naplo) továbbra is a LINKED_FILTER_FIELD lookup-térképet
+  használják. Így az Emlekeztetok szerveroldali szűrése AZONNAL él, Airtable-mező létrehozása
+  nélkül. (Az Emlekeztetok-nél a korábban javasolt "Kapcsolat_recid" lookup mező NEM kell —
+  a tábla a Kapcsolat_id szöveges mezőre szűr.)
+
+CHANGES v348:
+- OPTIMALIZÁLÁS (API-spórolás, 1. lépés) — atGetLinked: a kapcsolt rekord szerinti lekérdezés
+  (ajánlat tételei, ajánlat/projekt napló, emlékeztetők) eddig a TELJES táblát letöltötte és
+  kliensoldalon szűrt egyetlen rekordra — a sorok 99%-át eldobva. Ez volt a fő oka a lassulásnak
+  és az Airtable API-keret gyors elfogyásának (nagy AjanlatTetelek tábla). Mostantól, ahol van rá
+  mód, SZERVEROLDALON szűr filterByFormula-val (FIND az ARRAYJOIN-olt lookup mezőben), így csak a
+  ténylegesen kellő sorok jönnek le.
+  FELTÉTEL (egyszeri Airtable-beállítás táblánként): a gyerektáblában kell egy LOOKUP mező, ami a
+  szülő RECORD_ID()-ját adja vissza — nevei: AjanlatTetelek→"Ajanlat_recid", Ajanlat_Naplo→
+  "Ajanlat_recid", Projekt_Naplo→"Projekt_recid", Emlekeztetok→"Kapcsolat_recid". A mezőneveket a
+  kódban a LINKED_FILTER_FIELD térkép tartalmazza (kb. 3646. sor), átírható.
+  BIZTONSÁG: ha egy lookup mező MÉG NINCS meg (vagy a szerveroldali szűrés bármiért hibázik), az
+  adott tábla AUTOMATIKUSAN visszaesik a régi, teljes-táblás kliensszűrésre — semmi nem törik el,
+  csak az a tábla nem gyorsul, amíg a mező létre nem jön. Tábláról táblára bevezethető.
+  A szűrt lekérés külön cache-kulcsot kap, a tábla meglévő TTL-jét örökli; a cache-invalidálás a
+  szűrt kulcsokat is helyesen üríti.
 
 CHANGES v347:
 - JAVÍTVA — ÁFA bevallás: a díjbekérők (pl. kifizetett, "Fizetett" státuszú díjbekérő)
@@ -899,7 +956,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v347</title>
+<title>Zalner ERP v351</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1092,7 +1149,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v347</div>
+    <div class="nav-logo-sub">v351</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -3570,23 +3627,103 @@ const CACHE_TTL_MAP = {
   Projekt_Naplo: CACHE_TTL_SHORT, Emlekeztetok: CACHE_TTL_SHORT,
 };
 
+// ───────────────────────────────────────────────────────────────────────────
+// TARTÓS CACHE (v350) — a memóriacache fölé sessionStorage-perzisztálás kerül,
+// hogy egy OLDALFRISSÍTÉS (F5) vagy új tabnyitás NE indítson hidegindítást: a
+// listák a tárolt adatból rajzolódnak azonnal, API-hívás nélkül.
+// Rétegek: 1) _cache memóriában (leggyorsabb), 2) sessionStorage (F5-túlélő).
+// A TTL mindkettőre érvényes (a tárolt ts alapján jár le).
+// Védelem: minden storage-művelet try/catch-ben — privát módban, tele kvótánál
+// vagy letiltott tárolónál a memóriacache zavartalanul működik tovább.
+const _CACHE_SS_PREFIX = 'erpc2:';   // verziózott prefix, hogy régi formátummal ne ütközzön
+
+function _ssGet(key) {
+  try {
+    const s = sessionStorage.getItem(_CACHE_SS_PREFIX + key);
+    return s ? JSON.parse(s) : null;
+  } catch (e) { return null; }
+}
+function _ssSet(key, entry) {
+  try {
+    sessionStorage.setItem(_CACHE_SS_PREFIX + key, JSON.stringify(entry));
+  } catch (e) {
+    // Legvalószínűbb: QuotaExceededError (nagy tábla nem fér a ~5MB keretbe).
+    // Ilyenkor NEM perzisztálunk — a memóriacache marad, semmi nem törik el.
+    // Igyekszünk helyet csinálni: a legnagyobb saját bejegyzést kidobjuk egyszer.
+    try { _ssEvictLargest(); sessionStorage.setItem(_CACHE_SS_PREFIX + key, JSON.stringify(entry)); }
+    catch (e2) { /* feladjuk a perzisztálást ennél a kulcsnál */ }
+  }
+}
+function _ssRemove(key) {
+  try { sessionStorage.removeItem(_CACHE_SS_PREFIX + key); } catch (e) {}
+}
+function _ssEvictLargest() {
+  // A legnagyobb erpc2: bejegyzés eltávolítása, hogy férjen egy új. Csak best-effort.
+  try {
+    let biggestKey = null, biggestLen = -1;
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(_CACHE_SS_PREFIX)) {
+        const len = (sessionStorage.getItem(k) || '').length;
+        if (len > biggestLen) { biggestLen = len; biggestKey = k; }
+      }
+    }
+    if (biggestKey) sessionStorage.removeItem(biggestKey);
+  } catch (e) {}
+}
+
 function cacheGet(key) {
-  const c = _cache[key];
-  if (!c) return null;
   const ttl = CACHE_TTL_MAP[key.split('|')[0]] || CACHE_TTL;
+  // 1) memória
+  let c = _cache[key];
+  // 2) ha memóriában nincs, próbáljuk a tartós tárolóból (F5 utáni első hívás)
+  if (!c) {
+    const stored = _ssGet(key);
+    if (stored && typeof stored.ts === 'number') {
+      c = _cache[key] = stored;   // visszatöltjük a memóriába is
+    }
+  }
+  if (!c) return null;
   if (Date.now() - c.ts < ttl) return c.data;
+  // lejárt — takarítsunk mindkét rétegben
+  delete _cache[key];
+  _ssRemove(key);
   return null;
 }
 function cacheSet(key, data) {
-  _cache[key] = { data, ts: Date.now() };
+  const entry = { data, ts: Date.now() };
+  _cache[key] = entry;
+  _ssSet(key, entry);   // best-effort perzisztálás (kvótavédelemmel)
 }
 function cacheInvalidate(key) {
   if (!key) {
-    // Mindent töröl
+    // Mindent töröl — memória ÉS tartós tároló
     Object.keys(_cache).forEach(k => delete _cache[k]);
+    try {
+      const toDel = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith(_CACHE_SS_PREFIX)) toDel.push(k);
+      }
+      toDel.forEach(k => sessionStorage.removeItem(k));
+    } catch (e) {}
   } else {
-    // Az adott táblához tartozó összes cache kulcsot törli
-    Object.keys(_cache).filter(k => k === key || k.startsWith(key + '|')).forEach(k => delete _cache[k]);
+    // Az adott táblához tartozó összes cache kulcsot törli (mindkét rétegben)
+    Object.keys(_cache).filter(k => k === key || k.startsWith(key + '|')).forEach(k => {
+      delete _cache[k];
+      _ssRemove(k);
+    });
+    // a tartós tárolóban lehet olyan kulcs is, ami nincs a memóriában (F5 után)
+    try {
+      const toDel = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const raw = sessionStorage.key(i);
+        if (!raw || !raw.startsWith(_CACHE_SS_PREFIX)) continue;
+        const k = raw.slice(_CACHE_SS_PREFIX.length);
+        if (k === key || k.startsWith(key + '|')) toDel.push(raw);
+      }
+      toDel.forEach(k => { try { sessionStorage.removeItem(k); } catch(e) {} });
+    } catch (e) {}
   }
 }
 
@@ -3622,9 +3759,81 @@ async function atGet(table, params = '') {
 }
 
 // Szűrt lekérdezés linked record alapján (AjanlatTetelek, Projekt_Naplo)
+// ───────────────────────────────────────────────────────────────────────────
+// OPTIMALIZÁLT (v346): ahol lehet, SZERVEROLDALON szűrünk filterByFormula-val,
+// hogy ne a teljes táblát kelljen letölteni és kliensen eldobni a 99%-át.
+//
+// Egy linked record mezőre a filterByFormula a mező MEGJELENÍTETT értékét
+// (elsődleges mező, pl. ajánlatszám) látja, NEM a kapcsolt rekord ID-ját.
+// A kapcsolt rekord ID-jára csak akkor tudunk biztonságosan, egyedileg szűrni,
+// ha a gyerektáblában van egy LOOKUP/FORMULA mező, ami a szülő RECORD_ID()-ját
+// adja vissza sima szövegként. Ennek a mezőnek a nevét táblánként itt adjuk meg.
+//
+// KÉTFÉLE ESET van, a kapcsolómező típusától függően:
+//
+// A) LINKED RECORD mező (a mentés tömbként ír: Pl. "Ajanlat: [recXXX]").
+//    Ilyenkor a filterByFormula a mező MEGJELENÍTETT értékét látja (elsődleges
+//    mező, pl. ajánlatszám), NEM a record ID-t — ezért kell egy LOOKUP mező,
+//    ami a szülő RECORD_ID()-ját adja vissza szövegként, és arra szűrünk.
+//    Ezeket a LINKED_FILTER_FIELD térkép tartalmazza (tábla → lookup mező neve).
+//    Teendő Airtable-ben (egyszer, táblánként):
+//      AjanlatTetelek: "Lookup" mező "Ajanlat_recid" → forrás az Ajanlat kapcsolt
+//                      mező, lekért érték: a szülő ajánlat Record ID-ja.
+//      Ajanlat_Naplo:  "Ajanlat_recid"  (lookup az Ajanlat kapcsolt mezőről)
+//      Projekt_Naplo:  "Projekt_recid"  (lookup a Projekt kapcsolt mezőről)
+//
+// B) SZÖVEGES mező, ami MÁR a record ID-t tárolja (pl. Emlekeztetok.Kapcsolat_id
+//    = "rec6BrsdIcV7q60Ay"). Itt NINCS szükség lookupra — közvetlenül magára a
+//    mezőre szűrünk FIND-del. Ezeket a LINKED_FILTER_TEXT térkép sorolja fel.
+//    Ehhez NEM kell Airtable-ben semmit létrehozni.
+//
+// Ha egy táblához egyik térkép sincs beállítva (vagy a szerveroldali szűrés
+// bármiért hibázik), az AUTOMATIKUSAN a régi, teljes-táblás kliensszűrésre esik
+// vissza — semmi nem törik el, csak az a tábla nem gyorsul.
+const LINKED_FILTER_FIELD = {
+  AjanlatTetelek: 'Ajanlat_recid',
+  Ajanlat_Naplo:  'Ajanlat_recid',
+  Projekt_Naplo:  'Projekt_recid',
+};
+// Táblák, ahol a megadott TEXT mező MÁR a record ID-t tárolja → közvetlen szűrés
+const LINKED_FILTER_TEXT = {
+  Emlekeztetok: 'Kapcsolat_id',
+};
+// Táblák, ahol már kiderült, hogy a lookup mező nincs meg (422/ismeretlen mező):
+// ezeket nem próbáljuk újra szerveroldalon, hogy ne pazaroljunk hívást.
+const _linkedFilterDisabled = {};
+
 async function atGetLinked(table, linkField, recordId, sort) {
-  // Az Airtable ARRAYJOIN a linked field display nevét adja, nem a record ID-t
-  // Ezért kliens oldali szűrést használunk a biztonság kedvéért
+  const lookupField = LINKED_FILTER_FIELD[table];
+  const textField   = LINKED_FILTER_TEXT[table];
+
+  // 1) SZERVEROLDALI ÚT — ha van konfigurált szűrőmező és nincs letiltva
+  if ((lookupField || textField) && !_linkedFilterDisabled[table]) {
+    // A) lookup mező (linked record): ARRAYJOIN-olt tömbben keresünk FIND-del.
+    // B) szöveges mező (már record ID): közvetlenül a mezőben keresünk FIND-del.
+    const field = lookupField || textField;
+    const haystack = lookupField ? `ARRAYJOIN({${field}})` : `{${field}}`;
+    const formula = `FIND("${recordId}",${haystack})>0`;
+    const params = 'filterByFormula=' + encodeURIComponent(formula) + (sort ? '&' + sort : '');
+    try {
+      const recs = await atGet(table, params);
+      return recs;
+    } catch (e) {
+      // Ha a mező nem létezik (UNKNOWN_FIELD_NAME / 422) vagy a formula hibás,
+      // letiltjuk ennél a táblánál és visszaesünk a régi, biztos útra.
+      const msg = (e && e.message) || '';
+      if (/422|UNKNOWN_FIELD_NAME|INVALID_FILTER|formula/i.test(msg)) {
+        _linkedFilterDisabled[table] = true;
+        console.warn(`atGetLinked: "${table}" szerveroldali szűrés letiltva (hiányzó/rossz "${lookupField || textField}" mező?), fallback teljes-táblás szűrésre.`, msg);
+      } else {
+        // Hálózati/egyéb hiba: NE tiltsuk le véglegesen, csak most essünk vissza.
+        console.warn(`atGetLinked: "${table}" szerveroldali szűrés hiba, egyszeri fallback.`, msg);
+      }
+      // ↓ átesik a 2) ágra
+    }
+  }
+
+  // 2) FALLBACK — eredeti viselkedés: teljes tábla + kliensoldali szűrés
   const all = await atGet(table, sort ? sort : '');
   return all.filter(r => {
     const val = r.fields[linkField];
@@ -4849,8 +5058,14 @@ async function loadDashboard() {
         // számlák oldalon → közös cache, nincs elavult állapot)
         atGet('Kimeno_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => []),
         atGet('Vamkezeles').catch(() => []),         // 60 perces cache
-        atGet('Projekt_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => []),
-        atGet('Ajanlat_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc').catch(() => [])
+        // OPTIMALIZÁLÁS (v351): a dashboard a naplókból CSAK a 30 legutóbbit mutatja (lásd
+        // slice(0,30) lentebb), ezért maxRecords=30-cal eleve csak annyit kérünk le. Korábban
+        // a TELJES naplótáblát lehúzta (Ajanlat_Naplo ~1000+ sor, 11 lapon át ~6,5 mp!), majd
+        // a 30 kivételével eldobta — ez volt a dashboard hideg betöltésének fő lassítója.
+        // A sort dátum szerint csökkenő, így a maxRecords=30 pontosan a 30 legfrissebbet adja.
+        // Külön cache-kulcs (más paraméter), nem ütközik a napló-oldalak teljes lekérésével.
+        atGet('Projekt_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=30').catch(() => []),
+        atGet('Ajanlat_Naplo', 'sort%5B0%5D%5Bfield%5D=Datum&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=30').catch(() => [])
       ]);
       _dashCache = { bszek, kszek, vamok, projNaplok: projNaplok.slice(0, 30), ajNaplok: ajNaplok.slice(0, 30) };
       // EUR/HUF árfolyam (EKB) az éves árbevétel tájékoztató HUF-os összegéhez
@@ -10326,6 +10541,9 @@ function clearSession() {
   localStorage.removeItem('zalnerUserData');
   currentUser = null;
   auditCurrentUser = null;
+  // Tartós cache ürítése kijelentkezéskor — hogy ugyanazon a gépen másik belépő
+  // felhasználó NE lássa az előző session perzisztált adatait (sessionStorage).
+  try { cacheInvalidate(); } catch(e) {}
 }
 
 function getToken() {
@@ -10473,7 +10691,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v347 · Belső rendszer
+          Zalner ERP v351 · Belső rendszer
         </div>
       </div>
     </div>`;

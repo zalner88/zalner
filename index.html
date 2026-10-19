@@ -1,12 +1,28 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v352
+     ZALNER ERP - VERZIÓ: v354
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v354:
+- ÚJ — Értékesítői jutalék megjelenítése az ajánlatoknál (Jutalek_osszeg mező):
+  (1) Ajánlat részletoldalán a Kapcsolattartó neve mellett egy kis sárga jelvényben megjelenik a
+      jutalék összege devizával (💰 ... EUR/HUF). Csak akkor látszik, ha a jutalék > 0.
+  (2) Ajánlatok listában ÚJ "Jutalék" oszlop a Nettó és a Deviza között. Csak a jutalékos
+      ajánlatoknál mutat értéket, egyébként "—". A lista colspan-ok (betöltés/üres/hiba sor)
+      11-re igazítva az új oszlop miatt.
+
+CHANGES v353:
+- MÓDOSÍTVA — Ajánlat mentése után a rendszer mostantól a SZERKESZTETT (vagy épp létrehozott)
+  ajánlat RÉSZLETOLDALÁRA navigál, nem a teljes ajánlatlistába. Így mentés után rögtön látod a
+  frissített ajánlatot (tételek, PDF, napló), nem kell visszakeresni a listából. A navigáció előtt
+  a szerkesztői zár (lock) feloldódik, hogy a rekord ne maradjon "zárolva" a következő
+  szerkesztéshez. Ha valamiért nincs ajánlat-azonosító, a régi viselkedés (vissza a listába) a
+  tartalék. Új ajánlat mentésekor is a frissen létrehozott ajánlat oldalára visz.
 
 CHANGES v352:
 - JAVÍTVA — "This URL has expired" a bejövő számlák és az ÁFA bevallás PDF-gombjainál. Ok: az
@@ -970,7 +986,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v352</title>
+<title>Zalner ERP v354</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1163,7 +1179,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v352</div>
+    <div class="nav-logo-sub">v354</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1375,8 +1391,8 @@ select.form-control{cursor:pointer}
         <span class="pill active" id="ajanlatOsszesPill" onclick="setAjanlatKapcsolattartoFilter('osszes',this)">Összes</span>
       </div>
       <div class="table-wrap">
-        <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th>Tárgy</th><th>Felelős</th><th>Nettó</th><th>Deviza</th><th>Kiállítás</th><th>Érvényesség</th><th>Státusz</th><th></th></tr></thead>
-        <tbody id="ajanlatTable"><tr><td colspan="10"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
+        <table><thead><tr><th>Ajánlatszám</th><th>Ügyfél</th><th>Tárgy</th><th>Felelős</th><th>Nettó</th><th>Jutalék</th><th>Deviza</th><th>Kiállítás</th><th>Érvényesség</th><th>Státusz</th><th></th></tr></thead>
+        <tbody id="ajanlatTable"><tr><td colspan="11"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr></tbody></table>
         <div class="pagination" id="ajanlatPagination" style="display:none"><span id="ajanlatPagInfo"></span><div class="page-btns" id="ajanlatPagBtns"></div></div>
       </div>
     </div>
@@ -5911,7 +5927,7 @@ async function loadAjanlatok() {
     filterAjanlatok();
     document.getElementById('ajanlatCount').textContent = `${ajanlatok.length} ajánlat összesen`;
   } catch (e) {
-    document.getElementById('ajanlatTable').innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
+    document.getElementById('ajanlatTable').innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div></div></td></tr>`;
   }
 }
 
@@ -6024,7 +6040,7 @@ function renderAjanlatok() {
   const start = (ajanlatCurrentPage - 1) * PAGE_SIZE;
   const items = filteredAjanlatok.slice(start, start + PAGE_SIZE);
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">◫</div><div class="empty-title">Nincs találat</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">◫</div><div class="empty-title">Nincs találat</div></div></td></tr>';
     document.getElementById('ajanlatPagination').style.display = 'none'; return;
   }
   tbody.innerHTML = items.map(a => {
@@ -6048,6 +6064,7 @@ function renderAjanlatok() {
       <td class="td-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(f.Targy||'').replace(/"/g,'&quot;')}">${f.Targy || '—'}</td>
       <td class="td-muted">${DISPLAY_NAME_MAP[f.Kapcsolattarto] || f.Kapcsolattarto || '—'}</td>
       <td>${f.Netto_osszeg ? Number(f.Netto_osszeg).toLocaleString('hu-HU') : '—'}</td>
+      <td class="td-muted">${(parseFloat(f.Jutalek_osszeg) > 0) ? `<span style="color:#92400e;font-weight:600">${Number(f.Jutalek_osszeg).toLocaleString('hu-HU')}</span>` : '—'}</td>
       <td class="td-muted">${f.Deviza || 'HUF'}</td>
       <td class="td-muted">${f.Kiallitas_datum || '—'}</td>
       <td class="td-muted">${f.Ervenyesseg_datum || '—'}</td>
@@ -6173,7 +6190,7 @@ async function showAjanlatReszlet(id) {
         <div class="detail-item"><div class="detail-label">Fizetési mód</div><div class="detail-value">${f.Fizetes_mod || '—'}</div></div>
         <div class="detail-item"><div class="detail-label">Ajánlat nyelve</div><div class="detail-value">${f.Nyelv || 'Magyar'}</div></div>
         <div class="detail-item"><div class="detail-label">Bankszámla</div><div class="detail-value">${f.Bankszamla || 'Wise EUR'}</div></div>
-        <div class="detail-item"><div class="detail-label">Kapcsolattartó</div><div class="detail-value">${DISPLAY_NAME_MAP[f.Kapcsolattarto] || f.Kapcsolattarto || 'Járfás Kitti'}</div></div>
+        <div class="detail-item"><div class="detail-label">Kapcsolattartó</div><div class="detail-value">${DISPLAY_NAME_MAP[f.Kapcsolattarto] || f.Kapcsolattarto || 'Járfás Kitti'}${(parseFloat(f.Jutalek_osszeg) > 0) ? ` <span style="margin-left:8px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;font-size:12px;font-weight:600;font-family:'DM Mono',monospace;white-space:nowrap">💰 ${Number(f.Jutalek_osszeg).toLocaleString('hu-HU')} ${f.Deviza || 'HUF'}</span>` : ''}</div></div>
         <div class="detail-item"><div class="detail-label">Vevői kapcsolattartó</div><div class="detail-value">${vevoiKapcsolattartoNev}</div></div>
         <div class="detail-item"><div class="detail-label">Kiállítás</div><div class="detail-value">${f.Kiallitas_datum || '—'}</div></div>
         <div class="detail-item"><div class="detail-label">Érvényesség</div><div class="detail-value">${f.Ervenyesseg_datum || '—'}</div></div>
@@ -7102,7 +7119,14 @@ async function saveAjanlat() {
     cacheInvalidate('AjanlatTetelek'); // különben a Visszaigazolás/Szállítólevél a régi (cache-elt) tételeket látja
     await loadAjanlatok();
     currentAjanlat = ajanlatok.find(a => a.id === ajanlatId) || null;
-    showPage('ajanlatok');
+    // v353: mentés után a SZERKESZTETT/létrehozott ajánlat részletoldalára megyünk
+    // (eddig a teljes ajánlatlistába került vissza). Előbb feloldjuk a szerkesztői
+    // zárat (lockRelease biztonságos akkor is, ha nincs aktív lock — pl. új ajánlat),
+    // hogy a rekord ne maradjon "zárolva" a következő szerkesztéshez. Ha valamiért
+    // nincs ajanlatId, a régi viselkedés a tartalék, hogy ne ragadjon be a szerkesztőben.
+    await lockRelease();
+    if (ajanlatId) { await showAjanlatReszlet(ajanlatId); }
+    else { showPage('ajanlatok'); }
   } catch (e) { toast('Hiba: ' + e.message, 'error'); }
   finally { btn.textContent = '💾 Mentés'; btn.disabled = false; }
 }
@@ -10705,7 +10729,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v352 · Belső rendszer
+          Zalner ERP v354 · Belső rendszer
         </div>
       </div>
     </div>`;

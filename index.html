@@ -1,12 +1,26 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v351
+     ZALNER ERP - VERZIÓ: v352
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v352:
+- JAVÍTVA — "This URL has expired" a bejövő számlák és az ÁFA bevallás PDF-gombjainál. Ok: az
+  Airtable csatolmány-URL-ek (airtableusercontent.com) pár óra után LEJÁRNAK, és csak frissen
+  lekérve használhatók. A gombok eddig a rekordba cache-elt URL-t nyitották közvetlenül; a v350
+  tartós cache (Bejovo_Szamlak 24h TTL) miatt ez az URL már simán lejárhatott, mire rákattintottál
+  (korábban a memória-cache F5-kor törlődött, ezért ritkábban jött elő). Mostantól a PDF-gomb
+  kattintáskor FRISS URL-t kér az adott rekordra (bszFetchCsatolmanyok → RECORD_ID() lekérés) és
+  azt nyitja meg (új openBszPdfFriss függvény). Popup-blokkolás ellen előre megnyílik egy üres
+  ablak, és a friss URL megérkeztekor töltődik be. Érintett: Bejövő számlák lista PDF-gombjai és
+  az ÁFA bevallás bejövő-lista 📄 gombja.
+- ISMERT, MÉG HÁTRAVAN: az ÁFA "Összes csatolmány" ZIP-letöltés is a cache-elt URL-eket tölti,
+  így az is futhat lejárt URL-be ("Nem sikerült letölteni"). Ez más mintájú (kötegelt), külön
+  javítást kap — jelezd, ha ez is zavar a napi munkában, és soron kívül megcsináljuk.
 
 CHANGES v351:
 - OPTIMALIZÁLÁS (API-spórolás, 4. lépés — MÉRÉS ALAPJÁN) — Dashboard napló-lekérés. Élő
@@ -956,7 +970,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v351</title>
+<title>Zalner ERP v352</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1149,7 +1163,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v351</div>
+    <div class="nav-logo-sub">v352</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10691,7 +10705,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v351 · Belső rendszer
+          Zalner ERP v352 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11515,7 +11529,7 @@ function renderBevoSzamlak() {
       <td style="white-space:nowrap">${(() => {
         const docs = (inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : (inv._pdfUrl ? [{ url: inv._pdfUrl }] : []);
         const safeNum = (inv.invoiceNumber||'').replace(/'/g,'');
-        let h = docs.map((d, ix) => `<a href="${d.url}" target="_blank" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px" title="${(d.filename||'').replace(/"/g,'')}">📄${docs.length > 1 ? ' ' + (ix+1) : ' Megnyitás'}</a>`).join(' ');
+        let h = docs.map((d, ix) => `<button type="button" class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px" title="${(d.filename||'').replace(/"/g,'')}" onclick="event.stopPropagation();openBszPdfFriss('${inv._airtableId||''}',${ix})">📄${docs.length > 1 ? ' ' + (ix+1) : ' Megnyitás'}</button>`).join(' ');
         if (docs.length < 3) h += (h ? ' ' : '') + `<label class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;cursor:pointer;margin:0" title="Dokumentum csatolása (max 3 db)">${docs.length ? '＋' : '📎 Feltöltés'}<input type="file" accept=".pdf" style="display:none" onchange="uploadBszPdf(this,'${inv._airtableId||''}','${safeNum}')" /></label>`;
         if (docs.length) h += ` <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 6px;color:#e74c3c" onclick="event.stopPropagation();deleteBszPdf('${inv._airtableId||''}','${safeNum}')" title="Összes csatolmány törlése">✕</button>`;
         return h;
@@ -11652,6 +11666,41 @@ async function bszFetchCsatolmanyok(airtableId) {
     const recs = await atGet('Bejovo_Szamlak', 'filterByFormula=' + encodeURIComponent(`RECORD_ID()="${airtableId}"`));
     return (recs?.[0]?.fields?.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename }));
   } catch(e) { console.warn('Csatolmány lekérés hiba:', e); return []; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF MEGNYITÁS FRISS URL-LEL (v352) — az Airtable csatolmány-URL-ek
+// (airtableusercontent.com) LEJÁRNAK pár óra után ("This URL has expired").
+// A listák/ÁFA-oldal eddig a cache-elt rekordban tárolt URL-t nyitották közvetlenül,
+// ami a tartós cache (v350, Bejovo_Szamlak 24h TTL) miatt már simán lejárhatott,
+// mire rákattintasz. Mostantól kattintáskor FRISS URL-t kérünk az adott rekordra
+// (bszFetchCsatolmanyok → RECORD_ID() lekérés), és AZT nyitjuk meg.
+// A popup-blokkolás elkerülésére előre megnyitunk egy üres ablakot a szinkron
+// kattintásban, és az async friss URL megérkeztekor állítjuk be a címét.
+async function openBszPdfFriss(airtableId, index) {
+  const ix = parseInt(index, 10) || 0;
+  // Előre megnyitjuk az ablakot (még a felhasználói kattintás szinkron fázisában),
+  // hogy a böngésző ne blokkolja popupként.
+  const w = window.open('', '_blank');
+  try {
+    if (w && w.document) {
+      w.document.write('<!doctype html><title>PDF betöltése…</title><body style="font-family:sans-serif;padding:24px;color:#444">PDF betöltése…</body>');
+    }
+  } catch(e) {}
+  try {
+    if (!airtableId) { if (w) w.close(); toast('A számlának nincs Airtable rekordja.', 'error'); return; }
+    const docs = await bszFetchCsatolmanyok(airtableId);
+    const url = docs?.[ix]?.url || docs?.[0]?.url || null;
+    if (url) {
+      if (w) w.location.href = url; else window.open(url, '_blank');
+    } else {
+      if (w) w.close();
+      toast('Ehhez a számlához nincs (már) csatolt PDF.', 'error');
+    }
+  } catch(e) {
+    if (w) w.close();
+    toast('PDF megnyitási hiba: ' + (e.message || e), 'error');
+  }
 }
 
 async function uploadBszPdf(input, airtableId, invoiceNumber) {
@@ -16761,7 +16810,7 @@ async function renderAfaBevallas() {
             <td style="text-align:right;font-family:'DM Mono',monospace">${fmtDec(n)}</td>
             <td style="text-align:right;font-family:'DM Mono',monospace;color:#4f7fff;font-weight:500">${fmtDec(a)}</td>
             <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600">${fmtDec(n+a)}</td>
-            <td>${inv._pdfUrl?`<a href="${inv._pdfUrl}" target="_blank" class="btn btn-primary btn-xs">📄</a>`:'<span style="color:var(--text-light);font-size:12px">—</span>'}</td>
+            <td>${(inv._pdfUrl||(inv._pdfUrls&&inv._pdfUrls.length))?`<button type="button" class="btn btn-primary btn-xs" onclick="event.stopPropagation();openBszPdfFriss('${inv._airtableId||''}',0)">📄</button>`:'<span style="color:var(--text-light);font-size:12px">—</span>'}</td>
           </tr>`;
         }).join('')}</tbody>
         <tfoot><tr style="background:#f9fafd;font-weight:600;border-top:2px solid var(--border)">

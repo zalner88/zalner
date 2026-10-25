@@ -1,12 +1,55 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v354
+     ZALNER ERP - VERZIÓ: v357
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v357:
+- ÚJ — Wise BEJÖVŐ befizetések (vevői utalások) automatikus párosítása a proxyban
+  (/api/wise-webhook v2, balances#update/credit esemény): ha a jóváírás összege+devizája
+  PONTOSAN 1 nyitott kimenő számlával egyezik, az "Fizetett" lesz (Fizetes_datuma = jóváírás napja).
+  Több/nulla jelöltnél a tranzakció párosítatlanul, Megjegyzes-sel mentődik → kézi párosítás.
+- JAVÍTVA — wiseMatchPending (NAV-szinkron után): csak az Irany≠"Bejovo" tranzakciókat párosítja
+  beszállítói (bejövő) számlához, hogy vevői befizetés ne jelölhessen beszállítói számlát fizetettnek.
+- Wise szinkron oldal: a tranzakciólista Irány (⬇ Befizetés / ⬆ Utalás) és Megjegyzés oszlopot kapott;
+  a webhook-beállítási útmutató frissítve.
+- Airtable: Wise_Tranzakciok új mezők: Irany (text), Megjegyzes (long text).
+
+CHANGES v356:
+- TÖRÖLVE — Audit log teljesen megszűnt (API- és rekordkeret-takarékosság). Az atPost/atPatch/
+  atDelete már semmilyen Audit_Log rekordot nem ír (eddig minden írás +1 API-hívás és +1 rekord
+  volt). Eltávolítva: auditWrite, AUDIT_TABLE_LABELS, az "Audit log" menüpont és oldal
+  (loadAuditLog/filterAuditLog/renderAuditLog), valamint a használaton kívüli "Ki vagy?"
+  felhasználóválasztó modal (auditSetUser/auditSelectUser). MEGMARADT: auditCurrentUser /
+  auditGetUser — ez a bejelentkezett felhasználó nevét adja a szerkesztési zárnak (lock).
+  Az Ajánlat/Projekt napló (Ajanlat_Naplo, Projekt_Naplo) NEM érintett.
+  Airtable-ben az Audit_Log tábla ezután kézzel törölhető — a kód már nem hivatkozik rá.
+
+CHANGES v355:
+- JAVÍTVA (rekordlimit!) — Az Audit_Log ~80%-a a szerkesztési zár 20 mp-es heartbeatjéből jött:
+  minden Szerkeles_Lock PATCH/POST/DELETE egy Audit_Log rekordot is írt (2026-10-25: 13 703 /
+  17 138 sor). Mostantól a Szerkeles_Lock és Sessions táblák írása NEM kerül az auditba
+  (auditWrite központi kizárás, AUDIT_SKIP_TABLES). Ez a heartbeat API-hívásait is felezi.
+- BIZTONSÁG — Az audit "Reszletek" mezőjébe eddig a teljes mezőtartalom került, így jelszócsere
+  (Jelszo_hash), Billingo kulcs mentése és bér-adatok (Havi_ber/jarulek/hitel) is olvashatóan
+  bekerültek volna. Ezek mostantól "***" maszkkal naplózódnak (AUDIT_REDACT_FIELDS).
+- OPTIMALIZÁLÁS (API-spórolás) — Háttér-polling (60 mp, Ugyfelek+Ajanlatok+Projektek = ~9 lap/perc
+  nyitott fülenként) mostantól NEM fut, ha a böngészőfül háttérben van (document.hidden). Ha a fül
+  újra előtérbe kerül és >60 mp telt el, egyszer azonnal frissít.
+- JAVÍTVA — Szerkesztési zár feloldása oldalbezáráskor: a DELETE kérés keepalive:true-val megy,
+  így a böngésző a lap bezárása után is elküldi (eddig gyakran elveszett → 201 árva lock-sor).
+- JAVÍTVA — ÁFA "Összes csatolmány" ZIP: a bejövő számlák és vámhatározatok PDF-jeinél letöltés
+  előtt FRISS Airtable csatolmány-URL-t kér kötegelve (25 rekord/kérés), így nem fut lejárt URL-be.
+  A sikerjelentés a ténylegesen letöltött bejövő PDF-eket számolja.
+- JAVÍTVA — Bejövő PDF gomb (bszFetchCsatolmanyok): a friss URL lekérése nem üríti többé a teljes
+  Bejovo_Szamlak cache-t (eddig minden PDF-kattintás után teljes táblaletöltés jött).
+- JAVÍTVA — Wise manuális keresés: a már fizetett számlák is megjelentek (rossz mezőnév: _status →
+  _airtableStatus). Wise auto-párosítás: üres/rövid (<4 kar.) számlaszám nem illeszkedik minden
+  referenciára, és már Fizetett/Storno számlát nem párosít újra.
 
 CHANGES v354:
 - ÚJ — Értékesítői jutalék megjelenítése az ajánlatoknál (Jutalek_osszeg mező):
@@ -986,7 +1029,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v354</title>
+<title>Zalner ERP v357</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1179,7 +1222,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v354</div>
+    <div class="nav-logo-sub">v357</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1204,7 +1247,6 @@ select.form-control{cursor:pointer}
   </button>
   <div id="navRendszerMenu" style="display:none;overflow:hidden;">
     <button class="nav-item" id="navItem-felhasznalok" onclick="showPage('felhasznalok')" style="display:none;padding-left:28px;"><span>👥</span> Felhasználók</button>
-    <button class="nav-item" id="navItem-audit-log" onclick="showPage('audit-log')" style="padding-left:28px;"><span>📋</span> Audit log</button>
   </div>
   </div>
   <div class="nav-bottom" style="padding:10px 10px;border-top:1px solid rgba(255,255,255,0.06);">
@@ -1949,7 +1991,7 @@ select.form-control{cursor:pointer}
         <code style="background:#fff;border:1px solid var(--border);padding:8px 12px;border-radius:6px;font-size:13px;flex:1">https://zalner-nav-proxy.vercel.app/api/wise-webhook</code>
         <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('https://zalner-nav-proxy.vercel.app/api/wise-webhook');toast('URL másolva!','success')">📋 Másolás</button>
       </div>
-      <div style="color:var(--text-light);font-size:12px;margin-top:8px">Wise → Alkalmazások → Webhook-ok → Utalási frissítések</div>
+      <div style="color:var(--text-light);font-size:12px;margin-top:8px">Wise → Beállítások → Fejlesztői eszközök → Webhookok: <b>balances#update</b> (befizetések) + <b>transfers#state-change</b> (utalások)</div>
     </div>
 
     <!-- Manuális párosítás -->
@@ -2390,54 +2432,6 @@ select.form-control{cursor:pointer}
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeJelszoModal()">Mégse</button>
       <button class="btn btn-primary" onclick="saveJelszo()" id="saveJelszoBtn">💾 Mentés</button>
-    </div>
-  </div>
-</div>
-
-<!-- AUDIT LOG OLDAL -->
-<div class="page" id="page-audit-log">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Audit log</div>
-      <div class="page-subtitle" id="auditSubtitle">Minden módosítás rögzítve</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <select id="auditFilterUser" class="form-control" style="width:180px;" onchange="filterAuditLog()">
-        <option value="">Minden felhasználó</option>
-        <option value="Jarfas Kitti">Járfás Kitti</option>
-        <option value="Wagner Szabolcs">Wágner Szabolcs</option>
-        <option value="Zombori Krisztina">Zombori Krisztina</option>
-      </select>
-      <select id="auditFilterAction" class="form-control" style="width:150px;" onchange="filterAuditLog()">
-        <option value="">Minden művelet</option>
-        <option value="CREATE">Létrehozás</option>
-        <option value="UPDATE">Módosítás</option>
-        <option value="DELETE">Törlés</option>
-      </select>
-      <button class="btn btn-secondary" onclick="loadAuditLog(true)">🔄 Frissítés</button>
-    </div>
-  </div>
-  <div class="page-content">
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Időpont</th>
-            <th>Felhasználó</th>
-            <th>Művelet</th>
-            <th>Tábla</th>
-            <th>Rekord azonosító</th>
-            <th>Részletek</th>
-          </tr>
-        </thead>
-        <tbody id="auditTable">
-          <tr><td colspan="6"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr>
-        </tbody>
-      </table>
-      <div class="pagination" id="auditPagination" style="display:none">
-        <span id="auditPagInfo"></span>
-        <div class="page-btns" id="auditPagBtns"></div>
-      </div>
     </div>
   </div>
 </div>
@@ -3558,23 +3552,6 @@ select.form-control{cursor:pointer}
   </div>
 </div>
 
-<!-- FELHASZNÁLÓ VÁLASZTÓ MODAL -->
-<div class="modal-overlay" id="auditUserModal" style="z-index:400;">
-  <div class="modal" style="max-width:360px;">
-    <div class="modal-header">
-      <div class="modal-title">Ki vagy?</div>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13.5px;color:#6b7280;margin-bottom:16px;">Válaszd ki a neved — ez kerül az audit logba minden mentésnél.</p>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <button class="btn btn-secondary" style="justify-content:center;padding:12px;" onclick="auditSetUser('Járfás Kitti')">Járfás Kitti</button>
-        <button class="btn btn-secondary" style="justify-content:center;padding:12px;" onclick="auditSetUser('Wágner Szabolcs')">Wágner Szabolcs</button>
-        <button class="btn btn-secondary" style="justify-content:center;padding:12px;" onclick="auditSetUser('Zombori Krisztina')">Zombori Krisztina</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
@@ -3982,7 +3959,11 @@ async function lockRelease() {
   if (!_activeLock) return;
   const id = _activeLock.lockId;
   _activeLock = null;
-  try { await atDelete('Szerkeles_Lock', id); } catch(e) {}
+  // v355: keepalive — lapbezáráskor (beforeunload) is kimegy a kérés
+  cacheInvalidate('Szerkeles_Lock');
+  try {
+    await fetch(atUrl('Szerkeles_Lock', id), { method: 'DELETE', headers: getAuthHeaders(), keepalive: true });
+  } catch(e) {}
 }
 
 // --- Heartbeat: frissíti az időbélyeget hogy ne járjon le ---
@@ -4059,9 +4040,20 @@ async function lockShowActiveEditors(table, recordId, targetElId) {
 // --- Háttér polling ---
 function startBackgroundPolling() {
   if (_pollingTimer) clearInterval(_pollingTimer);
-  _pollingTimer = setInterval(async () => {
+  _pollingTimer = setInterval(_backgroundPollTick, POLLING_MS);
+}
+
+// v355: háttérben lévő fülön nem pollozunk (API-keret); előtérbe kerüléskor egyszer frissít
+let _lastPollTs = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _pollingTimer && (Date.now() - _lastPollTs) > POLLING_MS) _backgroundPollTick();
+});
+
+async function _backgroundPollTick() {
     // Csak ha nem szerkeszt éppen senki aktívan (ne szakítsa meg a munkát)
     if (_activeLock) return;
+    if (document.hidden) return;
+    _lastPollTs = Date.now();
     try {
       await getUgyfelek(true);
       await getAjanlatok(true);
@@ -4074,55 +4066,15 @@ function startBackgroundPolling() {
       else if (pageText.includes('Ajánlatok')) filterAjanlatok();
       else if (pageText.includes('Projektek') && typeof filterProjektek === 'function') filterProjektek();
     } catch(e) { /* csend */ }
-  }, POLLING_MS);
 }
 
 // --- Oldal bezárásakor / navigáláskor lock feloldása ---
 window.addEventListener('beforeunload', () => { lockRelease(); });
 
-// ===== AUDIT LOG =====
+// ===== FELHASZNÁLÓ-AZONOSÍTÁS (zárolás, napló szerzője) — v356: az audit log megszűnt =====
 let auditCurrentUser = localStorage.getItem('zalnerUser') || null;
-let auditLogs = [], auditFiltered = [], auditPage = 1;
-const AUDIT_PAGE_SIZE = 30;
-
-// Táblák olvasható neve
-const AUDIT_TABLE_LABELS = {
-  Ugyfelek: 'Ügyfelek', Ajanlatok: 'Ajánlatok', AjanlatTetelek: 'Ajánlat tételek',
-  Projektek: 'Projektek', Projekt_Naplo: 'Projekt napló', Ajanlat_Naplo: 'Ajánlat napló',
-  Szallitolevelek: 'Szállítólevelek', VevRendVisszaig: 'Visszaigazolások', Beszallitoi_Visszaig: 'Beszállítói Visszaig',
-  Bejovo_Szamlak: 'Bejövő számlák', Vamkezeles: 'Vámkezelés',
-  Beszallitok: 'Beszállítók', Kapcsolattartok: 'Kontaktok',
-  Wise_Tranzakciok: 'Wise tranzakciók'
-};
 
 function auditGetUser() { return auditCurrentUser || 'Ismeretlen'; }
-
-function auditSetUser(name) {
-  auditCurrentUser = name;
-  localStorage.setItem('zalnerUser', name);
-  document.getElementById('navCurrentUser').textContent = name;
-  document.getElementById('auditUserModal').classList.remove('open');
-}
-
-function auditSelectUser(force = false) {
-  document.getElementById('auditUserModal').classList.add('open');
-}
-
-function auditWrite(action, table, recordId, details) {
-  // Fire-and-forget — nem blokkolja a műveletet, hibát sem dob ha sikertelen
-  const fields = {
-    Felhasznalo: auditGetUser(),
-    Muvelet: action,
-    Tabla: AUDIT_TABLE_LABELS[table] || table,
-    Record_ID: recordId || '',
-    Reszletek: typeof details === 'object' ? JSON.stringify(details, null, 2) : (details || ''),
-    Idopont: new Date().toISOString()
-  };
-  fetch(atUrl('Audit_Log'), {
-    method: 'POST', headers: getAuthHeaders(),
-    body: JSON.stringify({ records: [{ fields }] })
-  }).catch(() => {}); // csendben elnyeljük a hibát
-}
 
 async function atPost(table, fields, typecast = false) {
   cacheInvalidate(table); // Írás után cache törlés
@@ -4136,10 +4088,6 @@ async function atPost(table, fields, typecast = false) {
     throw new Error(`HTTP ${r.status}: ${errText}`);
   }
   const result = (await r.json()).records[0];
-  // Audit: csak a "valódi" táblákra naplózunk, a naplótáblákra nem
-  if (table !== 'Audit_Log' && table !== 'Projekt_Naplo' && table !== 'Ajanlat_Naplo') {
-    auditWrite('CREATE', table, result?.id || '', fields);
-  }
   return result;
 }
 
@@ -4150,9 +4098,6 @@ async function atPatch(table, id, fields, typecast = false) {
     body: JSON.stringify(typecast ? { fields, typecast: true } : { fields })
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
-  if (table !== 'Audit_Log') {
-    auditWrite('UPDATE', table, id, fields);
-  }
   return r.json();
 }
 
@@ -4162,101 +4107,6 @@ async function atDelete(table, id) {
     method: 'DELETE', headers: getAuthHeaders()
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
-  if (table !== 'Audit_Log') {
-    auditWrite('DELETE', table, id, { torolt_record: id });
-  }
-}
-
-// ===== AUDIT LOG OLDAL =====
-async function loadAuditLog(force = false) {
-  document.getElementById('auditTable').innerHTML =
-    '<tr><td colspan="6"><div class="loading"><div class="spinner"></div><br>Betöltés...</div></td></tr>';
-  try {
-    auditLogs = await atGet('Audit_Log',
-      'sort%5B0%5D%5Bfield%5D=Idopont&sort%5B0%5D%5Bdirection%5D=desc');
-    document.getElementById('auditSubtitle').textContent = `${auditLogs.length} bejegyzés összesen`;
-    filterAuditLog();
-  } catch(e) {
-    document.getElementById('auditTable').innerHTML =
-      `<tr><td colspan="6"><div class="empty-state"><div class="empty-title">Hiba: ${e.message}</div><div class="empty-sub">Ellenőrizd, hogy az Audit_Log tábla létezik-e az Airtable-ben.</div></div></td></tr>`;
-  }
-}
-
-function filterAuditLog() {
-  const user = document.getElementById('auditFilterUser').value;
-  const action = document.getElementById('auditFilterAction').value;
-  auditFiltered = auditLogs.filter(r => {
-    const f = r.fields;
-    return (!user || f.Felhasznalo === user) && (!action || f.Muvelet === action);
-  });
-  auditPage = 1;
-  renderAuditLog();
-}
-
-function renderAuditLog() {
-  const tbody = document.getElementById('auditTable');
-  const total = auditFiltered.length;
-  const start = (auditPage - 1) * AUDIT_PAGE_SIZE;
-  const items = auditFiltered.slice(start, start + AUDIT_PAGE_SIZE);
-
-  const actionBadge = { CREATE: 'badge-elfogadva', UPDATE: 'badge-elkuldve', DELETE: 'badge-elutasitva' };
-  const actionLabel = { CREATE: 'Létrehozás', UPDATE: 'Módosítás', DELETE: 'Törlés' };
-
-  if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nincs találat</div></div></td></tr>';
-    document.getElementById('auditPagination').style.display = 'none';
-    return;
-  }
-
-  tbody.innerHTML = items.map(r => {
-    const f = r.fields;
-    const dt = f.Idopont ? new Date(f.Idopont).toLocaleString('hu-HU') : '—';
-    const action = f.Muvelet || '?';
-    const badge = actionBadge[action] || 'badge-potencialis';
-    const label = actionLabel[action] || action;
-
-    // Részletek rövidítve
-    let reszlet = f.Reszletek || '';
-    let reszletHtml = '';
-    if (reszlet) {
-      try {
-        const obj = JSON.parse(reszlet);
-        const keys = Object.keys(obj).slice(0, 3);
-        reszletHtml = keys.map(k => {
-          const v = String(obj[k] || '').slice(0, 40);
-          return `<span style="font-size:11.5px;color:#6b7280;"><strong>${k}:</strong> ${v}</span>`;
-        }).join('<br>');
-        if (Object.keys(obj).length > 3) reszletHtml += `<br><span style="font-size:11px;color:#9ca3af;">+${Object.keys(obj).length - 3} mező</span>`;
-      } catch { reszletHtml = `<span style="font-size:11.5px;color:#6b7280;">${reszlet.slice(0, 80)}</span>`; }
-    }
-
-    return `<tr>
-      <td class="td-muted" style="white-space:nowrap;font-size:12.5px;font-family:'DM Mono',monospace;">${dt}</td>
-      <td style="font-weight:500;">${f.Felhasznalo || '—'}</td>
-      <td><span class="badge ${badge}">${label}</span></td>
-      <td class="td-muted">${f.Tabla || '—'}</td>
-      <td class="td-muted" style="font-family:'DM Mono',monospace;font-size:11.5px;">${(f.Record_ID || '—').slice(0,14)}</td>
-      <td style="max-width:260px;">${reszletHtml || '—'}</td>
-    </tr>`;
-  }).join('');
-
-  // Pagination
-  const pag = document.getElementById('auditPagination');
-  const pagInfo = document.getElementById('auditPagInfo');
-  const pagBtns = document.getElementById('auditPagBtns');
-  const totalPages = Math.ceil(total / AUDIT_PAGE_SIZE);
-  if (totalPages > 1) {
-    pag.style.display = 'flex';
-    pagInfo.textContent = `${start+1}–${Math.min(start+AUDIT_PAGE_SIZE, total)} / ${total}`;
-    pagBtns.innerHTML = '';
-    for (let i = 1; i <= Math.min(totalPages, 10); i++) {
-      const b = document.createElement('button');
-      b.className = 'page-btn' + (i === auditPage ? ' current' : '');
-      b.textContent = i;
-      b.onclick = () => { auditPage = i; renderAuditLog(); };
-      pagBtns.appendChild(b);
-    }
-  } else { pag.style.display = 'none'; }
 }
 
 // ===== TOAST =====
@@ -4931,8 +4781,8 @@ function toggleRendszerMenu() {
 }
 
 function showPage(name) {
-  // Rendszer almenü automatikus kinyitása ha audit-log vagy felhasznalok oldalra navigálunk
-  if (name === 'audit-log' || name === 'felhasznalok') {
+  // Rendszer almenü automatikus kinyitása ha felhasznalok oldalra navigálunk
+  if (name === 'felhasznalok') {
     const menu = document.getElementById('navRendszerMenu');
     const arrow = document.getElementById('navRendszerArrow');
     if (menu && menu.style.display === 'none') {
@@ -4956,7 +4806,6 @@ function showPage(name) {
     'kimeno-szamlak': 'kimeno-szamlak',
     'vamkezeles': 'vamkezeles',
     'beszallitok': 'beszallitok',
-    'audit-log': 'audit-log',
     'felhasznalok': 'felhasznalok',
   };
   const menuId = pageToMenuId[name];
@@ -4983,7 +4832,7 @@ function showPage(name) {
     'penzugyi-kimutatas': 'page-penzugyi-kimutatas',
     'kimeno-szamlak': 'page-kimeno-szamlak', 'vamkezeles': 'page-vamkezeles',
     'wise-sync': 'page-wise-sync', beszallitok: 'page-beszallitok',
-    'audit-log': 'page-audit-log', felhasznalok: 'page-felhasznalok'
+    felhasznalok: 'page-felhasznalok'
   };
   const navIdMap = {
     dashboard: 'navItem-dashboard', ugyfelek: 'navItem-ugyfelek',
@@ -4996,7 +4845,7 @@ function showPage(name) {
     'afa-bevallas': 'navItem-afa-bevallas',
     'penzugyi-kimutatas': 'navItem-penzugyi-kimutatas',
     'kimeno-szamlak': 'navItem-kimeno-szamlak', vamkezeles: 'navItem-vamkezeles',
-    beszallitok: 'navItem-beszallitok', 'audit-log': 'navItem-audit-log', felhasznalok: 'navItem-felhasznalok',
+    beszallitok: 'navItem-beszallitok', felhasznalok: 'navItem-felhasznalok',
   };
   document.getElementById(pm[name])?.classList.add('active');
   const activeNavId = navIdMap[name];
@@ -5016,7 +4865,6 @@ function showPage(name) {
     if (name === 'kimeno-szamlak') initKimenoSzamlak();
     if (name === 'vamkezeles') loadVamkezeles();
     if (name === 'beszallitok') loadBeszallitok();
-    if (name === 'audit-log') loadAuditLog();
     if (name === 'felhasznalok') { loadFelhasznalok(); loadFelhasznalokWithBillingo(); }
     if (name === 'jutalek') initJutalekOldal();
     if (name === 'jutalek-szamlazott') renderSzamlazottJutalek();
@@ -10729,7 +10577,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v354 · Belső rendszer
+          Zalner ERP v357 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11261,7 +11109,8 @@ async function wiseMatchPending() {
   let paired = 0;
   try {
     // Lekérjük a nem párosított Wise tranzakciókat
-    const r = await fetch(`${atUrl('Wise_Tranzakciok')}&filterByFormula={Parosítva}=FALSE()&maxRecords=50`, { headers: getAuthHeaders() });
+    // v357: CSAK a kimenő (saját) utalások párosíthatók bejövő számlához — a vevői befizetések (Irany=Bejovo) nem!
+    const r = await fetch(`${atUrl('Wise_Tranzakciok')}&filterByFormula=${encodeURIComponent('AND(NOT({Parosítva}),{Irany}!="Bejovo")')}&maxRecords=50`, { headers: getAuthHeaders() });
     if (!r.ok) return 0;
     const data = await r.json();
     const pending = data.records || [];
@@ -11278,10 +11127,14 @@ async function wiseMatchPending() {
 
       // Referencia alapján keresünk
       if (reference) {
-        const inv = bszInvoices.find(i =>
-          (i.invoiceNumber || '').toLowerCase().includes(reference.toLowerCase()) ||
-          reference.toLowerCase().includes((i.invoiceNumber || '').toLowerCase())
-        );
+        // v355: üres/rövid számlaszám ne illeszkedjen minden referenciára; fizetettet ne párosítson újra
+        const refL = reference.toLowerCase();
+        const inv = bszInvoices.find(i => {
+          const num = (i.invoiceNumber || '').toLowerCase();
+          if (num.length < 4 || refL.length < 4) return false;
+          if (i._airtableStatus === 'Fizetett' || i._airtableStatus === 'Storno') return false;
+          return num.includes(refL) || refL.includes(num);
+        });
         if (inv && inv._airtableId) {
           await fetch(atUrl('Bejovo_Szamlak', inv._airtableId), {
             method: 'PATCH', headers: getAuthHeaders(),
@@ -11681,14 +11534,39 @@ async function deleteBszPdf(airtableId, invoiceNumber) {
   });
 }
 
+// v355: FRISS Airtable csatolmány-URL-ek kötegelt lekérése (cache-en kívül).
+// Az airtableusercontent.com URL-ek pár óra után lejárnak → letöltés előtt mindig frissen kérjük.
+// Visszaad: Map(recordId → [{url, filename}]). 25 rekord / kérés (URL-hossz miatt), lapozással.
+async function frissCsatolmanyUrlek(table, ids, field) {
+  const out = new Map();
+  const uniq = [...new Set((ids || []).filter(Boolean))];
+  for (let i = 0; i < uniq.length; i += 25) {
+    const chunk = uniq.slice(i, i + 25);
+    const formula = chunk.length === 1
+      ? `RECORD_ID()="${chunk[0]}"`
+      : `OR(${chunk.map(id => `RECORD_ID()="${id}"`).join(',')})`;
+    let offset = null;
+    do {
+      const url = `${atUrl(table)}&pageSize=100&fields%5B%5D=${encodeURIComponent(field)}&filterByFormula=${encodeURIComponent(formula)}${offset ? '&offset=' + offset : ''}`;
+      const r = await fetch(url, { headers: getAuthHeaders() });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      (d.records || []).forEach(rec => out.set(rec.id, (rec.fields?.[field] || []).map(a => ({ url: a.url, filename: a.filename }))));
+      offset = d.offset;
+    } while (offset);
+  }
+  return out;
+}
+
 // Egy bejövő számla aktuális csatolmány-listájának lekérése.
 // A recordId+fields[] paraméteres GET-et a proxy NEM támogatja (422-t ad), ezért
 // filterByFormula RECORD_ID() lekérdezést használunk, amit a proxy bizonyítottan kezel.
 async function bszFetchCsatolmanyok(airtableId) {
   try {
-    cacheInvalidate('Bejovo_Szamlak');
-    const recs = await atGet('Bejovo_Szamlak', 'filterByFormula=' + encodeURIComponent(`RECORD_ID()="${airtableId}"`));
-    return (recs?.[0]?.fields?.Szamla_PDF || []).map(a => ({ url: a.url, filename: a.filename }));
+    // v355: cache-t NEM ürítünk (eddig minden PDF-kattintás teljes táblaletöltést okozott);
+    // közvetlen, cache-en kívüli lekérés csak a Szamla_PDF mezőre
+    const m = await frissCsatolmanyUrlek('Bejovo_Szamlak', [airtableId], 'Szamla_PDF');
+    return m.get(airtableId) || [];
   } catch(e) { console.warn('Csatolmány lekérés hiba:', e); return []; }
 }
 
@@ -15868,9 +15746,9 @@ async function loadWiseSyncData() {
         <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin:16px 0;font-size:13px;color:#92400e;">
           <strong>⚠️ Nincs Wise webhook adat</strong><br><br>
           Lehetséges okok:<br>
-          1. A Wise-ban nincs beállítva a webhook URL — menj: <strong>Wise → Alkalmazások → Webhook-ok → Utalási frissítések</strong><br>
+          1. A Wise-ban nincs beállítva a webhook — kell: <strong>balances#update</strong> (bejövő befizetések) és <strong>transfers#state-change</strong> (saját utalások)<br>
           2. A webhook URL helyes: <code style="background:#fff;padding:2px 6px;border-radius:4px;">${NAV_PROXY}/api/wise-webhook</code><br>
-          3. Még nem volt kimenő utalás a webhook beállítása óta<br><br>
+          3. Még nem volt mozgás a webhook beállítása óta, vagy a Vercelen nincs beállítva a WISE_WEBHOOK_PUBLIC_KEY<br><br>
           <strong>Manuális megoldás:</strong> Használd a lenti "Manuális fizetés megjelölése" funkciót a számlák kézi befizetésre állításához.
         </div>`;
     }
@@ -15893,16 +15771,17 @@ async function loadWiseTranzakciok() {
       el.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:20px;font-size:13px;">Nincs Wise tranzakció — a webhook még nem küldött adatot</div>';
       return;
     }
-    el.innerHTML = '<table class="table"><thead><tr><th>Dátum</th><th>Reference</th><th>Összeg</th><th>Párosítva</th><th>Számla</th></tr></thead><tbody>' +
+    el.innerHTML = '<table class="table"><thead><tr><th>Dátum</th><th>Irány</th><th>Összeg</th><th>Párosítva</th><th>Számla</th><th>Megjegyzés</th></tr></thead><tbody>' +
       recs.map(rec => {
         const f = rec.fields;
         const parosítva = f['Parosítva'];
         return `<tr>
           <td class="td-muted">${f.Datum || '—'}</td>
-          <td style="font-family:'DM Mono',monospace;font-size:12px">${f.Reference || '—'}</td>
+          <td>${f.Irany === 'Bejovo' ? '⬇ Befizetés' : (f.Irany === 'Kimeno' ? '⬆ Utalás' : '—')}</td>
           <td>${f.Amount || '—'} ${f.Currency || ''}</td>
           <td>${parosítva ? '<span class="badge badge-elfogadva">✓ Igen</span>' : '<span class="badge badge-potencialis">Nem</span>'}</td>
           <td class="td-muted">${f.Szamla_szam || '—'}</td>
+          <td class="td-muted" style="font-size:12px;max-width:340px;white-space:normal">${(f.Megjegyzes || '').replace(/</g,'&lt;')}</td>
         </tr>`;
       }).join('') + '</tbody></table>';
   } catch(e) {
@@ -15940,7 +15819,7 @@ function wiseManualSearchFn() {
   if (!q || q.length < 2) { dd.style.display = 'none'; return; }
   const matches = (bszInvoices || []).filter(inv =>
     ((inv.invoiceNumber||'').toLowerCase().includes(q) || (inv.supplierName||'').toLowerCase().includes(q)) &&
-    inv._status !== 'Fizetett'
+    inv._airtableStatus !== 'Fizetett' && inv._airtableStatus !== 'Storno'
   ).slice(0, 15);
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.innerHTML = matches.map(inv =>
@@ -15975,7 +15854,7 @@ async function wiseMarkPaid() {
     wiseManualSelected = null;
     loadWiseSyncData();
     const inv = (bszInvoices||[]).find(i => i._airtableId === recordId);
-    if (inv) inv._status = 'Fizetett';
+    if (inv) { inv._status = 'Fizetett'; inv._airtableStatus = 'Fizetett'; }
   } catch(e) {
     toast('Hiba: ' + e.message, 'error');
   }
@@ -17524,6 +17403,14 @@ async function afaOsszesCsatolmanyLetoltes() {
       } catch(e) { console.warn(`PDF letöltés sikertelen: ${fileName}`, e.message); return false; }
     };
 
+    // v355: FRISS csatolmány-URL-ek a bejövő számlákhoz és vámhatározatokhoz (lejárt URL ellen).
+    // Hiba esetén a cache-elt URL marad a tartalék.
+    let frissBej = new Map(), frissVam = new Map();
+    try { frissBej = await frissCsatolmanyUrlek('Bejovo_Szamlak', bejovoPdfek.map(i => i._airtableId), 'Szamla_PDF'); }
+    catch(e) { console.warn('Friss bejövő URL-ek lekérése sikertelen, cache-elt URL-ek:', e.message); }
+    try { frissVam = await frissCsatolmanyUrlek('Vamkezeles', vamHavi.map(v => v.id), 'Vam_PDF'); }
+    catch(e) { console.warn('Friss vám URL-ek lekérése sikertelen, cache-elt URL-ek:', e.message); }
+
     let kimOk = 0;
     const kimTasks = kimenoScope.map(async inv => {
       const blob = await fetchKimenoBlob(inv);
@@ -17567,7 +17454,7 @@ async function afaOsszesCsatolmanyLetoltes() {
         vamAlMappa.file('osszefoglalo.xlsx', XLSX.write(wbVam, { bookType: 'xlsx', type: 'array' }));
 
         // A vámhatározat PDF-je(i)
-        const atts = f.Vam_PDF || [];
+        const atts = (frissVam.get(v.id) && frissVam.get(v.id).length) ? frissVam.get(v.id) : (f.Vam_PDF || []);
         atts.forEach((att, ix) => {
           const fnev = (f.MRN_szam || v.id) + (atts.length > 1 ? `_${ix+1}` : '');
           vamTasks.push(fetchPdfUrl(att.url, fnev, vamAlMappa).then(ok => { if (ok) vamPdfOk++; }));
@@ -17575,16 +17462,18 @@ async function afaOsszesCsatolmanyLetoltes() {
       });
     }
 
+    let bejOk = 0;
     await Promise.all([
       ...bejovoPdfek.flatMap(inv => {
-        const docs = (inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : [{ url: inv._pdfUrl }];
-        return docs.map((d, ix) => fetchPdfUrl(d.url, bszFajlNev(inv) + (docs.length > 1 ? `_${ix+1}` : ''), bejMappa));
+        const fr = frissBej.get(inv._airtableId);
+        const docs = (fr && fr.length) ? fr : ((inv._pdfUrls && inv._pdfUrls.length) ? inv._pdfUrls : [{ url: inv._pdfUrl }]);
+        return docs.map((d, ix) => fetchPdfUrl(d.url, bszFajlNev(inv) + (docs.length > 1 ? `_${ix+1}` : ''), bejMappa).then(ok => { if (ok) bejOk++; }));
       }),
       ...kimTasks,
       ...vamTasks,
     ]);
 
-    const total = bejovoFajlDb + kimOk + vamHavi.length;
+    const total = bejOk + kimOk + vamHavi.length;
     if (!total) { toast('Nem sikerült egyetlen csatolmányt sem letölteni.', 'error'); return; }
 
     const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
@@ -17593,7 +17482,7 @@ async function afaOsszesCsatolmanyLetoltes() {
     a.download = `csatolmanyok_${idoszak}.zip`;
     a.click();
     URL.revokeObjectURL(a.href);
-    toast(`✓ Letöltve (bejövő: ${bejovoFajlDb} PDF, kimenő: ${kimOk}/${kimenoScope.length} PDF, vám: ${vamHavi.length} mappa / ${vamPdfOk} PDF)`, 'success');
+    toast(`✓ Letöltve (bejövő: ${bejOk}/${bejovoFajlDb} PDF, kimenő: ${kimOk}/${kimenoScope.length} PDF, vám: ${vamHavi.length} mappa / ${vamPdfOk} PDF)`, 'success');
   } catch(e) {
     toast('Hiba a zip generálásakor: ' + e.message, 'error');
   }

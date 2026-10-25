@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v358
+     ZALNER ERP - VERZIÓ: v359
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v359:
+- JAVÍTVA — Wise szinkron oldal "Fizetésre vár" és "Ma fizetett" számlálók: nem létező mezőt kértek
+  le (fields[]=invoiceNumber) → Airtable-hiba → mindig 0-t mutattak (valójában 96 nyitott bejövő számla
+  volt 2026-10-25-én). Helyes mezőnevek, lapozásos számlálás, budapesti "ma".
+- JAVÍTVA — "Nemrég fizetett számlák" lista: ugyanezen hiba miatt üres volt; most Szamlaszam /
+  Szallito_nev / Brutto_osszeg / Deviza mezőkkel tölt, hiba esetén kiírja az okot.
 
 CHANGES v358:
 - JAVÍTVA — Wise szinkron oldal "🔄 Manuális szinkron" gomb: nem létező függvényt hívott
@@ -1040,7 +1047,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v358</title>
+<title>Zalner ERP v359</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1233,7 +1240,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v358</div>
+    <div class="nav-logo-sub">v359</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10589,7 +10596,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v358 · Belső rendszer
+          Zalner ERP v359 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -15750,19 +15757,34 @@ function showWiseSync() {
   loadWiseSyncData();
 }
 
-async function loadWiseSyncData() {
-  try {
-    const r = await fetch(`${atUrl('Bejovo_Szamlak')}&filterByFormula={Statusz}="Fizetesre_var"&fields[]=invoiceNumber`, { headers: getAuthHeaders() });
+// v359: rekordszámlálás lapozással (a Bejovo_Szamlak > 100 sor is lehet)
+async function _wiseCount(table, formula) {
+  let n = 0, offset = null;
+  do {
+    const url = `${atUrl(table)}&pageSize=100&fields%5B%5D=Szamlaszam&filterByFormula=${encodeURIComponent(formula)}${offset ? '&offset=' + offset : ''}`;
+    const r = await fetch(url, { headers: getAuthHeaders() });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
-    document.getElementById('wiseStatVar').textContent = (d.records || []).length;
-  } catch(e) {}
+    n += (d.records || []).length;
+    offset = d.offset;
+  } while (offset);
+  return n;
+}
 
-  const today = new Date().toISOString().split('T')[0];
+async function loadWiseSyncData() {
+  // v359: eddig nem létező mezőnevet kért (fields[]=invoiceNumber) → az Airtable hibát adott → mindig 0.
+  // A Bejovo_Szamlak valódi mezői: Szamlaszam, Szallito_nev, Brutto_osszeg, Deviza, Statusz.
   try {
-    const r = await fetch(`${atUrl('Bejovo_Szamlak')}&filterByFormula=AND({Statusz}="Fizetett",{Fizetes_datuma}="${today}")&fields[]=invoiceNumber`, { headers: getAuthHeaders() });
-    const d = await r.json();
-    document.getElementById('wiseStatFizetve').textContent = (d.records || []).length;
-  } catch(e) {}
+    document.getElementById('wiseStatVar').textContent =
+      await _wiseCount('Bejovo_Szamlak', 'OR({Statusz}="Fizetesre_var",{Statusz}="")');
+  } catch(e) { document.getElementById('wiseStatVar').textContent = '?'; }
+
+  // "Ma" = budapesti dátum (a toISOString UTC-t adna, éjfél után 1-2 óráig rossz napot)
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Budapest' });
+  try {
+    document.getElementById('wiseStatFizetve').textContent =
+      await _wiseCount('Bejovo_Szamlak', `AND({Statusz}="Fizetett",IS_SAME({Fizetes_datuma},"${today}","day"))`);
+  } catch(e) { document.getElementById('wiseStatFizetve').textContent = '?'; }
 
   // Utolsó webhook: Wise_Tranzakciok táblából olvassuk (nem localStorage!)
   try {
@@ -15828,18 +15850,19 @@ async function loadWisePaidList() {
   const el = document.getElementById('wisePaidList');
   el.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:20px">Betöltés...</div>';
   try {
-    const url = `${atUrl('Bejovo_Szamlak')}&filterByFormula={Statusz}="Fizetett"&sort[0][field]=Fizetes_datuma&sort[0][direction]=desc&maxRecords=20&fields[]=invoiceNumber&fields[]=supplierName&fields[]=invoiceNetAmount&fields[]=currency&fields[]=Fizetes_datuma&fields[]=Wise_transfer_id`;
+    const url = `${atUrl('Bejovo_Szamlak')}&filterByFormula=${encodeURIComponent('{Statusz}="Fizetett"')}&sort[0][field]=Fizetes_datuma&sort[0][direction]=desc&maxRecords=20&fields[]=Szamlaszam&fields[]=Szallito_nev&fields[]=Brutto_osszeg&fields[]=Deviza&fields[]=Fizetes_datuma&fields[]=Wise_transfer_id`;
     const r = await fetch(url, { headers: getAuthHeaders() });
     const d = await r.json();
+    if (!r.ok) throw new Error(d?.error?.message || ('HTTP ' + r.status));
     const recs = d.records || [];
     if (!recs.length) {
       el.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:32px">Még nincs fizetett számla</div>';
       return;
     }
-    el.innerHTML = '<table class="table"><thead><tr><th>Számlaszám</th><th>Beszállító</th><th>Összeg</th><th>Fizetés dátuma</th><th>Wise ID</th></tr></thead><tbody>' +
+    el.innerHTML = '<table class="table"><thead><tr><th>Számlaszám</th><th>Beszállító</th><th>Bruttó</th><th>Fizetés dátuma</th><th>Wise ID</th></tr></thead><tbody>' +
       recs.map(rec => {
         const f = rec.fields;
-        return `<tr><td><strong>${f.invoiceNumber||'—'}</strong></td><td class="td-muted">${f.supplierName||'—'}</td><td>${f.invoiceNetAmount||'—'} ${f.currency||''}</td><td class="td-muted">${f.Fizetes_datuma||'—'}</td><td style="font-size:11px;color:var(--text-light)">${f.Wise_transfer_id||'manuális'}</td></tr>`;
+        return `<tr><td><strong>${f.Szamlaszam||'—'}</strong></td><td class="td-muted">${f.Szallito_nev||'—'}</td><td>${f.Brutto_osszeg!=null?Number(f.Brutto_osszeg).toLocaleString('hu-HU'):'—'} ${f.Deviza||''}</td><td class="td-muted">${f.Fizetes_datuma||'—'}</td><td style="font-size:11px;color:var(--text-light)">${f.Wise_transfer_id||'manuális'}</td></tr>`;
       }).join('') + '</tbody></table>';
   } catch(e) {
     el.innerHTML = `<div style="color:var(--danger);padding:16px">${e.message}</div>`;

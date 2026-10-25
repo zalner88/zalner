@@ -1,12 +1,23 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v357
+     ZALNER ERP - VERZIÓ: v358
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v358:
+- JAVÍTVA — Wise szinkron oldal "🔄 Manuális szinkron" gomb: nem létező függvényt hívott
+  (loadBevoSzamlakFromAirtable), ezért semmit nem csinált. Most üríti a Bejovo_Szamlak,
+  Kimeno_Szamlak és Wise_Tranzakciok cache-t, és frissen újratölti a bejövő/kimenő számlákat és a
+  Wise tranzakciólistát — így azonnal látszik, amit a webhook a háttérben fizetettre állított.
+- MÓDOSÍTVA — Kimeno_Szamlak cache 24 óra → 10 perc (a Wise webhook kívülről módosítja a státuszt).
+- JAVÍTVA — Kimenő számlák "🔄 Frissítés" gomb most ténylegesen újratölt (cache ürítéssel),
+  eddig a 24 órás cache-ből rajzolt.
+- JAVÍTVA — Kimenő számla Sztornó űrlap "🔍 Keresés" gomb: hiányzó kszStornoKereses függvény pótolva
+  (Billingo ID-ra vagy számlaszámra keres, kitölti a Billingo ID-t).
 
 CHANGES v357:
 - ÚJ — Wise BEJÖVŐ befizetések (vevői utalások) automatikus párosítása a proxyban
@@ -1029,7 +1040,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v357</title>
+<title>Zalner ERP v358</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1222,7 +1233,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v357</div>
+    <div class="nav-logo-sub">v358</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1913,7 +1924,7 @@ select.form-control{cursor:pointer}
         <input type="date" class="form-control" id="bilImpFrom" style="width:140px;padding:6px 8px" title="Billingo import — ettől a kiállítási dátumtól">
         <input type="date" class="form-control" id="bilImpTo" style="width:140px;padding:6px 8px" title="Billingo import — eddig a kiállítási dátumig">
         <button class="btn btn-secondary" onclick="importBillingoSzamlak()" id="bilImpBtn" title="A Billingo-ban közvetlenül kiállított, ERP-ből hiányzó számlák behúzása a megadott időablakból">⬇ Billingo import</button>
-        <button class="btn btn-secondary" onclick="syncKimenoSzamlak()" id="syncKszBtn">🔄 Frissítés</button>
+        <button class="btn btn-secondary" onclick="cacheInvalidate('Kimeno_Szamlak');syncKimenoSzamlak()" id="syncKszBtn">🔄 Frissítés</button>
         <button class="btn btn-primary" onclick="openKszModal()">＋ Új számla</button>
       </div>
     </div>
@@ -3618,7 +3629,8 @@ const CACHE_TTL       = CACHE_TTL_10M;   // default
 const CACHE_TTL_MAP = {
   // Naponta elegendő – számlák ritkán változnak
   Bejovo_Szamlak: CACHE_TTL_24H,
-  Kimeno_Szamlak: CACHE_TTL_24H,
+  // v358: a Wise webhook kívülről állítja "Fizetett"-re → 10 perc, hogy hamar látszódjon
+  Kimeno_Szamlak: CACHE_TTL_10M,
   // Ritkán változik – ügyfelek, kontaktok, szállítók
   Ugyfelek: CACHE_TTL_60M,
   Kapcsolattartok: CACHE_TTL_60M,
@@ -10577,7 +10589,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v357 · Belső rendszer
+          Zalner ERP v358 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -14415,6 +14427,29 @@ function kszVegszamlaFromElolег(airtableId) {
   }, 150);
 }
 
+// v358: a Sztornó űrlap "🔍 Keresés" gombja eddig nem létező függvényt hívott.
+// Billingo ID-ra VAGY számlaszámra keres a betöltött kimenő számlák között, és kitölti a Billingo ID-t.
+function kszStornoKereses() {
+  const inp = document.getElementById('fKszStornoBillingoId');
+  const info = document.getElementById('kszStornoFoundInfo');
+  const q = (inp?.value || '').trim().toLowerCase();
+  if (!q) { if (info) info.innerHTML = '<span style="color:#e74c3c">Írd be a Billingo ID-t vagy a számlaszámot.</span>'; return; }
+  const talalat = (kszInvoices || []).filter(i =>
+    String(i._billingoId || '').toLowerCase() === q ||
+    (i.invoiceNumber || '').toLowerCase().includes(q)
+  ).filter(i => i.statusz !== 'Storno');
+  if (!talalat.length) { if (info) info.innerHTML = '<span style="color:#e74c3c">Nincs ilyen (nem sztornózott) kimenő számla a betöltött listában.</span>'; return; }
+  if (talalat.length > 1) {
+    if (info) info.innerHTML = 'Több találat — pontosíts: ' + talalat.slice(0, 8).map(i =>
+      `${(i.invoiceNumber || '?').replace(/</g,'&lt;')} (${(i.ugyfelNev || '').replace(/</g,'&lt;')}, Billingo ID: ${i._billingoId || '—'})`).join('; ');
+    return;
+  }
+  const inv = talalat[0];
+  if (!inv._billingoId) { if (info) info.innerHTML = '<span style="color:#e74c3c">A számlának nincs Billingo azonosítója, így nem sztornózható innen.</span>'; return; }
+  inp.value = inv._billingoId;
+  if (info) info.innerHTML = `✓ ${(inv.invoiceNumber || '').replace(/</g,'&lt;')} — ${(inv.ugyfelNev || '').replace(/</g,'&lt;')} — ${inv.bruttoOssz || 0} ${inv.currency || ''}`;
+}
+
 async function kszStornoFromRow(airtableId, billingoId, invoiceNumber) {
   document.querySelectorAll('.ksz-dropdown').forEach(d => d.style.display = 'none');
   if (!confirm(`Biztosan sztornózod a(z) "${invoiceNumber || airtableId}" számlát?\n\nEz végleges művelet, a Billingóban azonnal érvénytelenítésre kerül!`)) return;
@@ -15861,10 +15896,20 @@ async function wiseMarkPaid() {
 }
 
 async function wiseManualSync() {
+  // v358: eddig nem létező függvényt hívott (loadBevoSzamlakFromAirtable) → a gomb nem csinált semmit.
+  // Most: a webhook által módosított táblák cache-ét üríti, és frissen újratölti őket.
   toast('Airtable adatok frissítése...', '');
-  await loadBevoSzamlakFromAirtable();
-  loadWiseSyncData();
-  toast('Szinkronizálva ✓', 'success');
+  try {
+    cacheInvalidate('Bejovo_Szamlak');
+    cacheInvalidate('Kimeno_Szamlak');
+    cacheInvalidate('Wise_Tranzakciok');
+    await reloadBszFromAirtable();
+    if (typeof syncKimenoSzamlak === 'function') { try { await syncKimenoSzamlak(); } catch(e) {} }
+    await loadWiseSyncData();
+    toast('Szinkronizálva ✓', 'success');
+  } catch(e) {
+    toast('Frissítési hiba: ' + e.message, 'error');
+  }
 }
 
 function initAfaBevallas() {

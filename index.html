@@ -1,12 +1,27 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v360
+     ZALNER ERP - VERZIÓ: v361
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v361:
+- ÚJ — RON deviza a bejövő számláknál (kézi felvitel űrlap) és a beszállítóknál. A mentés typecast-tal
+  megy, így az Airtable Bejovo_Szamlak.Deviza mezőjébe az első RON-számlánál automatikusan bekerül a RON.
+  Beszállító kiválasztásakor a deviza csak akkor íródik át, ha az űrlapon létezik (pl. GBP/CHF/CZK nincs).
+- ÚJ — Külföldi ÁFA kezelése (afaNemLevonhatoDeviza: minden deviza a HUF/EUR/USD-n kívül): az űrlapon
+  figyelmeztetés; az ÁFA-bevallás oldalon a deviza-táblában "Külföldi ÁFA – nem levonható" jelzés,
+  szürke ÁFA-oszlop és sárga összesítő doboz (EU-s visszatéríttetés). Az egyenlegbe továbbra sem számít bele.
+  Excel exportban az összesítő sor jelölve.
+- ÚJ — RON→HUF EKB-árfolyam (frankfurter.dev, pkFetchFxHuf); a pénzügyi kimutatás / havi eredmény
+  (pkToHuf) a RON összeget átváltja (eddig ismeretlen deviza = változatlan, azaz forintnak számított).
+- JAVÍTVA — Bejövő számlák lista összesítő (Nettó / ÁFA HUF): eddig az EUR/USD nyers összeget forintként
+  adta össze. Most HUF-ra váltva (számlán mentett árfolyam, különben aktuális EKB), "≈" jelöléssel;
+  a külföldi ÁFA nincs az ÁFA-összegben.
+- JAVÍTVA — Dashboard "fizetésre váró" kártya: a HUF/EUR-on kívüli devizák (USD, RON) eddig kimaradtak.
 
 CHANGES v360:
 - JAVÍTVA — Új / szerkesztett beszállító mentése HTTP 422-vel elszállt (INVALID_VALUE_FOR_COLUMN),
@@ -1053,7 +1068,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v360</title>
+<title>Zalner ERP v361</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1246,7 +1261,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v360</div>
+    <div class="nav-logo-sub">v361</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -2626,11 +2641,13 @@ select.form-control{cursor:pointer}
         </div>
         <div class="form-group">
           <label class="form-label">Deviza</label>
-          <select class="form-control" id="fBszDeviza">
+          <select class="form-control" id="fBszDeviza" onchange="bszDevizaHint()">
             <option value="HUF">HUF</option>
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
+            <option value="RON">RON</option>
           </select>
+          <div id="fBszDevizaHint" style="display:none;font-size:11px;color:#92400e;margin-top:4px">Külföldi számla: az ÁFA nem kerül a magyar ÁFA-bevallás levonható ÁFA-jába (EU-s visszatéríttetéssel igényelhető).</div>
         </div>
         <div class="form-group">
           <label class="form-label">Státusz</label>
@@ -3544,6 +3561,7 @@ select.form-control{cursor:pointer}
             <option value="GBP">GBP</option>
             <option value="CHF">CHF</option>
             <option value="CZK">CZK</option>
+            <option value="RON">RON</option>
           </select>
         </div>
         <div class="form-group"><label class="form-label">Státusz</label>
@@ -5212,6 +5230,10 @@ function renderDashKpis() {
   const fvParts = [];
   if (fvEur) fvParts.push(EUR_FMT(fvEur) + ' EUR');
   if (fvHuf) fvParts.push(HUF_FMT(fvHuf) + ' HUF');
+  // v361: egyéb devizák (pl. RON) is látszódjanak — eddig kimaradtak
+  const fvEgyeb = {};
+  fizVar.forEach(b => { const dv = b.fields.Deviza || 'HUF'; if (dv !== 'HUF' && dv !== 'EUR') fvEgyeb[dv] = (fvEgyeb[dv] || 0) + (parseFloat(b.fields.Netto_osszeg) || 0); });
+  Object.keys(fvEgyeb).sort().forEach(dv => { if (fvEgyeb[dv]) fvParts.push(EUR_FMT(fvEgyeb[dv]) + ' ' + dv); });
   document.getElementById('kpiKintlevoseg').innerHTML = fvParts.length
     ? fvParts.map(s => `<div style="font-size:18px">${s}</div>`).join('')
     : '<span style="color:var(--text-light)">—</span>';
@@ -10602,7 +10624,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v360 · Belső rendszer
+          Zalner ERP v361 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11357,6 +11379,13 @@ function setBszSort(field) {
   filterBevoSzamlak();
 }
 
+// v361: árfolyamok egyszeri betöltése a bejövő lista HUF-összesítőjéhez
+let bszFxBetoltve = false;
+async function bszFxBetolt() {
+  try { _pkEurHuf = await pkFetchEurHuf(); await pkFetchFxHuf('RON'); } catch(e) {}
+  if (document.getElementById('bszTableBody')) { try { renderBevoSzamlak(); } catch(e) {} }
+}
+
 function renderBevoSzamlak() {
   const tbody = document.getElementById('bszTableBody');
   const count = document.getElementById('bszCount');
@@ -11377,9 +11406,15 @@ function renderBevoSzamlak() {
   const pageItems = bszFiltered.slice(startIdx, endIdx);
 
   // Összesítők (az összes szűrt számlára, nem csak az aktuális oldalra)
-  const totalNet = bszFiltered.reduce((s, inv) => s + (parseFloat(inv.invoiceNetAmountHUF) || 0), 0);
-  const totalVat = bszFiltered.reduce((s, inv) => s + (parseFloat(inv.invoiceVatAmountHUF) || 0), 0);
-  count.textContent = `${startIdx + 1}–${endIdx} / ${bszFiltered.length} számla | Nettó: ${Math.round(totalNet).toLocaleString('hu-HU')} HUF | ÁFA: ${Math.round(totalVat).toLocaleString('hu-HU')} HUF`;
+  // v361: devizás számlák HUF-ra váltva (számlán mentett árfolyam, különben aktuális EKB) — eddig a
+  // nyers EUR/USD összeg forintként adódott össze. A külföldi (pl. RON) ÁFA nem kerül az ÁFA-összegbe.
+  const vanDeviza = bszFiltered.some(inv => (inv.currency || 'HUF') !== 'HUF');
+  if (vanDeviza && !bszFxBetoltve) { bszFxBetoltve = true; bszFxBetolt(); }
+  const totalNet = bszFiltered.reduce((s, inv) => s + pkToHufArf(inv.invoiceNetAmount, inv.currency, inv.arfolyam), 0);
+  const totalVat = bszFiltered.reduce((s, inv) => afaNemLevonhatoDeviza(inv.currency) ? s : s + pkToHufArf(inv.invoiceVatAmount, inv.currency, inv.arfolyam), 0);
+  const kb = vanDeviza ? '≈ ' : '';
+  count.textContent = `${startIdx + 1}–${endIdx} / ${bszFiltered.length} számla | Nettó: ${kb}${Math.round(totalNet).toLocaleString('hu-HU')} HUF | ÁFA: ${kb}${Math.round(totalVat).toLocaleString('hu-HU')} HUF`;
+  if (vanDeviza) count.title = 'Devizás számlák HUF-ra váltva (számlán mentett árfolyam, ennek híján aktuális EKB árfolyam). Külföldi (pl. RON) ÁFA nincs az ÁFA-összegben.';
 
   // Lapozó gombok
   if (totalPages > 1) {
@@ -11722,6 +11757,7 @@ function showBszManualForm() {
   document.getElementById('fBszNetto').value = '';
   document.getElementById('fBszAfa').value = '';
   document.getElementById('fBszDeviza').value = 'HUF';
+  bszDevizaHint();
   document.getElementById('fBszStatusz').value = 'Fizetesre_var';
   document.getElementById('fBszKategoria').innerHTML = buildKategoriaOpts('');
   document.getElementById('fBszKategoria').value = '';
@@ -11763,7 +11799,8 @@ async function saveBszManual() {
   };
 
   try {
-    await atPost('Bejovo_Szamlak', fields);
+    // v361: typecast → új deviza (pl. RON) esetén az Airtable felveszi a Deviza választási opciót
+    await atPost('Bejovo_Szamlak', fields, true);
     toast('Számla mentve!', 'success');
     closeBszManualModal();
     await reloadBszFromAirtable();
@@ -12098,8 +12135,21 @@ function onBszBeszallitoChange() {
   const f = b.fields;
   if (f.Cegnev) document.getElementById('fBszSzallito').value = f.Cegnev;
   if (f.Adoszam) document.getElementById('fBszAdoszam').value = f.Adoszam;
-  if (f.Deviza) document.getElementById('fBszDeviza').value = f.Deviza;
+  // v361: csak akkor vesszük át, ha a bejövő számla űrlapon létezik ilyen deviza (pl. GBP/CHF/CZK nincs)
+  const devSel = document.getElementById('fBszDeviza');
+  if (f.Deviza && [...devSel.options].some(o => o.value === f.Deviza)) devSel.value = f.Deviza;
+  bszDevizaHint();
 }
+
+// v361: külföldi (nem HUF/EUR) deviza választásakor figyelmeztetés: az ÁFA nem levonható Magyarországon
+function bszDevizaHint() {
+  const dev = document.getElementById('fBszDeviza')?.value || 'HUF';
+  const el = document.getElementById('fBszDevizaHint');
+  if (el) el.style.display = afaNemLevonhatoDeviza(dev) ? 'block' : 'none';
+}
+// v361: a HUF/EUR/USD bejövő számlák a NAV-ból jönnek (magyar számlák). Minden más deviza (pl. RON)
+// kézzel felvitt külföldi számla → a rajta lévő ÁFA nem levonható a magyar ÁFA-bevallásban.
+function afaNemLevonhatoDeviza(dev) { return !['HUF', 'EUR', 'USD'].includes(dev || 'HUF'); }
 
 // ===== IMPORT =====
 let importStep = 1;
@@ -16079,6 +16129,23 @@ async function loadMnbArfolyam(dateStr) {
 let _pkChart = null;
 let _pkEredmenyChart = null;
 let _pkEurHuf = 400; // fallback árfolyam, betöltéskor frissül
+// v361: egyéb devizák (pl. RON) EKB-árfolyama HUF-ra — { RON: 84.1, ... }, betöltéskor frissül
+let _pkFxHuf = {};
+
+// v361: X/HUF EKB árfolyam (frankfurter.dev), gyorsítótárazva a munkamenetben
+async function pkFetchFxHuf(cur) {
+  if (!cur || cur === 'HUF') return 1;
+  if (cur === 'EUR') return _pkEurHuf;
+  if (_pkFxHuf[cur]) return _pkFxHuf[cur];
+  try {
+    const resp = await fetch(`https://api.frankfurter.dev/v2/rate/${cur}/HUF`);
+    if (resp.ok) {
+      const d = await resp.json();
+      if (d.rate) { _pkFxHuf[cur] = Math.round(d.rate * 10000) / 10000; return _pkFxHuf[cur]; }
+    }
+  } catch(e) { console.warn(cur + '/HUF árfolyam hiba:', e); }
+  return null;
+}
 
 async function initPenzugyiKimutatas() {
   await renderPenzugyiKimutatas();
@@ -16113,6 +16180,7 @@ function pkToHuf(amount, currency) {
   const a = parseFloat(amount) || 0;
   if (!currency || currency === 'HUF') return a;
   if (currency === 'EUR') return a * _pkEurHuf;
+  if (_pkFxHuf[currency]) return a * _pkFxHuf[currency]; // v361: pl. RON — EKB árfolyam
   if (currency === 'USD') return a * (_pkEurHuf / 1.08); // durva közelítés USD-re EUR-on át
   return a; // ismeretlen deviza: változatlan
 }
@@ -16124,6 +16192,7 @@ async function renderPenzugyiKimutatas() {
   try {
     // 1. Árfolyam
     _pkEurHuf = await pkFetchEurHuf();
+    await pkFetchFxHuf('RON'); // v361
 
     // 2. Wise egyenleg
     const wise = await pkFetchWiseEgyenleg();
@@ -16769,10 +16838,12 @@ async function renderAfaBevallas() {
     const cs = bejSzamlak.filter(i => (i.currency||'HUF') === deviza);
     const csN = cs.reduce((s,i) => s+(parseFloat(i.invoiceNetAmount)||0),0);
     const csA = cs.reduce((s,i) => s+(parseFloat(i.invoiceVatAmount)||0),0);
+    const kulfoldi = afaNemLevonhatoDeviza(deviza); // v361
     return `<div style="margin-bottom:20px">
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;display:flex;align-items:center;gap:8px">
         <span style="background:var(--accent-light);color:var(--accent);padding:2px 10px;border-radius:20px">${deviza}</span>
         <span>${cs.length} számla</span>
+        ${kulfoldi ? '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:20px;text-transform:none;letter-spacing:0">Külföldi ÁFA – nem levonható, nincs az egyenlegben</span>' : ''}
       </div>
       <div class="table-wrap"><table>
         <thead><tr>
@@ -16786,7 +16857,7 @@ async function renderAfaBevallas() {
             <td>${inv.supplierName||'—'}</td>
             <td class="td-muted">${inv.invoiceIssueDate||'—'}</td>
             <td style="text-align:right;font-family:'DM Mono',monospace">${fmtDec(n)}</td>
-            <td style="text-align:right;font-family:'DM Mono',monospace;color:#4f7fff;font-weight:500">${fmtDec(a)}</td>
+            <td style="text-align:right;font-family:'DM Mono',monospace;color:${kulfoldi?'#9ca3af':'#4f7fff'};font-weight:500" title="${kulfoldi?'Külföldi ÁFA – nem levonható':''}">${fmtDec(a)}</td>
             <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600">${fmtDec(n+a)}</td>
             <td>${(inv._pdfUrl||(inv._pdfUrls&&inv._pdfUrls.length))?`<button type="button" class="btn btn-primary btn-xs" onclick="event.stopPropagation();openBszPdfFriss('${inv._airtableId||''}',0)">📄</button>`:'<span style="color:var(--text-light);font-size:12px">—</span>'}</td>
           </tr>`;
@@ -16794,7 +16865,7 @@ async function renderAfaBevallas() {
         <tfoot><tr style="background:#f9fafd;font-weight:600;border-top:2px solid var(--border)">
           <td colspan="3" style="padding:10px 16px">${deviza} összesen</td>
           <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmtDec(csN)}</td>
-          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace;color:#4f7fff">${fmtDec(csA)}</td>
+          <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace;color:${kulfoldi?'#9ca3af':'#4f7fff'}">${fmtDec(csA)}</td>
           <td style="padding:10px 16px;text-align:right;font-family:'DM Mono',monospace">${fmtDec(csN+csA)}</td>
           <td></td>
         </tr></tfoot>
@@ -16910,6 +16981,16 @@ async function renderAfaBevallas() {
         <div class="stat-sub">HUF · ${vamHavi.length} vámhatározat</div>
       </div>
     </div>
+    ${(() => { // v361: külföldi (pl. RON) számlák ÁFA-ja — nem levonható, külön jelezve
+      const kf = bejSzamlak.filter(i => afaNemLevonhatoDeviza(i.currency));
+      if (!kf.length) return '';
+      const dv = [...new Set(kf.map(i => i.currency))].sort();
+      const sorok = dv.map(d => { const cs = kf.filter(i => i.currency === d); const a = cs.reduce((s,i) => s + (parseFloat(i.invoiceVatAmount)||0), 0); return `${fmtDec(a)} ${d} (${cs.length} számla)`; }).join(' · ');
+      return `<div style="margin-bottom:20px;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;font-size:13px;color:#92400e">
+        <b>🌍 Külföldi ÁFA – nem levonható:</b> ${sorok}<br>
+        <span style="font-size:12px">Ezek a számlák nem szerepelnek a levonható ÁFA-ban és az egyenlegben. A külföldi ÁFA EU-s áfa-visszatéríttetési kérelemmel igényelhető vissza (NAV, határidő: a tárgyévet követő szept. 30.).</span>
+      </div>`;
+    })()}
 
     <!-- Kalkulátor -->
     <div class="form-section" style="margin-bottom:24px">
@@ -17080,7 +17161,7 @@ async function exportAfaExcel() {
       const cs = bejSzamlak.filter(i=>(i.currency||'HUF')===dev);
       const csN = cs.reduce((s,i)=>s+(parseFloat(i.invoiceNetAmount)||0),0);
       const csA = cs.reduce((s,i)=>s+(parseFloat(i.invoiceVatAmount)||0),0);
-      return [`${dev} összesen (${cs.length} db)`,'','','','','', csN, csA, csN+csA, dev,'','','','',''];
+      return [`${dev} összesen (${cs.length} db)${afaNemLevonhatoDeviza(dev) ? ' – külföldi ÁFA, nem levonható' : ''}`,'','','','','', csN, csA, csN+csA, dev,'','','','',''];
     });
     const ws2Data = [bejFejlec, ...bejSorok, [], ...bejOsszesSorok];
     const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);

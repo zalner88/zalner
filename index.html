@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v362
+     ZALNER ERP - VERZIÓ: v363
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v363:
+- Wise utalás ablak: szélesebb (max. 1100 px), vízszintes görgetés nélkül; a Forrás oszlopban látszik,
+  miért nem talált bankszámlát (pl. szkennelt PDF).
+- Bankszámla felismerés javítás: NAV válaszban mélységi keresés (a régi proxyval is működik); a PDF-ben
+  bármilyen tagolású 16/24 jegyű számlaszám (4-es csoportok, szóközök, egybeírva); ha a PDF-ből sem jön,
+  Claude olvassa ki (/api/claude, szkennelt számlákhoz is) — CDV-ellenőrzéssel, saját számlák nélkül.
 
 CHANGES v362:
 - ÚJ — 💸 WISE UTALÁS a bejövő számlákból. A listában (Admin) jelölőnégyzettel kijelölt nyitott
@@ -1082,7 +1089,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v362</title>
+<title>Zalner ERP v363</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1275,7 +1282,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v362</div>
+    <div class="nav-logo-sub">v363</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10640,7 +10647,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v362 · Belső rendszer
+          Zalner ERP v363 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11664,7 +11671,13 @@ async function bszNavBankszamla(inv) {
     const r = await fetch(`${NAV_PROXY}/api/invoice-detail?${p}`);
     if (!r.ok) return null;
     const d = await r.json();
-    const n = bankNorm(d.supplierBankAccountNumber);
+    const keres = (o, mely = 0) => {
+      if (!o || typeof o !== 'object' || mely > 14) return null;
+      if ('supplierBankAccountNumber' in o) { const v = o.supplierBankAccountNumber; return Array.isArray(v) ? v[0] : (v && typeof v === 'object' ? v._ : v); }
+      for (const k of Object.keys(o)) { const x = keres(o[k], mely + 1); if (x) return x; }
+      return null;
+    };
+    const n = bankNorm(d.supplierBankAccountNumber || keres(d));
     return n && !sajatBankszamlak().has(n) ? n : null;
   } catch(e) { console.warn('NAV bankszámla lekérés hiba:', inv.invoiceNumber, e); return null; }
 }
@@ -11701,31 +11714,70 @@ function bankJeloltekSzovegbol(text) {
     if (/(vevő|vevo|buyer|customer)/.test(elotte)) pont -= 2;
     talalat.set(n, Math.max(talalat.get(n) ?? -99, pont));
   };
-  // belföldi: 8-8 vagy 8-8-8, kötőjellel/szóközzel tagolva
-  const reHu = /(?<!\d)(\d{8})[\s-]+(\d{8})(?:[\s-]+(\d{8}))?(?!\d)/g;
+  // belföldi: 16 vagy 24 jegy bármilyen tagolással (8-8-8, 4-es csoportok, szóköz, egybeírva)
+  const reHu = /(?<![\dA-Z])(\d[\d \-]{14,40}\d)(?!\d)/g;
   let m;
-  while ((m = reHu.exec(text))) add(m[1] + m[2] + (m[3] || ''), m.index);
+  while ((m = reHu.exec(text))) {
+    const d = m[1].replace(/[ -]/g, '');
+    if (d.length === 24 || d.length === 16) add(d, m.index);
+    else if (d.length > 24) { add(d.slice(0, 24), m.index); add(d.slice(0, 16), m.index); }
+  }
   // IBAN (szóközökkel tagolva is)
   const reIban = /\b([A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){2,7}(?:[ ]?[A-Z0-9]{1,4})?)\b/g;
   while ((m = reIban.exec(text))) add(m[1], m.index);
   return [...talalat.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
 }
 
+// Visszaad: { jeloltek, bytes (a PDF ArrayBuffer — a Claude-tartaléknak), ok (miért nincs) }
 async function bszPdfBankszamlak(inv) {
+  let bytes = null;
   try {
     const docs = await bszFetchCsatolmanyok(inv._airtableId);
-    if (!docs.length) return [];
-    const pdfjsLib = await loadPdfJs();
+    if (!docs.length) return { jeloltek: [], bytes, ok: 'nincs csatolt PDF' };
     const resp = await fetch(docs[0].url);
-    if (!resp.ok) return [];
-    const pdf = await pdfjsLib.getDocument({ data: await resp.arrayBuffer() }).promise;
+    if (!resp.ok) return { jeloltek: [], bytes, ok: 'PDF letöltés hiba ' + resp.status };
+    bytes = await resp.arrayBuffer();
+    const pdfjsLib = await loadPdfJs();
+    const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
     let text = '';
     for (let p = 1; p <= Math.min(pdf.numPages, 3); p++) {
       const c = await (await pdf.getPage(p)).getTextContent();
       text += c.items.map(i => i.str).join(' ') + '\n';
     }
-    return bankJeloltekSzovegbol(text);
-  } catch(e) { console.warn('PDF bankszámla kiolvasás hiba:', inv.invoiceNumber, e); return []; }
+    if (text.replace(/\s/g, '').length < 50) return { jeloltek: [], bytes, ok: 'szkennelt PDF (nincs szövegréteg)' };
+    const jeloltek = bankJeloltekSzovegbol(text);
+    return { jeloltek, bytes, ok: jeloltek.length ? '' : 'a PDF szövegében nincs érvényes számlaszám' };
+  } catch(e) {
+    console.warn('PDF bankszámla kiolvasás hiba:', inv.invoiceNumber, e);
+    return { jeloltek: [], bytes, ok: 'PDF olvasási hiba' };
+  }
+}
+
+// ── Forrás 5: Claude olvassa ki a PDF-ből (szkennelt / szokatlan elrendezésű számla) ──
+async function bszClaudeBankszamla(inv, bytes) {
+  if (!bytes || bytes.byteLength > 8 * 1024 * 1024) return null;
+  try {
+    let bin = ''; const u8 = new Uint8Array(bytes);
+    for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    const r = await fetch(`${NAV_PROXY}/api/claude`, {
+      method: 'POST', headers: getAuthHeaders(),
+      body: JSON.stringify({
+        max_tokens: 200,
+        messages: [{ role: 'user', content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: btoa(bin) } },
+          { type: 'text', text: `Ez egy beérkezett számla. A vevő a ${CEGADATOK.nev} — az ő bankszámláit hagyd figyelmen kívül. ` +
+            'Add meg a SZÁLLÍTÓ (eladó, kiállító) bankszámlaszámát pontosan úgy, ahogy a számlán szerepel. ' +
+            'Ha több is van, a forintszámlát add meg. Kizárólag ezt a JSON-t válaszold: {"bankszamla":"..."} — ha nincs a számlán, {"bankszamla":null}.' },
+        ] }],
+      }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const txt = (d.content || []).map(c => c.text || '').join('');
+    const m = txt.match(/\{[\s\S]*\}/);
+    const n = bankNorm(m ? JSON.parse(m[0]).bankszamla : null);
+    return n && !sajatBankszamlak().has(n) ? n : null;
+  } catch(e) { console.warn('Claude bankszámla kiolvasás hiba:', inv.invoiceNumber, e); return null; }
 }
 
 // ── Feloldás egy számlára ───────────────────────────────────────────────────
@@ -11737,8 +11789,10 @@ async function bszBankszamlaFeloldas(inv) {
   const nav = await bszNavBankszamla(inv);
   if (nav) return { szamla: nav, forras: 'NAV', jeloltek: [nav], elozo };
   const pdf = await bszPdfBankszamlak(inv);
-  if (pdf.length) return { szamla: pdf[0], forras: pdf.length > 1 ? 'PDF (több jelölt!)' : 'PDF', jeloltek: pdf, elozo };
-  return { szamla: '', forras: 'Kézi', jeloltek: [], elozo };
+  if (pdf.jeloltek.length) return { szamla: pdf.jeloltek[0], forras: pdf.jeloltek.length > 1 ? 'PDF (több jelölt!)' : 'PDF', jeloltek: pdf.jeloltek, elozo };
+  const ai = await bszClaudeBankszamla(inv, pdf.bytes);
+  if (ai) return { szamla: ai, forras: 'PDF (Claude)', jeloltek: [ai], elozo };
+  return { szamla: '', forras: 'Kézi', megj: 'NAV-ban nincs; ' + (pdf.ok || 'PDF-ben nem található'), jeloltek: [], elozo };
 }
 
 // ── Modal ───────────────────────────────────────────────────────────────────
@@ -11754,9 +11808,9 @@ async function openWiseUtalasModal() {
   modal.className = 'modal-overlay open';
   modal.id = 'wiseUtalasModal';
   modal.innerHTML = `
-    <div class="modal" style="max-width:920px">
+    <div class="modal" style="width:min(1100px,96vw);max-width:96vw">
       <div class="modal-header"><div class="modal-title">💸 Wise utalás — ${invs.length} számla</div><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
-      <div class="modal-body" id="wiseUtalasBody" style="max-height:70vh;overflow-y:auto">
+      <div class="modal-body" id="wiseUtalasBody" style="max-height:70vh;overflow-y:auto;overflow-x:hidden">
         <div style="padding:30px;text-align:center;color:var(--text-muted)">⏳ Bankszámlaszámok keresése (korábbi számlák, NAV, PDF)…</div>
       </div>
       <div class="modal-footer">
@@ -11783,23 +11837,23 @@ function wiseModalRender() {
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let osszes = {};
   body.innerHTML = `
-    <table class="data-table" style="width:100%;font-size:12px">
-      <thead><tr><th>Számla</th><th>Szállító</th><th style="text-align:right">Bruttó</th><th style="width:300px">Bankszámla</th><th>Forrás</th></tr></thead>
+    <table class="data-table" style="width:100%;font-size:12px;table-layout:fixed">
+      <thead><tr><th style="width:15%">Számla</th><th style="width:20%">Szállító</th><th style="width:13%;text-align:right">Bruttó</th><th style="width:37%">Bankszámla</th><th style="width:15%">Forrás</th></tr></thead>
       <tbody>${_wiseModalSorok.map((s, ix) => {
         const brutto = (parseFloat(s.inv.invoiceNetAmount) || 0) + (parseFloat(s.inv.invoiceVatAmount) || 0);
         const dev = s.inv.currency || 'HUF';
         osszes[dev] = (osszes[dev] || 0) + brutto;
         const lista = s.jeloltek.length > 1 ? `<datalist id="wiseJ${ix}">${s.jeloltek.map(j => `<option value="${esc(j)}">`).join('')}</datalist>` : '';
         return `<tr>
-          <td style="font-family:'DM Mono',monospace;font-size:11px">${esc(s.inv.invoiceNumber)}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:11px;word-break:break-all">${esc(s.inv.invoiceNumber)}</td>
           <td>${esc(s.inv.supplierName)}</td>
           <td style="text-align:right;font-weight:600;white-space:nowrap">${brutto.toLocaleString('hu-HU')} ${esc(dev)}</td>
           <td>
-            <input class="form-control" style="font-family:'DM Mono',monospace;font-size:12px;padding:4px 6px" value="${esc(s.szamla)}" ${lista ? `list="wiseJ${ix}"` : ''}
+            <input class="form-control" style="font-family:'DM Mono',monospace;font-size:12px;padding:4px 6px;width:100%;box-sizing:border-box" value="${esc(s.szamla)}" ${lista ? `list="wiseJ${ix}"` : ''}
               placeholder="12345678-12345678-12345678 vagy IBAN" oninput="wiseModalSorValtozik(${ix},this.value)">${lista}
             <div id="wiseHiba${ix}" style="font-size:11px;margin-top:3px"></div>
           </td>
-          <td style="font-size:11px;white-space:nowrap" id="wiseForras${ix}">${esc(s.forras)}</td>
+          <td style="font-size:11px" id="wiseForras${ix}">${esc(s.forras)}${s.megj ? `<div style="color:var(--text-muted);font-size:10px;margin-top:2px">${esc(s.megj)}</div>` : ''}</td>
         </tr>`;
       }).join('')}</tbody>
     </table>

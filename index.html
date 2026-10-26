@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v365
+     ZALNER ERP - VERZIÓ: v366
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v366:
+- ÚJ — Kimenő számlák: "🔴 Lejárt" szűrő a Piszkozat mellett — a nyitott (nem fizetett, nem sztornó,
+  nem piszkozat) számlák, amelyek fizetési határideje a mai napnál korábbi.
 
 CHANGES v365:
 - Wise utalás ablak: a "Számla megnyitása" gomb egy sorban; Wise 401/403 hibánál érthető üzenet
@@ -1097,7 +1101,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v365</title>
+<title>Zalner ERP v366</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1290,7 +1294,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v365</div>
+    <div class="nav-logo-sub">v366</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1994,6 +1998,7 @@ select.form-control{cursor:pointer}
           <button class="pill" onclick="setKszFilter('fizetesre_var',this)">Fizetésre vár</button>
           <button class="pill" onclick="setKszFilter('fizetett',this)">Fizetett</button>
           <button class="pill" onclick="setKszFilter('piszkozat',this)">Piszkozat</button>
+          <button class="pill" onclick="setKszFilter('lejart',this)">🔴 Lejárt</button>
         </div>
         <div style="flex:1"></div>
         <input class="search-input" type="text" placeholder="Ügyfél, számlaszám..." id="kszSearch" oninput="filterKimenoSzamlak()" style="width:240px">
@@ -10655,7 +10660,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v365 · Belső rendszer
+          Zalner ERP v366 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -14460,6 +14465,11 @@ function filterKimenoSzamlak() {
     if (kszFilter === 'fizetesre_var' && (inv.statusz === 'Fizetett' || inv.statusz === 'Storno' || inv.statusz === 'Piszkozat' || inv.tipus === 'Piszkozat')) return false;
     if (kszFilter === 'fizetett' && inv.statusz !== 'Fizetett') return false;
     if (kszFilter === 'piszkozat' && inv.statusz !== 'Piszkozat') return false;
+    // Lejárt = nyitott (nem fizetett/sztornó/piszkozat) számla, aminek a fizetési határideje elmúlt
+    if (kszFilter === 'lejart' && !(
+      inv.fizetesiHatarido && inv.fizetesiHatarido < today &&
+      inv.statusz !== 'Fizetett' && inv.statusz !== 'Storno' && inv.statusz !== 'Piszkozat' && inv.tipus !== 'Piszkozat'
+    )) return false;
     if (search) return (inv.invoiceNumber || '').toLowerCase().includes(search) || (inv.ugyfelNev || '').toLowerCase().includes(search);
     return true;
   });

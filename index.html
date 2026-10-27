@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v370
+     ZALNER ERP - VERZIÓ: v371
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v371:
+- JAVÍTVA — Pénzügyi kimutatás: a 31/61 napos idősor UTC dátummal indult, ezért a magyar időzónában
+  egy nappal korábbi napot mutatott "mának" (pl. okt. 27-én okt. 26-tól). Mostantól helyi dátum.
 
 CHANGES v370:
 - JAVÍTVA — Pénzügyi kimutatás "🔄 Frissítés" gomb: eddig a bejövő számlákat a 24 órás (F5-öt is túlélő,
@@ -1127,7 +1131,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v370</title>
+<title>Zalner ERP v371</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1320,7 +1324,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v370</div>
+    <div class="nav-logo-sub">v371</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10686,7 +10690,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v370 · Belső rendszer
+          Zalner ERP v371 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -16697,7 +16701,7 @@ async function renderPenzugyiKimutatas(friss = false) {
     const napok = [];
     for (let i = 0; i <= 31; i++) {
       const d = new Date(ma); d.setDate(d.getDate() + i);
-      napok.push(d.toISOString().split('T')[0]);
+      napok.push(d.toLocaleDateString('sv-SE'));   // v371: helyi dátum (UTC-vel egy nappal korábbi lett)
     }
     const vegDatum = napok[napok.length - 1];
     const maStr = napok[0];
@@ -16817,7 +16821,7 @@ async function renderPenzugyiKimutatas(friss = false) {
       const napok61 = [];
       for (let i = 0; i <= 61; i++) {
         const d = new Date(ma); d.setDate(d.getDate() + i);
-        napok61.push(d.toISOString().split('T')[0]);
+        napok61.push(d.toLocaleDateString('sv-SE'));
       }
       const vegDatum61 = napok61[napok61.length - 1];
       let ki61 = 0, be61 = 0;

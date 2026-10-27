@@ -1,12 +1,20 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v367
+     ZALNER ERP - VERZIÓ: v368
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v368:
+- ÚJ — Pénzügyi kimutatás / cashflow: FIX HAVI SZÁLLÍTÓK várható számlái (Merkantil, Toyota, CIB Lízing,
+  Inter-Alp, Hajbáné, Telekom, License365, ISIS-COM, Airtable, Anthropic — lista: FIX_HAVI_SZALLITOK).
+  A legutóbbi havi számlakészletet (szállító + deviza) havonta előre vetíti a saját összegével,
+  devizájával és fizetési határidejével; amíg az adott havi valódi számla nem érkezik meg (±10 nap),
+  addig "(havi fix, várható)" kiadásként szerepel. Kiugró egyszeri összeg helyett medián. A 31 és 61
+  napos egyenlegbe is beszámít. A havi hitel (Beállítások) változatlan.
 
 CHANGES v367:
 - ÚJ — Pénzügyi kimutatás / cashflow: ÁFA befizetés (NAV) kiadási tétel minden hónap 20-án az előző
@@ -1109,7 +1117,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v367</title>
+<title>Zalner ERP v368</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1302,7 +1310,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v367</div>
+    <div class="nav-logo-sub">v368</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10668,7 +10676,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v367 · Belső rendszer
+          Zalner ERP v368 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -16757,6 +16765,9 @@ async function renderPenzugyiKimutatas() {
       }
     }
 
+    // 5b2. v368: fix havi szállítók várható (még meg nem érkezett) számlái
+    tetelek.push(...pkFixHaviTetelek(maStr, vegDatum));
+
     // 5c. v367: ÁFA befizetés (NAV) — havi bevalló, minden hónap 20-án az ELŐZŐ hónap áfája
     for (const n of napok) {
       if (n.split('-')[2] !== '20') continue;
@@ -16821,6 +16832,7 @@ async function renderPenzugyiKimutatas() {
         if (nap > vegDatum61) continue;
         be61 += Math.abs(hufOssz);
       }
+      ki61 += pkFixHaviTetelek(maStr, vegDatum61).reduce((s, t) => s + Math.abs(t.osszeg), 0);   // v368
       for (const n of napok61) {
         if (n.split('-')[2] === '20') ki61 += pkAfaBefizetes(n).osszeg;   // v367: ÁFA
         if (n.split('-')[2] === '10') {
@@ -16930,6 +16942,77 @@ function pkRenderChart(napok, napiBevetel, napiKiadas, egyenlegGorbe) {
 }
 
 // Összeg HUF-ra váltása a számlán mentett árfolyammal (ha van), különben az aktuálissal
+// ── v368: FIX HAVI SZÁLLÍTÓK ─────────────────────────────────────────────────
+// Rendszeresen, havonta számlázó szállítók. A cashflow a legutóbbi havi számlakészletüket
+// (szállító + deviza szerint, a legutolsó számla előtti 25 napban kiállított számlák) havonta
+// előre vetíti — saját összeggel, devizával és fizetési határidővel —, de egy vetített számlát
+// kihagy, ha a szállítótól már érkezett valódi számla ±10 napon belül (az már a bejövő számlák
+// között szerepel). Így egy szállító havi több számlája (pl. Telekom, Inter-Alp HUF + EUR) is kezelve van.
+const FIX_HAVI_SZALLITOK = [
+  { nev: 'MERKANTIL BANK', ado: '10433748' },
+  { nev: 'Toyota Pénzügyi', ado: '12832569' },
+  { nev: 'CIB Lízing', ado: '17781028' },
+  { nev: 'Inter-Alp', ado: '12897654' },
+  { nev: 'Hajbáné Holpert Veronika', ado: '62534008' },
+  { nev: 'Magyar Telekom', ado: '10773381' },
+  { nev: 'License365', ado: '27727777' },
+  { nev: 'ISIS-COM', ado: '13106113' },
+  { nev: 'Airtable', minta: /airtable/i },
+  { nev: 'Anthropic', minta: /anthropic/i },
+];
+
+function pkDatumPlusz(iso, honap = 0, nap = 0) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const utolsoNap = new Date(Date.UTC(y, m - 1 + honap + 1, 0)).getUTCDate();
+  const dt = new Date(Date.UTC(y, m - 1 + honap, Math.min(d, utolsoNap) + nap));
+  return dt.toISOString().slice(0, 10);
+}
+const pkNapKulonbseg = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / 86400000);
+
+function pkFixHaviTetelek(maStr, vegDatum) {
+  const tetelek = [];
+  const median = arr => { const s = [...arr].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+  for (const sz of FIX_HAVI_SZALLITOK) {
+    const szamlak = (bszInvoices || []).filter(i =>
+      i.invoiceIssueDate && i._airtableStatus !== 'Storno' && i.invoiceOperation !== 'STORNO' &&
+      (sz.ado ? String(i.supplierTaxNumber || '').slice(0, 8) === sz.ado : sz.minta.test(i.supplierName || ''))
+    ).sort((a, b) => a.invoiceIssueDate.localeCompare(b.invoiceIssueDate));
+    if (!szamlak.length) continue;
+    const valodiDatumok = szamlak.map(i => i.invoiceIssueDate);
+
+    for (const dev of [...new Set(szamlak.map(i => i.currency || 'HUF'))]) {
+      const devSzamlak = szamlak.filter(i => (i.currency || 'HUF') === dev);
+      const utolso = devSzamlak[devSzamlak.length - 1].invoiceIssueDate;
+      if (pkNapKulonbseg(maStr, utolso) > 70) continue;           // elavult (pl. devizát váltott)
+      const minta = devSzamlak.filter(i => pkNapKulonbseg(utolso, i.invoiceIssueDate) <= 25);
+      const med = median(devSzamlak.slice(-6).map(i => (parseFloat(i.invoiceNetAmount) || 0) + (parseFloat(i.invoiceVatAmount) || 0)));
+
+      for (const m of minta) {
+        let osszeg = (parseFloat(m.invoiceNetAmount) || 0) + (parseFloat(m.invoiceVatAmount) || 0);
+        if (med > 0 && osszeg > 1.8 * med) osszeg = med;           // egyszeri kiugró (pl. lízing önrész)
+        if (!(osszeg > 0)) continue;
+        const fizNap = m.paymentDate ? Math.max(0, pkNapKulonbseg(m.paymentDate, m.invoiceIssueDate)) : 20;
+        for (let k = 1; k <= 4; k++) {
+          const kiall = pkDatumPlusz(m.invoiceIssueDate, k);
+          if (pkNapKulonbseg(maStr, kiall) > 40) continue;
+          if (valodiDatumok.some(d => d !== m.invoiceIssueDate && Math.abs(pkNapKulonbseg(d, kiall)) <= 10 &&
+              szamlak.some(i => i.invoiceIssueDate === d && (i.currency || 'HUF') === dev))) continue;
+          let nap = pkDatumPlusz(kiall, 0, fizNap);
+          if (nap < maStr) nap = maStr;                              // késve érkező számla → ma
+          if (nap > vegDatum) break;
+          tetelek.push({
+            nap, tipus: 'kiadas', osszeg: -Math.abs(pkToHuf(osszeg, dev)),
+            nev: `${sz.nev} (havi fix, várható)`,
+            szamlaszam: `becsült — minta: ${m.invoiceNumber || m.invoiceIssueDate}`,
+            eredetiOsszeg: osszeg, deviza: dev, lejart: false, eredetiHatarido: nap, fix: true,
+          });
+        }
+      }
+    }
+  }
+  return tetelek;
+}
+
 // v367: egy hónap áfa-egyenlege HUF-ban (pozitív = fizetendő, negatív = levonható többlet).
 // Ugyanaz a logika, mint az ÁFA bevallás oldalon: kimenő = TELJESÍTÉS dátuma (híján kiállítás),
 // bejövő = KIÁLLÍTÁS dátuma, vám import-áfa = vámhatározat dátuma; külföldi (pl. RON) áfa nem levonható.

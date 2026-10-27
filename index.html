@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v368
+     ZALNER ERP - VERZIÓ: v369
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v369:
+- Pénzügyi kimutatás / ÁFA befizetés: a levonható többlet (negatív havi egyenleg) mostantól több
+  hónapon át göngyölődik, amíg el nem fogy (eddig csak egy hónapra vitte át). Minden hónap 20-án csak
+  akkor jelenik meg ÁFA befizetés, ha a göngyölt többlet levonása után ténylegesen van utalni való.
 
 CHANGES v368:
 - ÚJ — Pénzügyi kimutatás / cashflow: FIX HAVI SZÁLLÍTÓK várható számlái (Merkantil, Toyota, CIB Lízing,
@@ -1117,7 +1122,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v368</title>
+<title>Zalner ERP v369</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1310,7 +1315,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v368</div>
+    <div class="nav-logo-sub">v369</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10676,7 +10681,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v368 · Belső rendszer
+          Zalner ERP v369 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -17042,9 +17047,13 @@ function pkAfaHonap(prefix) {
 function pkAfaBefizetes(befizNap) {
   const [y, m] = befizNap.split('-').map(Number);
   const pfx = (yy, mm) => { const d = new Date(yy, mm - 1, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-  const idoszak = pfx(y, m - 1), elozo = pfx(y, m - 2);
+  const idoszak = pfx(y, m - 1);
   const a = pkAfaHonap(idoszak);
-  const atvitel = Math.min(0, pkAfaHonap(elozo).egyenleg);
+  // v369: a levonható többlet (negatív egyenleg) hónapról hónapra GÖNGYÖLŐDIK, amíg el nem fogy.
+  // Az előző 12 hónapot végigszámolja: fizetendő hónap után a göngyölt többlet nullázódik
+  // (azt a hónapot befizették), többletes hónap után a többlet nő.
+  let atvitel = 0;
+  for (let k = 13; k >= 2; k--) atvitel = Math.min(0, atvitel + pkAfaHonap(pfx(y, m - k)).egyenleg);
   const osszeg = Math.max(0, Math.round(a.egyenleg + atvitel));
   const honapNevek = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
   const [iy, im] = idoszak.split('-').map(Number);

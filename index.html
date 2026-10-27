@@ -1,12 +1,20 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v366
+     ZALNER ERP - VERZIÓ: v367
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v367:
+- ÚJ — Pénzügyi kimutatás / cashflow: ÁFA befizetés (NAV) kiadási tétel minden hónap 20-án az előző
+  hónap áfájára (havi bevalló). Számítás az ÁFA bevallás oldal logikájával: kimenő áfa (teljesítés
+  dátuma) − levonható bejövő áfa (kiállítás dátuma, külföldi áfa nélkül) − vám import-áfa; az előző
+  hónap levonható többlete átvitelként csökkenti. Ha az időszak még tart, a tétel jelzi, hogy az
+  eddigi számlák alapján számolt. A 31 és 61 napos egyenlegbe is beszámít.
+- A Pénzügyi kimutatás a számlákat a teljes mezőkészlettel tölti (loadAfaData, cache-ből).
 
 CHANGES v366:
 - ÚJ — Kimenő számlák: "🔴 Lejárt" szűrő a Piszkozat mellett — a nyitott (nem fizetett, nem sztornó,
@@ -1101,7 +1109,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v366</title>
+<title>Zalner ERP v367</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1294,7 +1302,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v366</div>
+    <div class="nav-logo-sub">v367</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10660,7 +10668,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v366 · Belső rendszer
+          Zalner ERP v367 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -16660,43 +16668,10 @@ async function renderPenzugyiKimutatas() {
       document.getElementById('pkEgyenlegSub').textContent = egyenlegSub;
     }
 
-    // 3. Számlák betöltése (ha még nincs betöltve)
-    if (!bszInvoices.length) {
-      try {
-        const recs = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
-        bszInvoices = recs.map(r => ({
-          invoiceNumber: r.fields.Szamlaszam || '',
-          supplierName: r.fields.Szallito_nev || '',
-          paymentDate: r.fields.Fizetesi_hatarido || '',
-          invoiceDeliveryDate: r.fields.Teljesites_datum || '',
-          invoiceNetAmount: r.fields.Netto_osszeg || 0,
-          invoiceVatAmount: r.fields.Afa_osszeg || 0,
-          currency: r.fields.Deviza || 'HUF',
-          _airtableStatus: r.fields.Statusz || 'Fizetesre_var',
-        }));
-      } catch(e) { console.warn('Bejövő számlák betöltési hiba:', e); }
-    }
-    let kszData = kszInvoices;
-    if (!kszData.length) {
-      try {
-        const recs = await atGet('Kimeno_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
-        kszData = recs.map(r => ({
-          invoiceNumber: r.fields.Szamlaszam || '',
-          ugyfelNev: r.fields.Ugyfel_nev || '',
-          fizetesiHatarido: r.fields.Fizetesi_hatarido || '',
-          teljesitesDatum: r.fields.Teljesites_datum || '',
-          nettoOssz: parseFloat(r.fields.Netto_osszeg) || 0,
-          bruttoOssz: parseFloat(r.fields.Brutto_osszeg) || 0,
-          currency: r.fields.Deviza || 'HUF',
-          arfolyam: r.fields.Arfolyam || null,
-          statusz: r.fields.Statusz || 'Fizetesre_var',
-          tipus: kszTipusFromRecord(r.fields),
-        }));
-        // v347: NEM írjuk vissza a globális kszInvoices-ba — ez a lecsupaszított objektum
-        // (nincs benne kiallitasDatum, _id, _billingoId stb.) elrontotta volna az ÁFA
-        // bevallást és a Kimenő számlák nézetet, ha a Pénzügyi kimutatás nyílt meg előbb.
-      } catch(e) { console.warn('Kimenő számlák betöltési hiba:', e); }
-    }
+    // 3. Számlák + vámhatározatok betöltése (v367: teljes mezőkészlet — az áfa-tételhez kell a
+    // kiállítás/teljesítés dátuma, az árfolyam és a vám import-áfa is; az atGet 24 órás cache-ből olvas)
+    await loadAfaData(false);
+    const kszData = kszInvoices;
 
     // 4. Időtartomány: ma .. ma+31
     const ma = new Date(); ma.setHours(0,0,0,0);
@@ -16782,6 +16757,19 @@ async function renderPenzugyiKimutatas() {
       }
     }
 
+    // 5c. v367: ÁFA befizetés (NAV) — havi bevalló, minden hónap 20-án az ELŐZŐ hónap áfája
+    for (const n of napok) {
+      if (n.split('-')[2] !== '20') continue;
+      const a = pkAfaBefizetes(n);
+      if (a.osszeg > 0) {
+        tetelek.push({
+          nap: n, tipus: 'kiadas', osszeg: -a.osszeg,
+          nev: `ÁFA befizetés (NAV) — ${a.idoszakNev}`, szamlaszam: a.reszletek,
+          eredetiOsszeg: a.osszeg, deviza: 'HUF', lejart: false, eredetiHatarido: n, fix: true,
+        });
+      }
+    }
+
     // 6. Napi aggregálás + futó egyenleg
     const napiBevetel = {}, napiKiadas = {};
     for (const n of napok) { napiBevetel[n] = 0; napiKiadas[n] = 0; }
@@ -16834,6 +16822,7 @@ async function renderPenzugyiKimutatas() {
         be61 += Math.abs(hufOssz);
       }
       for (const n of napok61) {
+        if (n.split('-')[2] === '20') ki61 += pkAfaBefizetes(n).osszeg;   // v367: ÁFA
         if (n.split('-')[2] === '10') {
           if (bj.ber > 0) ki61 += Math.abs(bj.ber);
           if (bj.jarulek > 0) ki61 += Math.abs(bj.jarulek);
@@ -16941,6 +16930,50 @@ function pkRenderChart(napok, napiBevetel, napiKiadas, egyenlegGorbe) {
 }
 
 // Összeg HUF-ra váltása a számlán mentett árfolyammal (ha van), különben az aktuálissal
+// v367: egy hónap áfa-egyenlege HUF-ban (pozitív = fizetendő, negatív = levonható többlet).
+// Ugyanaz a logika, mint az ÁFA bevallás oldalon: kimenő = TELJESÍTÉS dátuma (híján kiállítás),
+// bejövő = KIÁLLÍTÁS dátuma, vám import-áfa = vámhatározat dátuma; külföldi (pl. RON) áfa nem levonható.
+// Devizás tételek: számlán mentett árfolyam, ennek híján az aktuális EKB árfolyam.
+function pkAfaHonap(prefix) {
+  let kim = 0, bej = 0, vam = 0;
+  for (const inv of (kszInvoices || [])) {
+    if (!(inv.teljesitesDatum || inv.kiallitasDatum || '').startsWith(prefix)) continue;
+    if (inv.statusz === 'Storno' || inv.statusz === 'Piszkozat' || inv.statusz === 'Dijbekero' ||
+        inv.tipus === 'Díjbekérő' || inv.tipus === 'Piszkozat') continue;
+    kim += pkToHufArf((inv.bruttoOssz || 0) - (inv.nettoOssz || 0), inv.currency, inv.arfolyam);
+  }
+  for (const inv of (bszInvoices || [])) {
+    if (!(inv.invoiceIssueDate || '').startsWith(prefix)) continue;
+    if (afaNemLevonhatoDeviza(inv.currency)) continue;
+    bej += pkToHufArf(inv.invoiceVatAmount, inv.currency, inv.arfolyam);
+  }
+  for (const v of (vamRecords || [])) {
+    const d = v.fields?.Vamhatarozat_datum || v.fields?.Datum || '';
+    if (d.startsWith(prefix)) vam += parseFloat(v.fields?.Import_afa) || 0;
+  }
+  return { kim, bej, vam, egyenleg: kim - bej - vam };
+}
+
+// A befizetési nap (YYYY-MM-20) → az előző hónap fizetendő áfája. Ha az azt megelőző hónap
+// levonható többlettel zárt (negatív), az csökkenti (átvitel a következő időszakra).
+function pkAfaBefizetes(befizNap) {
+  const [y, m] = befizNap.split('-').map(Number);
+  const pfx = (yy, mm) => { const d = new Date(yy, mm - 1, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const idoszak = pfx(y, m - 1), elozo = pfx(y, m - 2);
+  const a = pkAfaHonap(idoszak);
+  const atvitel = Math.min(0, pkAfaHonap(elozo).egyenleg);
+  const osszeg = Math.max(0, Math.round(a.egyenleg + atvitel));
+  const honapNevek = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+  const [iy, im] = idoszak.split('-').map(Number);
+  const fmt = n => Math.round(n).toLocaleString('hu-HU');
+  const folyamatban = idoszak >= new Date().toISOString().slice(0, 7);
+  return {
+    osszeg,
+    idoszakNev: `${iy}. ${honapNevek[im - 1]}${folyamatban ? ' (eddigi számlák alapján)' : ''}`,
+    reszletek: `kimenő ${fmt(a.kim)} − bejövő ${fmt(a.bej)}${a.vam ? ` − vám ${fmt(a.vam)}` : ''}${atvitel ? ` − átvitt ${fmt(-atvitel)}` : ''}`,
+  };
+}
+
 function pkToHufArf(amount, currency, arfolyam) {
   const a = parseFloat(amount) || 0;
   if (!currency || currency === 'HUF') return a;

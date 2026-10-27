@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v369
+     ZALNER ERP - VERZIÓ: v370
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v370:
+- JAVÍTVA — Pénzügyi kimutatás "🔄 Frissítés" gomb: eddig a bejövő számlákat a 24 órás (F5-öt is túlélő,
+  sessionStorage) cache-ből olvasta, így az Airtable-ben átállított státuszok (pl. Fizetett) akár egy
+  napig nem látszottak a cashflow-ban. Mostantól a gomb friss adatot tölt (bejövő, kimenő, vám).
 
 CHANGES v369:
 - Pénzügyi kimutatás / ÁFA befizetés: a levonható többlet (negatív havi egyenleg) mostantól több
@@ -1122,7 +1127,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v369</title>
+<title>Zalner ERP v370</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1315,7 +1320,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v369</div>
+    <div class="nav-logo-sub">v370</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -2136,7 +2141,7 @@ select.form-control{cursor:pointer}
       <div><div class="page-title">📈 Pénzügyi kimutatás</div>
       <div class="page-subtitle">Következő 31 nap cashflow előrejelzés · minden összeg HUF-ban</div></div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" onclick="renderPenzugyiKimutatas()" id="pkFrissitBtn">🔄 Frissítés</button>
+        <button class="btn btn-primary" onclick="renderPenzugyiKimutatas(true)" id="pkFrissitBtn">🔄 Frissítés</button>
       </div>
     </div>
     <div class="page-content">
@@ -10681,7 +10686,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v369 · Belső rendszer
+          Zalner ERP v370 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -16652,7 +16657,7 @@ function pkToHuf(amount, currency) {
   return a; // ismeretlen deviza: változatlan
 }
 
-async function renderPenzugyiKimutatas() {
+async function renderPenzugyiKimutatas(friss = false) {
   const btn = document.getElementById('pkFrissitBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Betöltés...'; }
 
@@ -16683,7 +16688,8 @@ async function renderPenzugyiKimutatas() {
 
     // 3. Számlák + vámhatározatok betöltése (v367: teljes mezőkészlet — az áfa-tételhez kell a
     // kiállítás/teljesítés dátuma, az árfolyam és a vám import-áfa is; az atGet 24 órás cache-ből olvas)
-    await loadAfaData(false);
+    // v370: a Frissítés gomb (friss=true) a 24 órás, F5-öt is túlélő cache-t megkerülve tölt
+    await loadAfaData(friss);
     const kszData = kszInvoices;
 
     // 4. Időtartomány: ma .. ma+31

@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v374
+     ZALNER ERP - VERZIÓ: v375
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v375:
+- JAVÍTVA — Bejövő számlák NAV szinkron alapértelmezett tartománya: eddig „hónap 1-je → ma", így a hónap utolsó
+  napjain kiállított (pl. C-2026-909, 09.30.) vagy későn beküldött számlák kimaradtak. Mostantól „ma − 35 nap → ma"
+  (a NAV-lekérdezés maximuma). A már bent lévő számlákat a szinkron nem duplikálja.
 
 CHANGES v374:
 - JAVÍTVA — Ajánlat: deviza váltásakor (kézzel vagy ügyfélválasztás miatt) a tételsorok és az összesítő devizajele is frissül.
@@ -1150,7 +1155,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v374</title>
+<title>Zalner ERP v375</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1343,7 +1348,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v374</div>
+    <div class="nav-logo-sub">v375</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -10808,7 +10813,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v374 · Belső rendszer
+          Zalner ERP v375 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11234,10 +11239,12 @@ async function initBevoSzamlak() {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   if (!document.getElementById('bszDateFrom').value) {
-    document.getElementById('bszDateFrom').value = `${y}-${m}-01`;
+    // v375: ma − 35 nap (NAV max.), hogy a hónapforduló körüli / későn beküldött számlák se maradjanak ki
+    const from = new Date(now); from.setDate(from.getDate() - 35);
+    document.getElementById('bszDateFrom').value = from.toLocaleDateString('sv-SE');
   }
   if (!document.getElementById('bszDateTo').value) {
-    document.getElementById('bszDateTo').value = `${y}-${m}-${d}`;
+    document.getElementById('bszDateTo').value = now.toLocaleDateString('sv-SE');
   }
   // Vámhatározatok betöltése a figyelmeztető sávhoz (a bejövő számla lista betöltésétől
   // függetlenül, nem blokkolja azt)

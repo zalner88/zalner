@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v375
+     ZALNER ERP - VERZIÓ: v376
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v376:
+- ÚJ — Számla-PDF postafiók: az Outlook „EPR számla” mappájába tett levelek PDF-mellékleteit a Power Automate
+  a proxy /api/upload?inbox végpontjára küldi (Airtable: Szamla_Inbox). Claude kiolvassa a számlaszámot; ha a számla
+  már bent van, azonnal csatolódik, különben a következő NAV szinkron után automatikusan (számlaszám + adószám).
+- Bejövő számlák: „📥 PDF postafiók (N)” gomb a még párosítatlan PDF-ekhez — kézi hozzárendelés / elvetés.
 
 CHANGES v375:
 - JAVÍTVA — Bejövő számlák NAV szinkron alapértelmezett tartománya: eddig „hónap 1-je → ma", így a hónap utolsó
@@ -1155,7 +1161,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v375</title>
+<title>Zalner ERP v376</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1348,7 +1354,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v375</div>
+    <div class="nav-logo-sub">v376</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1936,6 +1942,7 @@ select.form-control{cursor:pointer}
         <button class="btn btn-secondary" onclick="showAfaBevallas()">📊 ÁFA bevallás</button>
         <button class="btn btn-secondary" onclick="showWiseSync()">🏦 Wise szinkron</button>
         <button class="btn btn-primary" id="bszWiseUtalasBtn" onclick="openWiseUtalasModal()" style="display:none">💸 Wise utalás (<span id="bszWiseSelDb">0</span>)</button>
+        <button class="btn btn-secondary" id="bszInboxBtn" onclick="openBszInbox()" style="display:none" title="Az Outlook „EPR számla” mappájából érkezett, még párosítatlan PDF-ek">📥 PDF postafiók (<span id="bszInboxDb">0</span>)</button>
         <button class="btn btn-secondary" onclick="showBszManualForm()">+ Új számla</button>
         <button class="btn btn-primary" onclick="syncBevoSzamlak()" id="syncBszBtn">🔄 NAV szinkron</button>
       </div>
@@ -10813,7 +10820,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v375 · Belső rendszer
+          Zalner ERP v376 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11250,6 +11257,7 @@ async function initBevoSzamlak() {
   // függetlenül, nem blokkolja azt)
   renderBszVamFigyelmezetes();
 
+  bszInboxSzamol();
   // Auto-betöltés: utolsó 25 számla az Airtable-ből
   try {
     const records = await atGet('Bejovo_Szamlak', 'sort%5B0%5D%5Bfield%5D=Kiallitas_datum&sort%5B0%5D%5Bdirection%5D=desc');
@@ -11326,13 +11334,16 @@ async function syncBevoSzamlak() {
     bszInvoices = allInvoices;
     // Mentés Airtable-be
     await saveBszToAirtable(allInvoices);
+    // v376: az Outlook „EPR számla” mappából érkezett PDF-ek párosítása az új számlákhoz
+    const inboxRes = await bszInboxMatch();
     // Újratöltés Airtable-ből hogy legyen _airtableId minden rekordhoz
     await reloadBszFromAirtable();
     _dashCache = null;   // dashboard KPI-k újraszámolása a friss számlaadatokból
     // Wise párosítás: elmentett tranzakciók párosítása az új számlákkal
     const wisePaired = await wiseMatchPending();
     const wiseMsg = wisePaired > 0 ? ` (${wisePaired} Wise tranzakció párosítva! 💳)` : '';
-    toast(`${allInvoices.length} számla szinkronizálva!${wiseMsg}`, 'success');
+    const inboxMsg = inboxRes?.paired ? ` 📎 ${inboxRes.paired} PDF csatolva.` : '';
+    toast(`${allInvoices.length} számla szinkronizálva!${wiseMsg}${inboxMsg}`, 'success');
   } catch (e) {
     toast('NAV szinkron hiba: ' + e.message, 'error');
   } finally {
@@ -12122,6 +12133,93 @@ function bszGoToPage(page) {
   renderBevoSzamlak();
   // Scroll az oldal tetejére
   document.getElementById('page-bejovo-szamlak').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── v376: Számla-PDF postafiók (Outlook „EPR számla” mappa → Power Automate → proxy → Szamla_Inbox) ──
+let bszInboxItems = [];
+async function bszInboxMatch() {
+  try {
+    const r = await fetch(`${NAV_PROXY}/api/upload?inbox&action=match`, { method: 'POST', headers: getAuthHeaders(), body: '{}' });
+    const d = await r.json().catch(() => ({}));
+    bszInboxSzamol();
+    return r.ok ? d : null;
+  } catch (e) { console.warn('PDF postafiók párosítás hiba:', e); return null; }
+}
+async function bszInboxSzamol() {
+  try {
+    const r = await fetch(`${atUrl('Szamla_Inbox')}&filterByFormula=${encodeURIComponent('{Statusz}="Varakozik"')}&sort%5B0%5D%5Bfield%5D=Erkezett&sort%5B0%5D%5Bdirection%5D=desc`, { headers: getAuthHeaders() });
+    if (!r.ok) return;
+    const d = await r.json();
+    bszInboxItems = d.records || [];
+    const btn = document.getElementById('bszInboxBtn');
+    if (btn) btn.style.display = bszInboxItems.length ? '' : 'none';
+    const db = document.getElementById('bszInboxDb');
+    if (db) db.textContent = bszInboxItems.length;
+  } catch (e) {}
+}
+function openBszInbox() {
+  const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const tax8 = v => String(v || '').replace(/\D/g, '').slice(0, 8);
+  const sorok = bszInboxItems.map(it => {
+    const f = it.fields;
+    const t = tax8(f.Szallito_adoszam);
+    // Jelöltek: azonos szállító (adószám) elöl, utána a többi, max. 3 dokumentum alatti számlák
+    const jeloltek = bszInvoices.filter(i => i._airtableId && (i._pdfUrls || []).length < 3)
+      .map(i => ({ i, s: (t && tax8(i.supplierTaxNumber) === t ? 2 : 0) }))
+      .sort((a, b) => b.s - a.s || String(b.i.invoiceIssueDate).localeCompare(String(a.i.invoiceIssueDate)))
+      .slice(0, 150);
+    const opts = jeloltek.map(({ i }) => `<option value="${i._airtableId}">${esc(i.invoiceNumber)} — ${esc((i.supplierName || '').slice(0, 30))} (${esc(i.invoiceIssueDate)})</option>`).join('');
+    const pdf = f.PDF?.[0]?.url || f.Blob_url || '';
+    return `<tr data-id="${it.id}">
+      <td style="padding:8px;border-bottom:1px solid var(--border)">${pdf ? `<a href="${esc(pdf)}" target="_blank">📄 ${esc(f.Fajlnev || 'PDF')}</a>` : esc(f.Fajlnev)}<div style="font-size:11px;color:var(--text-muted)">${esc(f.Kuldo || '')} · ${esc((f.Erkezett || '').replace('T', ' ').slice(0, 16))}</div>${f.Megjegyzes ? `<div style="font-size:11px;color:#c0392b">${esc(f.Megjegyzes)}</div>` : ''}</td>
+      <td style="padding:8px;border-bottom:1px solid var(--border)"><b>${esc(f.Szamlaszam || '—')}</b><div style="font-size:11px;color:var(--text-muted)">${esc(f.Szallito_nev || '')} ${esc(f.Szallito_adoszam || '')}</div></td>
+      <td style="padding:8px;border-bottom:1px solid var(--border)"><select class="form-control" style="font-size:12px;min-width:240px"><option value="">— Számla kiválasztása —</option>${opts}</select></td>
+      <td style="padding:8px;border-bottom:1px solid var(--border);white-space:nowrap">
+        <button class="btn btn-primary btn-sm" onclick="bszInboxHozzarendel(this)">📎 Csatol</button>
+        <button class="btn btn-secondary btn-sm" onclick="bszInboxElvet(this)" title="Nem számla / nem kell">✕</button>
+      </td></tr>`;
+  }).join('');
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.id = 'bszInboxModal';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:1000px">
+      <div class="modal-header">
+        <div class="modal-title">📥 PDF postafiók — párosításra váró dokumentumok</div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body" style="max-height:65vh;overflow-y:auto">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Az Outlook „EPR számla” mappájába tett levelek PDF-mellékletei. A NAV szinkron után automatikusan a számlához kerülnek számlaszám alapján — ami itt maradt, azt a NAV még nem adta vissza (pl. külföldi számla), vagy nem sikerült felismerni. Válaszd ki a számlát és csatold.</div>
+        ${sorok ? `<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>
+          <th style="text-align:left;padding:8px;font-size:11px;color:var(--text-muted)">Dokumentum</th>
+          <th style="text-align:left;padding:8px;font-size:11px;color:var(--text-muted)">Felismert számlaszám</th>
+          <th style="text-align:left;padding:8px;font-size:11px;color:var(--text-muted)">Bejövő számla</th><th></th></tr></thead><tbody>${sorok}</tbody></table>`
+        : '<div style="padding:30px;text-align:center;color:var(--text-muted)">Nincs párosításra váró PDF.</div>'}
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" onclick="bszInboxMatch().then(d=>{toast((d?.paired||0)+' PDF csatolva','success');this.closest('.modal-overlay').remove();reloadBszFromAirtable();})">🔄 Újrapárosítás</button></div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+async function bszInboxHozzarendel(btn) {
+  const tr = btn.closest('tr');
+  const bejovoId = tr.querySelector('select').value;
+  if (!bejovoId) { toast('Válaszd ki a számlát!', 'error'); return; }
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const r = await fetch(`${NAV_PROXY}/api/upload?inbox&action=assign`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ inboxId: tr.dataset.id, bejovoId }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || r.status);
+    tr.remove(); toast('PDF csatolva a számlához.', 'success');
+    await bszInboxSzamol(); await reloadBszFromAirtable();
+  } catch (e) { toast('Hiba: ' + e.message, 'error'); btn.disabled = false; btn.textContent = '📎 Csatol'; }
+}
+async function bszInboxElvet(btn) {
+  const tr = btn.closest('tr');
+  try {
+    const r = await fetch(`${NAV_PROXY}/api/upload?inbox&action=discard`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ inboxId: tr.dataset.id }) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+    tr.remove(); bszInboxSzamol();
+  } catch (e) { toast('Hiba: ' + e.message, 'error'); }
 }
 
 async function reloadBszFromAirtable() {

@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v372
+     ZALNER ERP - VERZIÓ: v373
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v373:
+- JAVÍTVA — Ajánlatnál az ügyfél alapértelmezett bankszámlája nem került be, ha a deviza eltért (pl. Ganz: UniCredit HUF,
+  de az új ajánlat EUR-ral indul). Mostantól ügyfélválasztáskor a deviza a számla devizájához igazodik, és a számla bekerül.
+  Ha utána a devizát kézzel átírod, a bankszámla a deviza szerinti Wise-ra vált (ha előtte nem választottál kézzel).
 
 CHANGES v372:
 - ÚJ — UniCredit HUF bankszámla (10918001-00000132-71260000, BACXHUHB) felvéve az ajánlat és a számla listájába.
@@ -1142,7 +1147,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v372</title>
+<title>Zalner ERP v373</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1335,7 +1340,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v372</div>
+    <div class="nav-logo-sub">v373</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -6706,7 +6711,7 @@ function ujAjanlatForm() {
     loadVevoiKontaktok(uid);
     // v372: ügyfélváltáskor az ügyfél alapértelmezett bankszámlája (kézi választást is felülírja)
     delete document.getElementById('fBankszamla').dataset.kezi;
-    ajanlatBankszamlaFrissit();
+    ajanlatUgyfelBankszamla(uid);
   };
   const today = new Date().toISOString().split('T')[0];
   const plus30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -6769,7 +6774,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
     loadVevoiKontaktok(uid);
     // v372: ügyfélváltáskor az ügyfél alapértelmezett bankszámlája (kézi választást is felülírja)
     delete document.getElementById('fBankszamla').dataset.kezi;
-    ajanlatBankszamlaFrissit();
+    ajanlatUgyfelBankszamla(uid);
   };
   sel.value = f.Ugyfel ? f.Ugyfel[0] : '';
   // Szerkesztésnél a kiállítás dátuma mindig a MAI nap, az érvényesség ebből számolódik (+30 nap)
@@ -6856,7 +6861,7 @@ async function masolAjanlat() {
     if (uf) document.getElementById('fFizetesiHataridoNap').value = uf.Fizetesi_hatarido_nap != null ? uf.Fizetesi_hatarido_nap : 30;
     loadVevoiKontaktok(uid);
     delete document.getElementById('fBankszamla').dataset.kezi;
-    ajanlatBankszamlaFrissit();
+    ajanlatUgyfelBankszamla(uid);
   };
 
   // Mai dátum kiállításnak, érvényesség auto
@@ -7323,6 +7328,15 @@ function ajanlatBankszamlaFrissit() {
   const deviza = document.getElementById('fDeviza')?.value || 'EUR';
   const uk = ugyfelAlapBankszamla(document.getElementById('fAjanlatUgyfel')?.value || '');
   sel.value = bankIlliDevizahoz(uk, deviza) ? uk : bankDevizaSzerint(deviza);
+}
+// v373: ügyfélválasztáskor az ügyfél alapértelmezett számlája kerül az ajánlatra, és a deviza
+// a számla devizájához igazodik (pl. UniCredit HUF → HUF). Utána a deviza kézzel átírható.
+function ajanlatUgyfelBankszamla(uid) {
+  const uk = ugyfelAlapBankszamla(uid);
+  const devSel = document.getElementById('fDeviza');
+  const bd = bankKulcsDeviza(uk);
+  if (uk && bd && devSel && devSel.value !== bd) devSel.value = bd;
+  ajanlatBankszamlaFrissit();
 }
 // Számla űrlap: ajánlat bankszámlája → ügyfél alapértelmezése → deviza szerinti Wise
 function kszJavasoltBankszamla() {
@@ -10790,7 +10804,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v372 · Belső rendszer
+          Zalner ERP v373 · Belső rendszer
         </div>
       </div>
     </div>`;

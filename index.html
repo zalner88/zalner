@@ -1,12 +1,23 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v371
+     ZALNER ERP - VERZIÓ: v372
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v372:
+- ÚJ — UniCredit HUF bankszámla (10918001-00000132-71260000, BACXHUHB) felvéve az ajánlat és a számla listájába.
+- ÚJ — Ügyfélnél „Alapértelmezett bankszámla" (Airtable Ugyfelek.Alap_bankszamla). Új ajánlatnál ügyfélválasztáskor
+  ez kerül az ajánlatra (ha a deviza egyezik; különben a deviza szerinti Wise). Az ajánlaton a listából átírható.
+- ÚJ — Számla kiállításakor (projektből) az ajánlaton szereplő bankszámla az alapértelmezett; ha nincs, az ügyfélé,
+  végül a deviza szerinti Wise. A listából kézzel felülírható — kézi választás után devizaváltás nem írja felül.
+  Díjbekérőből / előlegszámlából készült számla az eredeti bizonylat bankszámláját örökli.
+- JAVÍTVA — Számla előnézet mindig Wise-t mutatott; most a kiválasztott bankszámlát.
+- Billingo: ha egy számlánál nincs billingo_id (UniCredit), a Billingo bank-accounts listájából számlaszám alapján
+  keresi ki; ha a Billingóban nincs felvéve, a kiállítás hibát dob (nem megy ki rossz számlaszámmal).
 
 CHANGES v371:
 - JAVÍTVA — Pénzügyi kimutatás: a 31/61 napos idősor UTC dátummal indult, ezért a magyar időzónában
@@ -1131,7 +1142,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v371</title>
+<title>Zalner ERP v372</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1324,7 +1335,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v371</div>
+    <div class="nav-logo-sub">v372</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1624,11 +1635,12 @@ select.form-control{cursor:pointer}
             </div>
             <div class="form-group">
               <label class="form-label">Bankszámla</label>
-              <select class="form-control" id="fBankszamla">
+              <select class="form-control" id="fBankszamla" onchange="this.dataset.kezi='1'">
                 <option value="Wise EUR">Wise EUR</option>
                 <option value="Wise HUF">Wise HUF</option>
                 <option value="K&H HUF">K&H HUF</option>
                 <option value="K&H EUR">K&H EUR</option>
+                <option value="UniCredit HUF">UniCredit HUF</option>
               </select>
             </div>
             <div class="form-group">
@@ -1661,7 +1673,7 @@ select.form-control{cursor:pointer}
             </div>
             <div class="form-group">
               <label class="form-label">Deviza</label>
-              <select class="form-control" id="fDeviza">
+              <select class="form-control" id="fDeviza" onchange="ajanlatBankszamlaFrissit()">
                 <option>HUF</option><option>EUR</option><option>USD</option>
               </select>
             </div>
@@ -2761,6 +2773,16 @@ select.form-control{cursor:pointer}
         <div class="form-group full"><label class="form-label">Telephely cím</label><input class="form-control" id="fTelephely"></div>
         <div class="form-group"><label class="form-label">Fizetési határidő (nap)</label><input class="form-control" type="number" id="fUgyfelFizetesiHataridoNap" min="0" max="365" placeholder="30"></div>
         <div class="form-group"><label class="form-label">Beszállítói azonosító <span style="font-size:11px;color:var(--text-muted);font-weight:400">(megjelenik a számlán)</span></label><input class="form-control" id="fBeszallIazonosito" placeholder="pl. SUP-00123"></div>
+        <div class="form-group full"><label class="form-label">Alapértelmezett bankszámla <span style="font-size:11px;color:var(--text-muted);font-weight:400">(ez kerül az ajánlatra, onnan a számlára — ajánlatnál/számlánál átírható)</span></label>
+          <select class="form-control" id="fUgyfelBankszamla">
+            <option value="">— Nincs (deviza szerinti Wise) —</option>
+            <option value="Wise EUR">Wise EUR — BE75967176577651</option>
+            <option value="Wise HUF">Wise HUF — 12600016-19453321-90012824</option>
+            <option value="K&H HUF">K&amp;H HUF — 10404900-50527088-82811003</option>
+            <option value="K&H EUR">K&amp;H EUR — 10404900-50527088-82811010</option>
+            <option value="UniCredit HUF">UniCredit HUF — 10918001-00000132-71260000</option>
+          </select>
+        </div>
         <div class="form-group full"><label class="form-label">Megjegyzés</label><textarea class="form-control" id="fMegjegyzes" rows="3"></textarea></div>
         <div class="form-group full">
           <label class="form-label">Egyedi számla e-mail sablon <span style="font-size:11px;color:var(--text-muted);font-weight:400">(opcionális — ha üres, a standard sablon érvényes)</span></label>
@@ -3274,11 +3296,12 @@ select.form-control{cursor:pointer}
         </div>
         <div class="form-group">
           <label class="form-label">Bankszámla <span style="font-size:11px;color:var(--text-muted)">a számlára kerül</span></label>
-          <select class="form-control" id="fKszBankszamla">
+          <select class="form-control" id="fKszBankszamla" onchange="this.dataset.kezi='1'">
             <option value="Wise EUR">Wise EUR — BE75967176577651</option>
             <option value="Wise HUF">Wise HUF — 12600016-19453321-90012824</option>
             <option value="K&H HUF">K&amp;H HUF — 10404900-50527088-82811003</option>
             <option value="K&H EUR">K&amp;H EUR — 10404900-50527088-82811010</option>
+            <option value="UniCredit HUF">UniCredit HUF — 10918001-00000132-71260000</option>
           </select>
         </div>
         <div class="form-group">
@@ -5817,6 +5840,7 @@ async function openUgyfelModal(id = null) {
     document.getElementById('fTelephely').value = f.Telephely_cim || '';
     document.getElementById('fUgyfelFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
     document.getElementById('fBeszallIazonosito').value = f.Beszallitoi_azonosito || '';
+    document.getElementById('fUgyfelBankszamla').value = CEGADATOK.bankszamlak[f.Alap_bankszamla] ? f.Alap_bankszamla : '';
     document.getElementById('fMegjegyzes').value = f.Megjegyzes || '';
     document.getElementById('fSzamlaEmailSablon').value = f.Szamla_email_sablon || '';
     document.getElementById('fSzamlaEmailTargySablon').value = f.Szamla_email_targy_sablon || '';
@@ -5825,6 +5849,7 @@ async function openUgyfelModal(id = null) {
     document.getElementById('fStatusz').value = 'Aktiv';
     document.getElementById('fUgyfelFizetesiHataridoNap').value = 30;
     document.getElementById('fBeszallIazonosito').value = '';
+    document.getElementById('fUgyfelBankszamla').value = '';
   }
   document.getElementById('ugyfelModal').classList.add('open');
 }
@@ -5851,7 +5876,8 @@ async function saveUgyfel() {
     Megjegyzes: document.getElementById('fMegjegyzes').value.trim(),
     Szamla_email_sablon: document.getElementById('fSzamlaEmailSablon').value.trim() || null,
     Szamla_email_targy_sablon: document.getElementById('fSzamlaEmailTargySablon').value.trim() || null,
-    Beszallitoi_azonosito: document.getElementById('fBeszallIazonosito').value.trim() || null
+    Beszallitoi_azonosito: document.getElementById('fBeszallIazonosito').value.trim() || null,
+    Alap_bankszamla: document.getElementById('fUgyfelBankszamla').value || null
   };
   try {
     if (editingUgyfelId) { await atPatch('Ugyfelek', editingUgyfelId, fields); toast('Ügyfél frissítve!', 'success'); }
@@ -6678,6 +6704,9 @@ function ujAjanlatForm() {
       document.getElementById('fFizetesiHataridoNap').value = uf.Fizetesi_hatarido_nap != null ? uf.Fizetesi_hatarido_nap : 30;
     }
     loadVevoiKontaktok(uid);
+    // v372: ügyfélváltáskor az ügyfél alapértelmezett bankszámlája (kézi választást is felülírja)
+    delete document.getElementById('fBankszamla').dataset.kezi;
+    ajanlatBankszamlaFrissit();
   };
   const today = new Date().toISOString().split('T')[0];
   const plus30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -6696,6 +6725,7 @@ function ujAjanlatForm() {
   const vissszaBtn = document.getElementById('vissszaProjektBtn');
   if (vissszaBtn) vissszaBtn.style.display = 'none';
   document.getElementById('fBankszamla').value = 'Wise EUR';
+  delete document.getElementById('fBankszamla').dataset.kezi;
   document.getElementById('fKapcsolattarto').value = getCurrentUserAirtableName() || 'Jarfas Kitti';
   loadVevoiKontaktok('');
   document.getElementById('fTargy').value = '';
@@ -6737,6 +6767,9 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
       document.getElementById('fFizetesiHataridoNap').value = uf.Fizetesi_hatarido_nap != null ? uf.Fizetesi_hatarido_nap : 30;
     }
     loadVevoiKontaktok(uid);
+    // v372: ügyfélváltáskor az ügyfél alapértelmezett bankszámlája (kézi választást is felülírja)
+    delete document.getElementById('fBankszamla').dataset.kezi;
+    ajanlatBankszamlaFrissit();
   };
   sel.value = f.Ugyfel ? f.Ugyfel[0] : '';
   // Szerkesztésnél a kiállítás dátuma mindig a MAI nap, az érvényesség ebből számolódik (+30 nap)
@@ -6754,6 +6787,7 @@ async function editCurrentAjanlatById(id, fromProjektId = null) {
   document.getElementById('fFizetesFeltetelSelector').value = predefined.includes(savedFeltetel) ? savedFeltetel : '';
   document.getElementById('fNyelv').value = f.Nyelv || 'Magyar';
   document.getElementById('fBankszamla').value = f.Bankszamla || 'Wise EUR';
+  document.getElementById('fBankszamla').dataset.kezi = '1';
   document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
   document.getElementById('fTargy').value = f.Targy || '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
@@ -6821,6 +6855,8 @@ async function masolAjanlat() {
     const uf = ugyfelek.find(u => u.id === uid)?.fields;
     if (uf) document.getElementById('fFizetesiHataridoNap').value = uf.Fizetesi_hatarido_nap != null ? uf.Fizetesi_hatarido_nap : 30;
     loadVevoiKontaktok(uid);
+    delete document.getElementById('fBankszamla').dataset.kezi;
+    ajanlatBankszamlaFrissit();
   };
 
   // Mai dátum kiállításnak, érvényesség auto
@@ -6839,6 +6875,7 @@ async function masolAjanlat() {
   document.getElementById('fFizetesiHataridoNap').value = f.Fizetesi_hatarido_nap != null ? f.Fizetesi_hatarido_nap : 30;
   document.getElementById('fNyelv').value = f.Nyelv || 'Magyar';
   document.getElementById('fBankszamla').value = f.Bankszamla || 'Wise EUR';
+  document.getElementById('fBankszamla').dataset.kezi = '1';
   document.getElementById('fKapcsolattarto').value = f.Kapcsolattarto || getCurrentUserAirtableName() || '';
   document.getElementById('fTargy').value = f.Targy || '';
   document.getElementById('fAjanlatMegjegyzes').value = '';
@@ -7041,13 +7078,13 @@ async function saveAjanlat() {
   try {
     let ajanlatId;
     if (editingAjanlatId) {
-      await atPatch('Ajanlatok', editingAjanlatId, ajanlatFields);
+      await atPatch('Ajanlatok', editingAjanlatId, ajanlatFields, true);
       ajanlatId = editingAjanlatId;
       // meglévő tételek törlése
       const regiTetelek = await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId);
       for (const t of regiTetelek) await atDelete('AjanlatTetelek', t.id);
     } else {
-      const result = await atPost('Ajanlatok', ajanlatFields);
+      const result = await atPost('Ajanlatok', ajanlatFields, true);
       ajanlatId = result.id;
     }
     // tételek mentése (sorrend megőrzése Sorszam mezővel)
@@ -7258,9 +7295,72 @@ const CEGADATOK = {
     'Wise EUR': { bank: 'Wise Europe SA', iban: 'BE75967176577651', swift: 'TRWIBEB1XXX', billingo_id: 114114 },
     'Wise HUF': { bank: 'Wise Europe SA', iban: 'HU57126000161945332190012824', swift: 'TRWIBEB1XXX', billingo_id: 114113 },
     'K&H HUF': { bank: 'K&H Bank', iban: 'HU69 1040 4900 5052 7088 8281 1003', swift: '', billingo_id: 194389 },
-    'K&H EUR': { bank: 'K&H Bank', iban: 'HU74 1040 4900 5052 7088 8281 1010', swift: '', billingo_id: 185574 }
+    'K&H EUR': { bank: 'K&H Bank', iban: 'HU74 1040 4900 5052 7088 8281 1010', swift: '', billingo_id: 185574 },
+    'UniCredit HUF': { bank: 'UniCredit Bank Hungary Zrt.', iban: 'HU84 1091 8001 0000 0132 7126 0000', szamlaszam: '10918001-00000132-71260000', swift: 'BACXHUHB', billingo_id: null }
   }
 };
+
+// ── v372: saját bankszámla választás (ügyfél alapértelmezés → ajánlat → számla) ──
+function bankKulcsDeviza(kulcs) {
+  const k = String(kulcs || '');
+  return k.endsWith('HUF') ? 'HUF' : (k.endsWith('EUR') ? 'EUR' : null);
+}
+function bankDevizaSzerint(deviza) { return deviza === 'HUF' ? 'Wise HUF' : 'Wise EUR'; }
+// A kulcs illik-e a devizához (HUF/EUR-nál egyeznie kell; más devizánál bármelyik jó)
+function bankIlliDevizahoz(kulcs, deviza) {
+  if (!kulcs || !CEGADATOK.bankszamlak[kulcs]) return false;
+  if (deviza !== 'HUF' && deviza !== 'EUR') return true;
+  return bankKulcsDeviza(kulcs) === deviza;
+}
+function ugyfelAlapBankszamla(uid) {
+  const k = ugyfelek.find(u => u.id === uid)?.fields?.Alap_bankszamla || '';
+  return CEGADATOK.bankszamlak[k] ? k : '';
+}
+// Ajánlat űrlap: javasolt bankszámla (ügyfél alapértelmezése, ha a devizához illik)
+function ajanlatBankszamlaFrissit() {
+  const sel = document.getElementById('fBankszamla');
+  if (!sel || sel.dataset.kezi === '1') return;
+  const deviza = document.getElementById('fDeviza')?.value || 'EUR';
+  const uk = ugyfelAlapBankszamla(document.getElementById('fAjanlatUgyfel')?.value || '');
+  sel.value = bankIlliDevizahoz(uk, deviza) ? uk : bankDevizaSzerint(deviza);
+}
+// Számla űrlap: ajánlat bankszámlája → ügyfél alapértelmezése → deviza szerinti Wise
+function kszJavasoltBankszamla() {
+  const deviza = document.getElementById('fKszDeviza')?.value || 'HUF';
+  const pid = document.getElementById('fKszProjekt')?.value || '';
+  const p = pid ? projektek.find(x => x.id === pid) : null;
+  const aj = p?.fields?.Ajanlat?.length ? ajanlatok.find(a => a.id === p.fields.Ajanlat[0]) : null;
+  const ak = aj?.fields?.Bankszamla || '';
+  if (bankIlliDevizahoz(ak, deviza)) return ak;
+  const uk = ugyfelAlapBankszamla(document.getElementById('fKszUgyfel')?.value || '');
+  if (bankIlliDevizahoz(uk, deviza)) return uk;
+  return bankDevizaSzerint(deviza);
+}
+function kszBankszamlaFrissit() {
+  const sel = document.getElementById('fKszBankszamla');
+  if (!sel || sel.dataset.kezi === '1') return;
+  sel.value = kszJavasoltBankszamla();
+}
+// Billingo bank_account_id: ha nincs beégetve, a Billingo listájából számlaszám alapján
+async function billingoBankAccountId(kulcs, apiKey) {
+  const b = CEGADATOK.bankszamlak[kulcs];
+  if (!b) return null;
+  if (b.billingo_id) return b.billingo_id;
+  const digits = x => String(x || '').replace(/[^0-9]/g, '');
+  const cel = digits(b.szamlaszam) || digits(b.iban).slice(-24);
+  let lista = [];
+  try {
+    const r = await billingoApiDirect('GET', 'bank-accounts?per_page=100', null, apiKey);
+    lista = r?.data || (Array.isArray(r) ? r : []);
+  } catch (e) { throw new Error(`Billingo bankszámla lista nem érhető el (${e.message}).`); }
+  const talalt = lista.find(a => {
+    const d1 = digits(a.account_number), d2 = digits(a.account_number_iban);
+    return (d1 && (d1.endsWith(cel) || cel.endsWith(d1) && d1.length >= 16)) || (d2 && d2.endsWith(cel));
+  });
+  if (!talalt) throw new Error(`A(z) „${kulcs}" bankszámla (${b.szamlaszam || b.iban}) nincs felvéve a Billingóban. Vedd fel a Billingo → Beállítások → Bankszámlák alatt, vagy válassz másik számlát.`);
+  b.billingo_id = talalt.id;
+  return talalt.id;
+}
 
 const TRANSLATIONS = {
   Magyar: {
@@ -10690,7 +10790,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v371 · Belső rendszer
+          Zalner ERP v372 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -14448,7 +14548,7 @@ async function onKszDevizaChange(val) {
   if (wrap) wrap.style.display = (val !== 'HUF') ? '' : 'none';
   // Deviza alapján a megfelelő (Wise) bankszámla automatikus kiválasztása
   const bankSel = document.getElementById('fKszBankszamla');
-  if (bankSel) bankSel.value = (val === 'HUF') ? 'Wise HUF' : 'Wise EUR';
+  if (bankSel) kszBankszamlaFrissit(); // v372: ajánlat → ügyfél → deviza szerinti Wise (kézi választást nem írja felül)
   if (val !== 'HUF') {
     const inp = document.getElementById('fKszArfolyam');
     if (inp) inp.placeholder = '⏳ Betöltés...';
@@ -14929,6 +15029,7 @@ function kszSzamlaFromDijbekero(airtableId) {
     onKszDevizaChange(_devDijb);
     // Ha a díjbekérőn volt rögzített árfolyam, azt használjuk (különben az EKB-t tölti be a fenti hívás)
     if (inv.arfolyam) { const _af = document.getElementById('fKszArfolyam'); if (_af) _af.value = inv.arfolyam; }
+    if (inv.bankszamla && CEGADATOK.bankszamlak[inv.bankszamla]) { const _bs = document.getElementById('fKszBankszamla'); _bs.value = inv.bankszamla; _bs.dataset.kezi = '1'; }
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszMegjegyzes').value = inv.megjegyzes ? `Díjbekérő alapján: ${inv.invoiceNumber}` : `Díjbekérő alapján: ${inv.invoiceNumber}`;
     if (inv.sajatKapcsolattarto) {
@@ -14956,6 +15057,7 @@ function kszVegszamlaFromElolег(airtableId) {
     document.getElementById('fKszDeviza').value = _devElo;
     onKszDevizaChange(_devElo);
     if (inv.arfolyam) { const _af = document.getElementById('fKszArfolyam'); if (_af) _af.value = inv.arfolyam; }
+    if (inv.bankszamla && CEGADATOK.bankszamlak[inv.bankszamla]) { const _bs = document.getElementById('fKszBankszamla'); _bs.value = inv.bankszamla; _bs.dataset.kezi = '1'; }
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszMegjegyzes').value = `Előlegszámla alapján: ${inv.invoiceNumber}`;
     if (inv.sajatKapcsolattarto) {
@@ -15055,6 +15157,7 @@ function openKszModal(id = null) {
     document.getElementById('fKszHatarido').value = inv.fizetesiHatarido || dueStr;
     document.getElementById('fKszDeviza').value = inv.currency || 'HUF';
     document.getElementById('fKszBankszamla').value = inv.bankszamla || (((inv.currency || 'HUF') === 'HUF') ? 'Wise HUF' : 'Wise EUR');
+    document.getElementById('fKszBankszamla').dataset.kezi = '1';
     document.getElementById('fKszMegjegyzes').value = inv.megjegyzes || '';
     document.getElementById('fKszPoSzam').value = inv.poSzam || '';
     document.getElementById('fKszSajatKapcsolattarto').value = inv.sajatKapcsolattarto || getCurrentUserAirtableName() || 'Jarfas Kitti';
@@ -15076,6 +15179,7 @@ function openKszModal(id = null) {
     document.getElementById('fKszHatarido').value = dueStr;
     document.getElementById('fKszDeviza').value = 'HUF';
     document.getElementById('fKszBankszamla').value = 'Wise HUF';
+    delete document.getElementById('fKszBankszamla').dataset.kezi;
   document.getElementById('fKszArfolyam').value = '';
   if (document.getElementById('kszArfolyamWrap')) document.getElementById('kszArfolyamWrap').style.display = 'none';
     document.getElementById('fKszMegjegyzes').value = '';
@@ -15228,7 +15332,7 @@ function previewKimenoSzamla() {
   const bruttoOssz = nettoOssz + afaOssz;
   const fmt = n => n.toLocaleString('hu-HU', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + deviza;
 
-  const bankAdat = CEGADATOK.bankszamlak[deviza === 'EUR' ? 'Wise EUR' : 'Wise HUF'] || CEGADATOK.bankszamlak['Wise HUF'];
+  const bankAdat = CEGADATOK.bankszamlak[document.getElementById('fKszBankszamla')?.value] || CEGADATOK.bankszamlak[deviza === 'EUR' ? 'Wise EUR' : 'Wise HUF'];
 
   document.getElementById('kszPreviewContent').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #1e3a5f">
@@ -15298,6 +15402,7 @@ function previewKimenoSzamla() {
       <div style="color:#6b7280;line-height:1.8">
         Bank: ${bankAdat.bank}<br>
         IBAN: <span style="font-family:'DM Mono',monospace">${bankAdat.iban}</span><br>
+        ${bankAdat.szamlaszam ? `Számlaszám: <span style="font-family:'DM Mono',monospace">${bankAdat.szamlaszam}</span><br>` : ''}
         SWIFT: <span style="font-family:'DM Mono',monospace">${bankAdat.swift}</span>
       </div>
     </div>` : ''}
@@ -15414,6 +15519,7 @@ function onKszUgyfelChange() {
     document.getElementById('fKszHatarido').value = due.toISOString().split('T')[0];
   }
   loadKszVevoiKontaktok(uid, null);
+  kszBankszamlaFrissit();
 
   // Számla nyelvének automatikus javaslata az ügyfél országa alapján
   // (magyar ügyfél → magyar, külföldi → angol). Kézzel felülírható.
@@ -15446,6 +15552,7 @@ async function onKszProjektChange() {
       document.getElementById('fKszDeviza').value = ajanlatRec.fields.Deviza;
       onKszDevizaChange(ajanlatRec.fields.Deviza);
     }
+    kszBankszamlaFrissit();
     // Vevői kapcsolattartó az ajánlatból
     if (ajanlatRec.fields?.Vevoi_kapcsolattarto && p.fields.Ugyfel?.length) {
       loadKszVevoiKontaktok(p.fields.Ugyfel[0], ajanlatRec.fields.Vevoi_kapcsolattarto);
@@ -15691,7 +15798,7 @@ async function saveKimenoSzamla() {
 
       const arfolyamVal = parseFloat(document.getElementById('fKszArfolyam')?.value) || null;
       const valasztottBankKulcs = document.getElementById('fKszBankszamla')?.value || '';
-      const bankAccountId = CEGADATOK.bankszamlak[valasztottBankKulcs]?.billingo_id || null;
+      const bankAccountId = await billingoBankAccountId(valasztottBankKulcs, apiKey);
       const szamlaAdat = {
         partner_id: billingoPartnerId,
         block_id: 0,

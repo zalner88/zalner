@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v376
+     ZALNER ERP - VERZIÓ: v377
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v377:
+- Bejövő számlák: „🔄 Airtable frissítés” gomb — törli a Bejovo_Szamlak (24h) és Beszallitok cache-t, és újratölti
+  a listát + PDF postafiókot az Airtable-ből. Így az ERP-n kívülről (Claude, Power Automate, kézi Airtable) felvett
+  számlák azonnal láthatók; az F5 ehhez nem elég, mert a cache sessionStorage-ben túléli az újratöltést.
 
 CHANGES v376:
 - ÚJ — Számla-PDF postafiók: az Outlook „EPR számla” mappájába tett levelek PDF-mellékleteit a Power Automate
@@ -1161,7 +1166,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v376</title>
+<title>Zalner ERP v377</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1354,7 +1359,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v376</div>
+    <div class="nav-logo-sub">v377</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1944,6 +1949,7 @@ select.form-control{cursor:pointer}
         <button class="btn btn-primary" id="bszWiseUtalasBtn" onclick="openWiseUtalasModal()" style="display:none">💸 Wise utalás (<span id="bszWiseSelDb">0</span>)</button>
         <button class="btn btn-secondary" id="bszInboxBtn" onclick="openBszInbox()" style="display:none" title="Az Outlook „EPR számla” mappájából érkezett, még párosítatlan PDF-ek">📥 PDF postafiók (<span id="bszInboxDb">0</span>)</button>
         <button class="btn btn-secondary" onclick="showBszManualForm()">+ Új számla</button>
+        <button class="btn btn-secondary" onclick="bszAirtableFrissites()" id="bszAtRefreshBtn" title="Cache ürítése és a lista újratöltése az Airtable-ből (pl. ERP-n kívül felvett számlákhoz)">🔄 Airtable frissítés</button>
         <button class="btn btn-primary" onclick="syncBevoSzamlak()" id="syncBszBtn">🔄 NAV szinkron</button>
       </div>
     </div>
@@ -10820,7 +10826,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v376 · Belső rendszer
+          Zalner ERP v377 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -11237,6 +11243,25 @@ async function bszOpenVamRecord(id) {
   showPage('vamkezeles');
   try { await loadVamkezeles(); } catch(e) {}
   editVam(id);
+}
+
+// v377: kézi frissítés — a 24h cache megkerülése (ERP-n kívül felvett számlák / szállítók azonnal látszódjanak)
+async function bszAirtableFrissites() {
+  const btn = document.getElementById('bszAtRefreshBtn');
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Frissítés...'; }
+  try {
+    cacheInvalidate('Bejovo_Szamlak');
+    cacheInvalidate('Beszallitok');
+    cacheInvalidate('Vamkezeles');
+    await initBevoSzamlak();
+    toast('Bejövő számlák frissítve az Airtable-ből', 'success');
+  } catch (e) {
+    console.warn('Airtable frissítés hiba:', e);
+    toast('Frissítés sikertelen: ' + (e.message || e), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
 }
 
 async function initBevoSzamlak() {

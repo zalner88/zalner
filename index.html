@@ -1,12 +1,21 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v378
+     ZALNER ERP - VERZIÓ: v379
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v379:
+- ÚJ — Ajánlattételek „Rendelt” jelölése (Airtable: AjanlatTetelek.Nem_rendelt checkbox, fordított logika → minden
+  meglévő és új tétel alapból RENDELT). Részleges rendelésnél a nem rendelt tételeket NEM kell törölni: elég kivenni
+  a pipát (ajánlat-szerkesztőben, vagy az ajánlat részletoldalán azonnali mentéssel). A tétel áthúzva az ajánlaton marad
+  az eredeti árával, így később visszakereshető, mennyiért ajánlottuk.
+- A Visszaigazolás, a Szállítólevél és a projektből indított számla (ajánlat-tételes ág) CSAK a rendelt tételeket veszi át.
+- Az ajánlat összege és PDF-je az eredeti, teljes tartalom marad; ha van nem rendelt tétel, az összesítő külön sorban
+  mutatja a „megrendelt nettó” értéket. Ajánlat másolásakor minden tétel újra „rendelt” lesz.
 
 CHANGES v378:
 - Bejövő számlák rendezés: ha nincs teljesítési dátum (pl. kézzel felvett külföldi számla / díjbekérő), a
@@ -1170,7 +1179,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v378</title>
+<title>Zalner ERP v379</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1276,6 +1285,10 @@ select.form-control{cursor:pointer}
 .col-ar{width:110px}
 .col-osszeg{width:120px}
 .col-del{width:36px}
+.col-rendelt{width:44px;text-align:center}
+.tetelek-table td.col-rendelt input[type=checkbox]{width:17px;height:17px;padding:0;cursor:pointer;accent-color:var(--accent)}
+.tetelek-table tr.tetel-nem-rendelt td:not(.col-rendelt):not(.col-del){opacity:.45}
+.tetelek-table tr.tetel-nem-rendelt textarea[name=megnevezes]{text-decoration:line-through}
 
 /* ÖSSZESÍTŐ */
 .ossz-table{width:340px;margin-left:auto;margin-top:16px;border-collapse:collapse;font-size:13.5px}
@@ -1363,7 +1376,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v378</div>
+    <div class="nav-logo-sub">v379</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -1748,6 +1761,7 @@ select.form-control{cursor:pointer}
           <table class="tetelek-table" id="tetelekTable">
             <thead>
               <tr>
+                <th class="col-rendelt" title="A vevő megrendelte ezt a tételt? Ha nem, vedd ki a pipát — a tétel az ajánlaton megmarad, de a visszaigazolás / szállítólevél / számla nem veszi át.">Rendelt</th>
                 <th class="col-megnevezes">Megnevezés *</th>
                 <th class="col-leiras">Leírás</th>
                 <th class="col-menny">Mennyiség</th>
@@ -1769,6 +1783,7 @@ select.form-control{cursor:pointer}
           <tr><td class="ossz-label">Nettó összesen:</td><td class="ossz-val" id="osszNetto">0</td></tr>
           <tr><td class="ossz-label" id="osszAfaLabel">ÁFA (27%):</td><td class="ossz-val" id="osszAfa">0</td></tr>
           <tr class="ossz-total"><td class="ossz-label">Bruttó összesen:</td><td class="ossz-val" id="osszBrutto">0</td></tr>
+          <tr id="osszRendeltRow" style="display:none"><td class="ossz-label" id="osszRendeltLabel" style="color:#b45309">Ebből megrendelt nettó:</td><td class="ossz-val" id="osszRendelt" style="color:#b45309">0</td></tr>
         </table>
       </div>
 
@@ -6165,6 +6180,7 @@ async function showAjanlatReszlet(id) {
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead style="background:#fafbfd">
             <tr>
+              <th style="padding:9px 8px 9px 14px;text-align:center;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:11px;width:56px" title="Megrendelte a vevő? A pipa kivétele azonnal mentődik.">Rendelt</th>
               <th style="padding:9px 14px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:11px">Megnevezés</th>
               <th style="padding:9px 14px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:11px">Leírás</th>
               <th style="padding:9px 14px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:11px">Menny.</th>
@@ -6176,8 +6192,10 @@ async function showAjanlatReszlet(id) {
           <tbody>
             ${tetelek.map(t => {
               const tf = t.fields;
-              return `<tr>
-                <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500">${tf.Megnevezes || '—'}</td>
+              const _nr = !!tf.Nem_rendelt;
+              return `<tr style="${_nr ? 'opacity:.5' : ''}">
+                <td style="padding:10px 8px 10px 14px;border-bottom:1px solid var(--border);text-align:center"><input type="checkbox" ${_nr ? '' : 'checked'} style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)" onchange="ajanlatTetelRendeltMentes('${t.id}','${id}',this)" title="${_nr ? 'Nem rendelte meg' : 'Megrendelte'} — kattintásra azonnal mentődik"></td>
+                <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;${_nr ? 'text-decoration:line-through' : ''}">${tf.Megnevezes || '—'}${_nr ? ' <span style="text-decoration:none;display:inline-block;margin-left:6px;padding:1px 7px;background:#fef3c7;color:#92400e;border-radius:9px;font-size:11px;font-weight:600">nem rendelt</span>' : ''}</td>
                 <td style="padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-muted)">${tf.Leiras || '—'}</td>
                 <td style="padding:10px 14px;border-bottom:1px solid var(--border);text-align:right">${tf.Mennyiseg || '—'}</td>
                 <td style="padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text-muted)">${tf.Egyseg || '—'}</td>
@@ -6192,6 +6210,7 @@ async function showAjanlatReszlet(id) {
             <tr><td style="padding:6px 14px;color:var(--text-muted)">Nettó összesen:</td><td style="padding:6px 14px;text-align:right;font-family:'DM Mono',monospace;font-weight:500">${f.Netto_osszeg ? Number(f.Netto_osszeg).toLocaleString('hu-HU') : '—'} ${f.Deviza || 'HUF'}</td></tr>
             <tr><td style="padding:6px 14px;color:var(--text-muted)">ÁFA (${f.Afa || '—'}):</td><td style="padding:6px 14px;text-align:right;font-family:'DM Mono',monospace">${f.Afa_osszeg ? Number(f.Afa_osszeg).toLocaleString('hu-HU') : '—'} ${f.Deviza || 'HUF'}</td></tr>
             <tr style="border-top:2px solid var(--border)"><td style="padding:8px 14px;font-weight:600">Bruttó összesen:</td><td style="padding:8px 14px;text-align:right;font-family:'DM Mono',monospace;font-weight:600;font-size:15px">${f.Brutto_osszeg ? Number(f.Brutto_osszeg).toLocaleString('hu-HU') : '—'} ${f.Deviza || 'HUF'}</td></tr>
+            ${(() => { const nr = tetelek.filter(t => t.fields.Nem_rendelt); if (!nr.length) return ''; const rn = tetelek.filter(t => !t.fields.Nem_rendelt).reduce((s2, t) => s2 + (parseFloat(t.fields.Tetel_osszeg) || 0), 0); return `<tr><td style="padding:6px 14px;color:#b45309">Ebből megrendelt nettó (${nr.length} tétel nem rendelt):</td><td style="padding:6px 14px;text-align:right;font-family:'DM Mono',monospace;color:#b45309;font-weight:600">${(Math.round(rn * 100) / 100).toLocaleString('hu-HU')} ${f.Deviza || 'HUF'}</td></tr>`; })()}
           </table>
         </div>
       </div>`;
@@ -6232,6 +6251,22 @@ async function showAjanlatReszlet(id) {
 `;
   showPage('ajanlat-reszlet');
   lockShowActiveEditors('Ajanlatok', currentAjanlat.id, 'ajanlatLockBadge');
+}
+
+// v379: tétel rendelt / nem rendelt jelölése közvetlenül az ajánlat részletoldalán (azonnali mentés)
+async function ajanlatTetelRendeltMentes(tetelId, ajanlatId, cb) {
+  const rendelt = cb.checked;
+  cb.disabled = true;
+  try {
+    await atPatch('AjanlatTetelek', tetelId, { Nem_rendelt: !rendelt });
+    cacheInvalidate('AjanlatTetelek');
+    toast(rendelt ? 'Tétel: megrendelve' : 'Tétel: nem rendelt — a visszaigazolás / szállítólevél / számla nem veszi át', 'success');
+    await showAjanlatReszlet(ajanlatId);
+  } catch (e) {
+    cb.checked = !rendelt;
+    cb.disabled = false;
+    toast('Mentési hiba: ' + e.message, 'error');
+  }
 }
 
 async function ujAjanlatNaplo(ajanlatId) {
@@ -6924,7 +6959,7 @@ async function masolAjanlat() {
   tetelCounter = 0;
   try {
     const tetelek = sortTetelek(await atGetLinked('AjanlatTetelek', 'Ajanlat', forrasId));
-    tetelek.forEach(t => addTetel(t.fields, null)); // null = nem létező tétel, új lesz
+    tetelek.forEach(t => addTetel({ ...t.fields, Nem_rendelt: false }, null)); // null = nem létező tétel, új lesz; másolatban minden tétel újra „rendelt”
   } catch(e) { console.error('Tételek másolási hiba:', e); }
   if (document.getElementById('tetelekBody').children.length === 0) addTetel();
   recalcAll();
@@ -6939,7 +6974,10 @@ function addTetel(data = null, atId = null) {
   const tr = document.createElement('tr');
   tr.dataset.tid = id;
   if (atId) tr.dataset.atId = atId;
+  const _rendelt = !data?.Nem_rendelt;
+  if (!_rendelt) tr.classList.add('tetel-nem-rendelt');
   tr.innerHTML = `
+    <td class="col-rendelt"><input type="checkbox" name="rendelt" ${_rendelt ? 'checked' : ''} onchange="tetelRendeltValtas(${id})" title="Megrendelte a vevő? (pipa kivétele = nem rendelte meg)"></td>
     <td class="col-megnevezes"><textarea name="megnevezes" rows="2" placeholder="Megnevezés..." oninput="calcTetel(${id})">${data?.Megnevezes||''}</textarea></td>
     <td class="col-leiras"><textarea name="leiras" rows="2" placeholder="Leírás...">${data?.Leiras||''}</textarea></td>
     <td class="col-menny"><input type="number" name="mennyiseg" placeholder="1" value="${data?.Mennyiseg!==undefined&&data?.Mennyiseg!==null?data.Mennyiseg:1}" min="0" step="1" oninput="calcTetel(${id})"></td>
@@ -6964,6 +7002,15 @@ function addTetel(data = null, atId = null) {
   const sel = tr.querySelector('select[name="egyseg"]');
   if (sel && (!data || !data.Egyseg)) sel.value = 'db';
   calcTetel(id);
+}
+
+// v379: rendelt / nem rendelt jelölés (alapból minden tétel rendelt)
+function tetelRendeltValtas(id) {
+  const tr = document.querySelector(`tr[data-tid="${id}"]`);
+  if (!tr) return;
+  const rendelt = tr.querySelector('input[name="rendelt"]')?.checked !== false;
+  tr.classList.toggle('tetel-nem-rendelt', !rendelt);
+  recalcAll();
 }
 
 function removeTetel(id) {
@@ -6992,12 +7039,25 @@ function calcTetel(id) {
 }
 
 function recalcAll() {
-  let netto = 0;
+  let netto = 0, rendeltNetto = 0, nemRendeltDb = 0;
   document.querySelectorAll('#tetelekBody tr').forEach(tr => {
     const menny = parseFloat(tr.querySelector('input[name="mennyiseg"]')?.value) || 0;
     const ar = parseFloat(tr.querySelector('input[name="egyseg_ar"]')?.value) || 0;
     netto += menny * ar;
+    if (tr.querySelector('input[name="rendelt"]')?.checked === false) nemRendeltDb++;
+    else rendeltNetto += menny * ar;
   });
+  {
+    const row = document.getElementById('osszRendeltRow');
+    if (row) {
+      row.style.display = nemRendeltDb ? '' : 'none';
+      const dv = document.getElementById('fDeviza')?.value || 'EUR';
+      const el = document.getElementById('osszRendelt');
+      if (el) el.textContent = (Math.round(rendeltNetto * 100) / 100).toLocaleString('hu-HU') + ' ' + dv;
+      const lb = document.getElementById('osszRendeltLabel');
+      if (lb) lb.textContent = `Ebből megrendelt nettó (${nemRendeltDb} tétel nem rendelt):`;
+    }
+  }
   netto = Math.round(netto * 100) / 100;
   const afa = document.getElementById('fAfa').value;
   let afaSzorzo = 0;
@@ -7051,10 +7111,12 @@ async function saveAjanlat() {
       Mennyiseg: menny,
       Egyseg: tr.querySelector('select[name="egyseg"]')?.value || 'db',
       Egyseg_ar: ar,
-      Tetel_osszeg: menny * ar
+      Tetel_osszeg: menny * ar,
+      Nem_rendelt: tr.querySelector('input[name="rendelt"]')?.checked === false
     });
   });
   if (!valid) { toast('Minden tétel megnevezése kötelező!', 'error'); return; }
+  if (tetelekData.every(t => t.Nem_rendelt) && !confirm('Egyik tétel sincs „Rendelt”-nek jelölve. Biztosan így mented?')) return;
   if (!tetelekData.length) { toast('Legalább egy tétel szükséges!', 'error'); return; }
 
   const netto = tetelekData.reduce((s, t) => s + t.Tetel_osszeg, 0);
@@ -7127,6 +7189,7 @@ async function saveAjanlat() {
         Egyseg: t.Egyseg,
         Egyseg_ar: t.Egyseg_ar,
         Sorszam: i + 1,
+        Nem_rendelt: !!t.Nem_rendelt,
         Ajanlat: [ajanlatId]
       });
     }
@@ -8277,7 +8340,8 @@ async function getProjektAjanlatTetelekMerged(p) {
   const listak = await Promise.all(
     ajIds.map(ajId => atGetLinked('AjanlatTetelek', 'Ajanlat', ajId).then(sortTetelek).catch(() => []))
   );
-  return listak.flat();
+  // v379: a vevő által NEM rendelt tételek nem kerülnek a visszaigazolásra / szállítólevélre
+  return listak.flat().filter(t => !t.fields?.Nem_rendelt);
 }
 
 function openVrvModal(id = null, preselectedProjektId = null, slot = 1) {
@@ -10830,7 +10894,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v378 · Belső rendszer
+          Zalner ERP v379 · Belső rendszer
         </div>
       </div>
     </div>`;
@@ -15759,7 +15823,7 @@ async function onKszProjektChange() {
 
   // Nincs szállítólevél (vagy nincs tétele): ajánlat tételek
   if (p.fields.Ajanlat?.length) {
-    atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek);
+    atGetLinked('AjanlatTetelek', 'Ajanlat', p.fields.Ajanlat[0]).then(async rawTetelek => { const tetelek = sortTetelek(rawTetelek).filter(t => !t.fields?.Nem_rendelt); // v379: csak a rendelt tételek
       if (tetelek.length) {
         const afa = ajanlatRec?.fields?.Afa || '27%';
         loadKszTetelek(tetelek.map(t => ({

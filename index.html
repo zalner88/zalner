@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     ZALNER ERP - VERZIÓ: v379
+     ZALNER ERP - VERZIÓ: v380
      Ha módosítod a fájlt, emeld a verziószámot:
        1. Ebben a kommentben (VERZIÓ: vXXX)
        2. A <title> tagben (Zalner ERP vXXX)
        3. A nav-logo-sub divben (~197. sor)
        4. A login képernyőn (Zalner ERP vXXX · Belső rendszer)
        5. A fájl nevében: index_vXXX.html
+
+CHANGES v380:
+- Projektek lista „Nettó” oszlop: csak a vevő által MEGRENDELT tételek nettóját mutatja (új Airtable mező:
+  Ajanlatok.Rendelt_netto, amit az ERP ajánlat mentésekor és a részletoldali „Rendelt” pipa váltásakor ír).
+  Üres mező = minden tétel rendelt → a teljes nettó. Részleges rendelésnél ◐ jel és tooltip jelzi.
 
 CHANGES v379:
 - ÚJ — Ajánlattételek „Rendelt” jelölése (Airtable: AjanlatTetelek.Nem_rendelt checkbox, fordított logika → minden
@@ -1179,7 +1184,7 @@ CHANGES v162:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zalner ERP v379</title>
+<title>Zalner ERP v380</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f59e0b'/%3E%3Ctext x='16' y='23' font-family='Arial Black,Arial' font-weight='900' font-size='22' text-anchor='middle' fill='white'%3EZ%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1376,7 +1381,7 @@ select.form-control{cursor:pointer}
 <nav class="nav">
   <div class="nav-logo">
     <div class="nav-logo-name">Zalner ERP</div>
-    <div class="nav-logo-sub">v379</div>
+    <div class="nav-logo-sub">v380</div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;">
   <div class="nav-section">Főmenü</div>
@@ -6260,6 +6265,16 @@ async function ajanlatTetelRendeltMentes(tetelId, ajanlatId, cb) {
   try {
     await atPatch('AjanlatTetelek', tetelId, { Nem_rendelt: !rendelt });
     cacheInvalidate('AjanlatTetelek');
+    // v380: az ajánlat megrendelt nettójának frissítése (Projektek lista „Nettó” oszlop)
+    try {
+      const osszes = await atGetLinked('AjanlatTetelek', 'Ajanlat', ajanlatId);
+      const rn = Math.round(osszes.filter(t => !t.fields.Nem_rendelt)
+        .reduce((s2, t) => s2 + (parseFloat(t.fields.Tetel_osszeg) || ((parseFloat(t.fields.Mennyiseg) || 0) * (parseFloat(t.fields.Egyseg_ar) || 0))), 0) * 100) / 100;
+      await atPatch('Ajanlatok', ajanlatId, { Rendelt_netto: rn });
+      cacheInvalidate('ajanlatok');
+      const loc = ajanlatok.find(a => a.id === ajanlatId);
+      if (loc) loc.fields.Rendelt_netto = rn;
+    } catch (e2) { console.warn('Rendelt_netto frissítési hiba:', e2); }
     toast(rendelt ? 'Tétel: megrendelve' : 'Tétel: nem rendelt — a visszaigazolás / szállítólevél / számla nem veszi át', 'success');
     await showAjanlatReszlet(ajanlatId);
   } catch (e) {
@@ -7150,6 +7165,8 @@ async function saveAjanlat() {
     Ervenyesseg_datum: document.getElementById('fErvenyesseg').value,
     Szallitasi_hatarido: (() => { const v = document.getElementById('fSzallitasiHatarido').value; return v ? v + ' hét' : null; })(),
     Netto_osszeg: Math.round(netto * 100) / 100,
+    // v380: a vevő által ténylegesen megrendelt tételek nettója (Projektek lista „Nettó” oszlopa ezt mutatja)
+    Rendelt_netto: Math.round(tetelekData.filter(t => !t.Nem_rendelt).reduce((s, t) => s + t.Tetel_osszeg, 0) * 100) / 100,
     Afa: afa,
     Afa_osszeg: afaOssz,
     Brutto_osszeg: brutto,
@@ -9542,17 +9559,22 @@ function renderProjektek() {
       const ids = f.Ajanlat || [];
       if (!ids.length) return '—';
       const perDeviza = {};
-      let db = 0;
+      let db = 0, reszleges = false;
       ids.forEach(aid => {
         const af = ajanlatok.find(a => a.id === aid)?.fields;
         if (!af) return;
         const dev = af.Deviza || 'HUF';
-        perDeviza[dev] = (perDeviza[dev] || 0) + (parseFloat(af.Netto_osszeg) || 0);
+        // v380: csak a megrendelt tételek nettója; üres Rendelt_netto = minden tétel rendelt → teljes nettó
+        const ertek = (af.Rendelt_netto !== undefined && af.Rendelt_netto !== null && af.Rendelt_netto !== '')
+          ? (parseFloat(af.Rendelt_netto) || 0) : (parseFloat(af.Netto_osszeg) || 0);
+        if (ertek < (parseFloat(af.Netto_osszeg) || 0) - 0.005) reszleges = true;
+        perDeviza[dev] = (perDeviza[dev] || 0) + ertek;
         db++;
       });
       const kulcsok = Object.keys(perDeviza);
       if (!kulcsok.length) return '—';
-      const szoveg = kulcsok.map(d => Math.round(perDeviza[d]).toLocaleString('hu-HU') + ' ' + d).join(' + ');
+      let szoveg = kulcsok.map(d => Math.round(perDeviza[d]).toLocaleString('hu-HU') + ' ' + d).join(' + ');
+      if (reszleges) szoveg = `<span title="Részleges rendelés — csak a megrendelt tételek nettója (az ajánlat teljes értéke nagyobb)">${szoveg} <span style="font-size:10px;color:#b45309">◐</span></span>`;
       // Több ajánlat esetén jelezzük, hogy összeg
       return db > 1 ? `${szoveg} <span style="font-size:10px;color:var(--text-light)" title="${db} ajánlat összege">Σ${db}</span>` : szoveg;
     })();
@@ -10894,7 +10916,7 @@ function showLoginScreen() {
         </div>
 
         <div style="text-align:center;margin-top:20px;font-size:12px;color:#9ca3af;">
-          Zalner ERP v379 · Belső rendszer
+          Zalner ERP v380 · Belső rendszer
         </div>
       </div>
     </div>`;
